@@ -1,0 +1,11 @@
+{
+  "name": "trekking-management-application",
+  "version": "1.0.0",
+  "description": "Trail Sync Trekking Management Application",
+  "scripts": {
+    "start": "bash run.sh"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

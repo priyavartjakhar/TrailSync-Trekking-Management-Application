@@ -1,0 +1,1039 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SummitPath – Trekking Management Application</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --forest: #1a2e1a;
+    --forest-mid: #2d4a2d;
+    --forest-light: #3d6b3d;
+    --gold: #c8922a;
+    --gold-light: #e8b84b;
+    --cream: #f5f0e8;
+    --stone: #8c8070;
+    --snow: #fdfaf5;
+    --bark: #4a3728;
+    --mist: #a8c5a0;
+    --shadow: rgba(26,46,26,0.15);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--snow);
+    color: var(--forest);
+    overflow-x: hidden;
+  }
+
+  /* ─── NAVBAR ─── */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 1.25rem 5vw;
+    background: rgba(26,46,26,0.92);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(200,146,42,0.2);
+    transition: padding 0.3s;
+  }
+  nav.scrolled { padding: 0.85rem 5vw; }
+
+  .nav-logo {
+    display: flex; align-items: center; gap: 10px; text-decoration: none;
+  }
+  .nav-logo-icon {
+    width: 36px; height: 36px;
+    background: var(--gold);
+    clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+    flex-shrink: 0;
+  }
+  .nav-logo-text {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.3rem; font-weight: 700;
+    color: var(--cream);
+    letter-spacing: 0.02em;
+  }
+  .nav-logo-text span { color: var(--gold-light); }
+
+  .nav-links {
+    display: flex; align-items: center; gap: 2rem;
+    list-style: none;
+  }
+  .nav-links a {
+    color: rgba(245,240,232,0.8);
+    text-decoration: none;
+    font-size: 0.9rem; font-weight: 500;
+    letter-spacing: 0.04em;
+    transition: color 0.2s;
+  }
+  .nav-links a:hover { color: var(--gold-light); }
+
+  .nav-actions { display: flex; align-items: center; gap: 0.75rem; }
+
+  .btn-ghost {
+    padding: 0.5rem 1.25rem;
+    border: 1px solid rgba(200,146,42,0.5);
+    border-radius: 2px;
+    background: transparent;
+    color: var(--gold-light);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.85rem; font-weight: 500;
+    letter-spacing: 0.06em;
+    cursor: pointer; text-decoration: none;
+    transition: all 0.2s;
+  }
+  .btn-ghost:hover {
+    background: rgba(200,146,42,0.15);
+    border-color: var(--gold-light);
+  }
+
+  .btn-primary {
+    padding: 0.55rem 1.4rem;
+    background: var(--gold);
+    border: none; border-radius: 2px;
+    color: var(--forest);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.85rem; font-weight: 600;
+    letter-spacing: 0.05em;
+    cursor: pointer; text-decoration: none;
+    transition: all 0.2s;
+  }
+  .btn-primary:hover { background: var(--gold-light); transform: translateY(-1px); }
+
+  /* ─── HERO ─── */
+  .hero {
+    height: 100vh; min-height: 680px;
+    position: relative;
+    display: flex; align-items: center;
+    overflow: hidden;
+  }
+
+  .hero-bg {
+    position: absolute; inset: 0;
+    background:
+      linear-gradient(165deg, rgba(26,46,26,0.88) 0%, rgba(26,46,26,0.55) 60%, rgba(26,46,26,0.75) 100%),
+      url('https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=1800&q=80') center/cover no-repeat;
+  }
+
+  .hero-mountains {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    height: 220px;
+  }
+
+  .hero-content {
+    position: relative; z-index: 2;
+    padding: 0 5vw;
+    max-width: 760px;
+    animation: fadeUp 0.9s ease both;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .hero-eyebrow {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--gold-light);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin-bottom: 1.25rem;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .hero-eyebrow::before {
+    content: '';
+    display: block;
+    width: 40px; height: 1px;
+    background: var(--gold);
+  }
+
+  .hero-title {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(3rem, 6.5vw, 5.5rem);
+    font-weight: 900;
+    line-height: 1.05;
+    color: var(--cream);
+    margin-bottom: 1.5rem;
+  }
+  .hero-title em {
+    font-style: italic;
+    color: var(--gold-light);
+    display: block;
+  }
+
+  .hero-desc {
+    font-size: 1.1rem;
+    color: rgba(245,240,232,0.75);
+    line-height: 1.7;
+    max-width: 520px;
+    margin-bottom: 2.5rem;
+    font-weight: 300;
+  }
+
+  .hero-cta {
+    display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+  }
+
+  .btn-large {
+    padding: 0.9rem 2.2rem;
+    font-size: 0.95rem;
+    letter-spacing: 0.08em;
+    font-weight: 600;
+  }
+
+  .hero-scroll {
+    position: absolute; bottom: 2.5rem; left: 50%; transform: translateX(-50%);
+    z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 8px;
+  }
+  .hero-scroll span {
+    font-size: 0.65rem; letter-spacing: 0.2em; color: rgba(245,240,232,0.5);
+    text-transform: uppercase; font-family: 'Space Mono', monospace;
+  }
+  .scroll-line {
+    width: 1px; height: 48px;
+    background: linear-gradient(to bottom, var(--gold), transparent);
+    animation: scrollPulse 2s ease infinite;
+  }
+  @keyframes scrollPulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+  }
+
+  /* ─── STATS BAR ─── */
+  .stats-bar {
+    background: var(--forest);
+    padding: 2rem 5vw;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 0;
+  }
+  .stat-item {
+    text-align: center;
+    padding: 1rem;
+    border-right: 1px solid rgba(200,146,42,0.15);
+  }
+  .stat-item:last-child { border-right: none; }
+  .stat-num {
+    font-family: 'Playfair Display', serif;
+    font-size: 2.4rem; font-weight: 700;
+    color: var(--gold-light);
+    line-height: 1;
+    margin-bottom: 0.4rem;
+  }
+  .stat-label {
+    font-size: 0.78rem; letter-spacing: 0.12em;
+    color: var(--mist);
+    text-transform: uppercase;
+    font-family: 'Space Mono', monospace;
+  }
+
+  /* ─── SECTION COMMONS ─── */
+  section { padding: 6rem 5vw; }
+  .section-tag {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem; letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 0.75rem;
+  }
+  .section-title {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(2rem, 4vw, 3rem);
+    font-weight: 700;
+    line-height: 1.15;
+    margin-bottom: 1.25rem;
+    color: var(--forest);
+  }
+  .section-lead {
+    font-size: 1.05rem;
+    color: var(--stone);
+    line-height: 1.75;
+    max-width: 560px;
+  }
+
+  /* ─── FEATURES / HOW IT WORKS ─── */
+  .features { background: var(--snow); }
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 2rem;
+    margin-top: 3.5rem;
+  }
+  .feature-card {
+    padding: 2rem;
+    border: 1px solid rgba(26,46,26,0.1);
+    border-radius: 4px;
+    background: white;
+    transition: all 0.3s;
+    position: relative;
+    overflow: hidden;
+  }
+  .feature-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0;
+    width: 3px; height: 0;
+    background: var(--gold);
+    transition: height 0.3s;
+  }
+  .feature-card:hover { transform: translateY(-4px); box-shadow: 0 12px 40px var(--shadow); }
+  .feature-card:hover::before { height: 100%; }
+
+  .feature-icon {
+    width: 52px; height: 52px;
+    background: var(--cream);
+    border-radius: 2px;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 1.25rem;
+  }
+  .feature-icon svg { width: 24px; height: 24px; stroke: var(--forest-light); fill: none; stroke-width: 1.8; }
+  .feature-title {
+    font-size: 1.1rem; font-weight: 600;
+    color: var(--forest);
+    margin-bottom: 0.6rem;
+  }
+  .feature-desc { font-size: 0.9rem; color: var(--stone); line-height: 1.65; }
+
+  /* ─── FEATURED TREKS ─── */
+  .treks { background: var(--cream); }
+  .treks-header {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    margin-bottom: 3rem; flex-wrap: wrap; gap: 1rem;
+  }
+  .treks-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+  }
+  .trek-card {
+    background: white;
+    border-radius: 4px;
+    overflow: hidden;
+    transition: all 0.3s;
+    border: 1px solid rgba(26,46,26,0.08);
+  }
+  .trek-card:hover { transform: translateY(-6px); box-shadow: 0 20px 50px rgba(26,46,26,0.15); }
+
+  .trek-img {
+    height: 200px; position: relative; overflow: hidden;
+  }
+  .trek-img img {
+    width: 100%; height: 100%; object-fit: cover;
+    transition: transform 0.5s;
+  }
+  .trek-card:hover .trek-img img { transform: scale(1.06); }
+
+  .trek-badge {
+    position: absolute; top: 12px; left: 12px;
+    padding: 4px 10px;
+    font-size: 0.68rem; font-weight: 600;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    border-radius: 2px;
+    font-family: 'Space Mono', monospace;
+  }
+  .badge-easy { background: #d4edda; color: #1a5928; }
+  .badge-moderate { background: #fff3cd; color: #7a5200; }
+  .badge-hard { background: #f8d7da; color: #721c24; }
+
+  .trek-status {
+    position: absolute; top: 12px; right: 12px;
+    padding: 4px 10px;
+    font-size: 0.65rem; font-weight: 600;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    border-radius: 2px;
+    background: rgba(26,46,26,0.85);
+    color: var(--mist);
+    font-family: 'Space Mono', monospace;
+  }
+
+  .trek-body { padding: 1.25rem 1.5rem; }
+  .trek-name {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.25rem; font-weight: 700;
+    color: var(--forest); margin-bottom: 0.4rem;
+  }
+  .trek-location {
+    font-size: 0.82rem; color: var(--stone);
+    margin-bottom: 1rem;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .trek-location svg { width: 13px; height: 13px; stroke: var(--stone); fill: none; stroke-width: 2; }
+
+  .trek-meta {
+    display: flex; gap: 1.25rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(26,46,26,0.07);
+  }
+  .trek-meta-item {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 0.8rem; color: var(--stone);
+  }
+  .trek-meta-item svg { width: 14px; height: 14px; stroke: var(--gold); fill: none; stroke-width: 2; }
+
+  /* ─── ROLES SECTION ─── */
+  .roles { background: var(--forest); }
+  .roles .section-title { color: var(--cream); }
+  .roles .section-lead { color: var(--mist); }
+  .roles .section-tag { color: var(--gold-light); }
+
+  .roles-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+    margin-top: 3.5rem;
+  }
+  .role-card {
+    padding: 2rem 2rem 2.5rem;
+    border: 1px solid rgba(200,146,42,0.15);
+    border-radius: 4px;
+    transition: all 0.3s;
+    position: relative;
+    overflow: hidden;
+  }
+  .role-card::after {
+    content: '';
+    position: absolute; bottom: 0; left: 0; right: 0;
+    height: 3px;
+    background: var(--gold);
+    transform: scaleX(0);
+    transition: transform 0.3s;
+  }
+  .role-card:hover { background: rgba(255,255,255,0.04); border-color: rgba(200,146,42,0.35); }
+  .role-card:hover::after { transform: scaleX(1); }
+
+  .role-num {
+    font-family: 'Playfair Display', serif;
+    font-size: 3.5rem; font-weight: 900;
+    color: rgba(200,146,42,0.12);
+    line-height: 1;
+    margin-bottom: 0.75rem;
+  }
+  .role-title {
+    font-size: 1.2rem; font-weight: 600;
+    color: var(--gold-light);
+    margin-bottom: 0.6rem;
+  }
+  .role-desc { font-size: 0.9rem; color: var(--mist); line-height: 1.7; margin-bottom: 1.25rem; }
+  .role-list { list-style: none; }
+  .role-list li {
+    font-size: 0.85rem; color: rgba(168,197,160,0.8);
+    padding: 0.3rem 0;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .role-list li::before {
+    content: '→';
+    color: var(--gold);
+    font-size: 0.75rem;
+  }
+
+  /* ─── TRAIL HIGHLIGHTS ─── */
+  .trail {
+    background: var(--snow);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    padding: 0;
+    min-height: 520px;
+  }
+  .trail-image {
+    position: relative; overflow: hidden;
+    min-height: 400px;
+  }
+  .trail-image img {
+    width: 100%; height: 100%; object-fit: cover;
+  }
+  .trail-content {
+    padding: 5rem 6vw;
+    display: flex; flex-direction: column; justify-content: center;
+    background: var(--forest-mid);
+  }
+  .trail-content .section-title { color: var(--cream); }
+  .trail-content .section-lead { color: var(--mist); margin-bottom: 2rem; }
+  .trail-content .section-tag { color: var(--gold); }
+
+  .steps { margin-top: 2rem; }
+  .step {
+    display: flex; gap: 1.25rem;
+    margin-bottom: 1.75rem;
+    align-items: flex-start;
+  }
+  .step-num {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.75rem; font-weight: 700;
+    color: var(--gold);
+    width: 32px; height: 32px;
+    border: 1px solid rgba(200,146,42,0.4);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; margin-top: 2px;
+  }
+  .step-text { font-size: 0.92rem; color: var(--mist); line-height: 1.65; }
+  .step-text strong { color: var(--cream); font-weight: 600; display: block; margin-bottom: 3px; }
+
+  /* ─── TESTIMONIALS ─── */
+  .testimonials { background: var(--cream); }
+  .testimonials-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-top: 3.5rem;
+  }
+  .testimonial-card {
+    background: white;
+    padding: 2rem;
+    border-radius: 4px;
+    border: 1px solid rgba(26,46,26,0.08);
+    position: relative;
+  }
+  .testimonial-quote {
+    font-family: 'Playfair Display', serif;
+    font-size: 3rem;
+    color: var(--gold-light);
+    line-height: 1;
+    margin-bottom: 0.5rem;
+  }
+  .testimonial-text {
+    font-size: 0.92rem; color: var(--stone); line-height: 1.75;
+    margin-bottom: 1.5rem;
+    font-style: italic;
+  }
+  .testimonial-author { display: flex; align-items: center; gap: 12px; }
+  .author-avatar {
+    width: 42px; height: 42px; border-radius: 50%;
+    background: var(--forest-light);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 0.85rem; color: var(--cream);
+    flex-shrink: 0;
+  }
+  .author-name { font-size: 0.9rem; font-weight: 600; color: var(--forest); }
+  .author-role { font-size: 0.78rem; color: var(--stone); }
+
+  /* ─── CTA BANNER ─── */
+  .cta-banner {
+    background: var(--gold);
+    padding: 5rem 5vw;
+    text-align: center;
+  }
+  .cta-banner h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(1.8rem, 4vw, 3rem);
+    font-weight: 900;
+    color: var(--forest);
+    margin-bottom: 1rem;
+  }
+  .cta-banner p {
+    font-size: 1rem; color: var(--bark);
+    max-width: 480px; margin: 0 auto 2.5rem;
+    line-height: 1.7;
+  }
+  .btn-dark {
+    padding: 0.9rem 2.5rem;
+    background: var(--forest);
+    border: none; border-radius: 2px;
+    color: var(--cream);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.95rem; font-weight: 600;
+    letter-spacing: 0.06em;
+    cursor: pointer; text-decoration: none;
+    display: inline-block;
+    transition: all 0.2s;
+  }
+  .btn-dark:hover { background: var(--forest-mid); transform: translateY(-2px); }
+
+  /* ─── FOOTER ─── */
+  footer {
+    background: #111a11;
+    padding: 4rem 5vw 2rem;
+    color: rgba(168,197,160,0.7);
+  }
+  .footer-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr;
+    gap: 3rem;
+    margin-bottom: 3rem;
+    padding-bottom: 3rem;
+    border-bottom: 1px solid rgba(200,146,42,0.1);
+  }
+  .footer-brand .nav-logo { margin-bottom: 1rem; }
+  .footer-tagline { font-size: 0.87rem; line-height: 1.7; margin-bottom: 1.5rem; }
+  .footer-social { display: flex; gap: 0.75rem; }
+  .social-btn {
+    width: 34px; height: 34px;
+    border: 1px solid rgba(200,146,42,0.25);
+    border-radius: 2px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--mist); text-decoration: none; font-size: 0.75rem;
+    transition: all 0.2s;
+  }
+  .social-btn:hover { border-color: var(--gold); color: var(--gold-light); }
+
+  .footer-col h4 {
+    font-size: 0.75rem; font-weight: 600;
+    letter-spacing: 0.15em; text-transform: uppercase;
+    color: var(--gold-light);
+    font-family: 'Space Mono', monospace;
+    margin-bottom: 1.25rem;
+  }
+  .footer-col ul { list-style: none; }
+  .footer-col ul li { margin-bottom: 0.65rem; }
+  .footer-col ul a {
+    color: rgba(168,197,160,0.65);
+    text-decoration: none; font-size: 0.87rem;
+    transition: color 0.2s;
+  }
+  .footer-col ul a:hover { color: var(--cream); }
+
+  .footer-bottom {
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 0.8rem; color: rgba(168,197,160,0.4);
+    flex-wrap: wrap; gap: 1rem;
+  }
+  .footer-bottom a { color: rgba(168,197,160,0.4); text-decoration: none; }
+  .footer-bottom a:hover { color: var(--mist); }
+
+  /* ─── RESPONSIVE ─── */
+  @media (max-width: 768px) {
+    .nav-links { display: none; }
+    .trail { grid-template-columns: 1fr; }
+    .trail-image { min-height: 280px; }
+    .footer-grid { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 480px) {
+    .footer-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ─── NAVBAR ─── -->
+<nav id="navbar">
+  <a href="#" class="nav-logo">
+    <div class="nav-logo-icon"></div>
+    <div class="nav-logo-text">Summit<span>Path</span></div>
+  </a>
+  <ul class="nav-links">
+    <li><a href="#treks">Explore Treks</a></li>
+    <li><a href="#how-it-works">How It Works</a></li>
+    <li><a href="#roles">For Staff</a></li>
+    <li><a href="#about">About</a></li>
+  </ul>
+  <div class="nav-actions">
+    <a href="/login" class="btn-ghost">Log In</a>
+    <a href="/register" class="btn-primary">Join Free</a>
+  </div>
+</nav>
+
+<!-- ─── HERO ─── -->
+<section class="hero">
+  <div class="hero-bg"></div>
+
+  <!-- SVG mountain silhouette -->
+  <svg class="hero-mountains" viewBox="0 0 1440 220" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M0,200 L120,100 L240,160 L400,60 L520,140 L640,40 L760,120 L880,30 L1000,110 L1120,50 L1240,130 L1360,80 L1440,120 L1440,220 L0,220 Z" fill="rgba(26,46,26,0.6)"/>
+    <path d="M0,200 L80,140 L200,180 L360,90 L480,160 L600,80 L720,150 L840,70 L960,140 L1080,100 L1200,160 L1320,110 L1440,150 L1440,220 L0,220 Z" fill="rgba(15,30,15,0.85)"/>
+    <path d="M0,210 L200,200 L360,195 L600,205 L800,198 L1000,202 L1200,197 L1440,200 L1440,220 L0,220 Z" fill="#0d1a0d"/>
+  </svg>
+
+  <div class="hero-content">
+    <div class="hero-eyebrow">Trekking Management Platform</div>
+    <h1 class="hero-title">
+      Every Summit<br>
+      <em>Starts Here</em>
+    </h1>
+    <p class="hero-desc">
+      Discover, book, and manage trekking adventures across India's most breathtaking trails. Built for trekkers who seek the peaks and the staff who guide them there.
+    </p>
+    <div class="hero-cta">
+      <a href="#treks" class="btn-primary btn-large">Explore Treks</a>
+      <a href="#how-it-works" class="btn-ghost btn-large">How It Works</a>
+    </div>
+  </div>
+
+  <div class="hero-scroll">
+    <div class="scroll-line"></div>
+    <span>scroll</span>
+  </div>
+</section>
+
+<!-- ─── STATS BAR ─── -->
+<div class="stats-bar">
+  <div class="stat-item">
+    <div class="stat-num">120+</div>
+    <div class="stat-label">Trek Routes</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-num">8,400</div>
+    <div class="stat-label">Trekkers Registered</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-num">340</div>
+    <div class="stat-label">Treks Completed</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-num">60+</div>
+    <div class="stat-label">Certified Staff</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-num">18</div>
+    <div class="stat-label">States Covered</div>
+  </div>
+</div>
+
+<!-- ─── FEATURES ─── -->
+<section class="features" id="how-it-works">
+  <div class="section-tag">Platform Features</div>
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:2rem; align-items:end; margin-bottom:0.5rem;">
+    <div>
+      <h2 class="section-title">Everything you need<br>for the perfect trek</h2>
+    </div>
+    <p class="section-lead">From discovering routes to receiving reminders before departure — SummitPath keeps every step organized.</p>
+  </div>
+
+  <div class="features-grid">
+    <div class="feature-card">
+      <div class="feature-icon">
+        <svg viewBox="0 0 24 24"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+      </div>
+      <div class="feature-title">Smart Trek Discovery</div>
+      <div class="feature-desc">Filter by difficulty, duration, location, and slots available. Find the perfect trail that matches your skill and schedule.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">
+        <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+      </div>
+      <div class="feature-title">Instant Booking</div>
+      <div class="feature-desc">Book your slot in seconds. Real-time availability prevents overbooking. Cancellations are hassle-free with full history tracking.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">
+        <svg viewBox="0 0 24 24"><path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+      </div>
+      <div class="feature-title">Trek Reminders</div>
+      <div class="feature-desc">Automated daily reminders about upcoming treks via email or webhook. Never miss a briefing or departure time again.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">
+        <svg viewBox="0 0 24 24"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+      </div>
+      <div class="feature-title">Activity Reports</div>
+      <div class="feature-desc">Export your full trekking history as CSV. Admins receive monthly HTML reports on participation, popular routes, and trends.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">
+        <svg viewBox="0 0 24 24"><path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+      </div>
+      <div class="feature-title">Role-Based Access</div>
+      <div class="feature-desc">Admin, Trek Staff, and Trekkers each get a tailored dashboard — only the information and controls they need.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">
+        <svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+      </div>
+      <div class="feature-title">Verified Staff Only</div>
+      <div class="feature-desc">Only admin-assigned staff can manage their treks. Slot updates, participant lists, and status changes are fully controlled.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── FEATURED TREKS ─── -->
+<section class="treks" id="treks">
+  <div class="treks-header">
+    <div>
+      <div class="section-tag">Open Now</div>
+      <h2 class="section-title">Featured Treks</h2>
+    </div>
+    <a href="/treks" class="btn-ghost" style="border-color:rgba(26,46,26,0.3); color:var(--forest);">View All Treks →</a>
+  </div>
+
+  <div class="treks-grid">
+    <div class="trek-card">
+      <div class="trek-img">
+        <img src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=600&q=80" alt="Kedarkantha Trek">
+        <div class="trek-badge badge-moderate">Moderate</div>
+        <div class="trek-status">● Open</div>
+      </div>
+      <div class="trek-body">
+        <div class="trek-name">Kedarkantha Trek</div>
+        <div class="trek-location">
+          <svg viewBox="0 0 24 24"><path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><circle cx="12" cy="11" r="3"/></svg>
+          Uttarakhand, India
+        </div>
+        <div class="trek-meta">
+          <div class="trek-meta-item">
+            <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+            6 Days
+          </div>
+          <div class="trek-meta-item">
+            <svg viewBox="0 0 24 24"><path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0"/></svg>
+            14 Slots Left
+          </div>
+          <div class="trek-meta-item">
+            <svg viewBox="0 0 24 24"><path d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+            3,800m
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="trek-card">
+      <div class="trek-img">
+        <img src="https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=600&q=80" alt="Valley of Flowers">
+        <div class="trek-badge badge-easy">Easy</div>
+        <div class="trek-status">● Open</div>
+      </div>
+      <div class="trek-body">
+        <div class="trek-name">Valley of Flowers</div>
+        <div class="trek-location">
+          <svg viewBox="0 0 24 24"><path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><circle cx="12" cy="11" r="3"/></svg>
+          Chamoli, Uttarakhand
+        </div>
+        <div class="trek-meta">
+          <div class="trek-meta-item">
+            <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+            4 Days
+          </div>
+          <div class="trek-meta-item">
+            <svg viewBox="0 0 24 24"><path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0"/></svg>
+            22 Slots Left
+          </div>
+          <div class="trek-meta-item">
+            <svg viewBox="0 0 24 24"><path d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+            3,600m
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="trek-card">
+      <div class="trek-img">
+        <img src="https://images.unsplash.com/photo-1585409677983-0f6c41ca9c3b?w=600&q=80" alt="Roopkund Lake Trek">
+        <div class="trek-badge badge-hard">Hard</div>
+        <div class="trek-status">● Open</div>
+      </div>
+      <div class="trek-body">
+        <div class="trek-name">Roopkund Lake</div>
+        <div class="trek-location">
+          <svg viewBox="0 0 24 24"><path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><circle cx="12" cy="11" r="3"/></svg>
+          Chamoli, Uttarakhand
+        </div>
+        <div class="trek-meta">
+          <div class="trek-meta-item">
+            <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+            8 Days
+          </div>
+          <div class="trek-meta-item">
+            <svg viewBox="0 0 24 24"><path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0"/></svg>
+            6 Slots Left
+          </div>
+          <div class="trek-meta-item">
+            <svg viewBox="0 0 24 24"><path d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+            5,029m
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── ROLES ─── -->
+<section class="roles" id="roles">
+  <div class="section-tag">Platform Roles</div>
+  <h2 class="section-title">Built for everyone<br>on the mountain</h2>
+  <p class="section-lead" style="margin-top:0.5rem;">Three distinct roles, one unified platform. Whether you're managing the system, leading a group, or exploring the trails.</p>
+
+  <div class="roles-grid">
+    <div class="role-card">
+      <div class="role-num">01</div>
+      <div class="role-title">Administrator</div>
+      <div class="role-desc">The command center of SummitPath. Full visibility and control over every aspect of trekking operations.</div>
+      <ul class="role-list">
+        <li>Create and manage trek routes</li>
+        <li>Add and assign trek staff</li>
+        <li>Monitor all bookings and users</li>
+        <li>View statistics and monthly reports</li>
+        <li>Blacklist or deactivate accounts</li>
+      </ul>
+    </div>
+    <div class="role-card">
+      <div class="role-num">02</div>
+      <div class="role-title">Trek Staff</div>
+      <div class="role-desc">The backbone of every expedition. Manage your assigned treks and keep your trekkers safe and informed.</div>
+      <ul class="role-list">
+        <li>View assigned treks and participants</li>
+        <li>Update slot availability and status</li>
+        <li>Manage participant lists</li>
+        <li>Mark treks as started or completed</li>
+        <li>Access trekker contact details</li>
+      </ul>
+    </div>
+    <div class="role-card">
+      <div class="role-num">03</div>
+      <div class="role-title">Trekker</div>
+      <div class="role-desc">Your adventure dashboard. Find the right trail, book instantly, and track every journey you've taken.</div>
+      <ul class="role-list">
+        <li>Browse and filter open treks</li>
+        <li>Book and cancel with ease</li>
+        <li>View full trekking history</li>
+        <li>Export history as CSV</li>
+        <li>Receive pre-trek reminders</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ─── HOW TO GET STARTED ─── -->
+<div class="trail" id="about">
+  <div class="trail-image">
+    <img src="https://images.unsplash.com/photo-1551632811-561732d1e306?w=800&q=80" alt="Trekkers on trail">
+  </div>
+  <div class="trail-content">
+    <div class="section-tag">Getting Started</div>
+    <h2 class="section-title">Your first summit<br>is 3 steps away</h2>
+    <p class="section-lead">From account creation to trail confirmation — the process is built to be frictionless.</p>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">01</div>
+        <div class="step-text">
+          <strong>Create your free account</strong>
+          Register as a trekker in under two minutes. No approval required — just your email and a password.
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">02</div>
+        <div class="step-text">
+          <strong>Discover and filter treks</strong>
+          Browse routes by difficulty, duration, and location. Check real-time slot availability before you commit.
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">03</div>
+        <div class="step-text">
+          <strong>Book and gear up</strong>
+          Confirm your booking instantly. You'll get automated reminders as your start date approaches.
+        </div>
+      </div>
+    </div>
+    <a href="/register" class="btn-primary btn-large" style="margin-top:1rem; display:inline-block;">Start Your Trek →</a>
+  </div>
+</div>
+
+<!-- ─── TESTIMONIALS ─── -->
+<section class="testimonials">
+  <div style="text-align:center; margin-bottom:0.5rem;">
+    <div class="section-tag" style="display:inline-block;">Trekker Stories</div>
+    <h2 class="section-title" style="margin-top:0.5rem;">What the community says</h2>
+  </div>
+  <div class="testimonials-grid">
+    <div class="testimonial-card">
+      <div class="testimonial-quote">"</div>
+      <p class="testimonial-text">SummitPath made booking Kedarkantha completely seamless. The slot tracking meant I knew exactly when to grab my spot. The pre-trek reminders were a lifesaver.</p>
+      <div class="testimonial-author">
+        <div class="author-avatar">AR</div>
+        <div>
+          <div class="author-name">Arjun Rawat</div>
+          <div class="author-role">Trekker · 7 treks completed</div>
+        </div>
+      </div>
+    </div>
+    <div class="testimonial-card">
+      <div class="testimonial-quote">"</div>
+      <p class="testimonial-text">As trek staff, the dashboard gives me everything I need — participant lists, slot updates, and status management in one place. No more spreadsheets.</p>
+      <div class="testimonial-author">
+        <div class="author-avatar">PK</div>
+        <div>
+          <div class="author-name">Priya Khatri</div>
+          <div class="author-role">Trek Staff · Uttarakhand region</div>
+        </div>
+      </div>
+    </div>
+    <div class="testimonial-card">
+      <div class="testimonial-quote">"</div>
+      <p class="testimonial-text">The monthly admin reports let me track which routes are most popular and where to assign staff. It's transformed how we plan our season.</p>
+      <div class="testimonial-author">
+        <div class="author-avatar">SM</div>
+        <div>
+          <div class="author-name">Suresh Mehta</div>
+          <div class="author-role">Admin · SummitPath Org</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── CTA ─── -->
+<div class="cta-banner">
+  <h2>Ready to find your peak?</h2>
+  <p>Join thousands of trekkers already planning their next adventure on SummitPath. Registration is free and takes less than 2 minutes.</p>
+  <a href="/register" class="btn-dark">Create Free Account</a>
+</div>
+
+<!-- ─── FOOTER ─── -->
+<footer>
+  <div class="footer-grid">
+    <div class="footer-brand">
+      <a href="#" class="nav-logo">
+        <div class="nav-logo-icon"></div>
+        <div class="nav-logo-text">Summit<span>Path</span></div>
+      </a>
+      <p class="footer-tagline">India's trekking management platform. Connecting adventurers with the trails that call to them.</p>
+      <div class="footer-social">
+        <a href="#" class="social-btn">in</a>
+        <a href="#" class="social-btn">tw</a>
+        <a href="#" class="social-btn">ig</a>
+        <a href="#" class="social-btn">yt</a>
+      </div>
+    </div>
+    <div class="footer-col">
+      <h4>Explore</h4>
+      <ul>
+        <li><a href="#">All Treks</a></li>
+        <li><a href="#">Easy Treks</a></li>
+        <li><a href="#">Moderate Treks</a></li>
+        <li><a href="#">Hard Treks</a></li>
+        <li><a href="#">Trek Calendar</a></li>
+      </ul>
+    </div>
+    <div class="footer-col">
+      <h4>Platform</h4>
+      <ul>
+        <li><a href="#">How It Works</a></li>
+        <li><a href="#">For Trek Staff</a></li>
+        <li><a href="#">For Admins</a></li>
+        <li><a href="#">Booking Policy</a></li>
+        <li><a href="#">Cancellations</a></li>
+      </ul>
+    </div>
+    <div class="footer-col">
+      <h4>Account</h4>
+      <ul>
+        <li><a href="/register">Register</a></li>
+        <li><a href="/login">Log In</a></li>
+        <li><a href="#">My Bookings</a></li>
+        <li><a href="#">Trek History</a></li>
+        <li><a href="#">Export CSV</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>© 2025 SummitPath – Trekking Management Application</span>
+    <div style="display:flex; gap:1.5rem;">
+      <a href="#">Privacy Policy</a>
+      <a href="#">Terms of Use</a>
+      <a href="#">Contact</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  const nav = document.getElementById('navbar');
+  window.addEventListener('scroll', () => {
+    nav.classList.toggle('scrolled', window.scrollY > 60);
+  });
+</script>
+</body>
+</html>

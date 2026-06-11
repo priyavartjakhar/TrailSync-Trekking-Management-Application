@@ -9,9 +9,7 @@ const app = createApp({
     async handleLogout() {
       try {
         const res = await fetch('/api/auth/logout', { method: 'POST' });
-        if (res.ok) {
-          window.location.href = '/';
-        }
+        if (res.ok) window.location.href = '/';
       } catch (e) {
         console.error('Logout error:', e);
         window.location.href = '/';
@@ -20,7 +18,5 @@ const app = createApp({
   }
 });
 
-// Register admin layout globally
 app.component('ts-admin-layout', TsAdminLayout);
-
 app.mount('#app');

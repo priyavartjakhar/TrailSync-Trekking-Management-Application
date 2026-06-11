@@ -20,11 +20,14 @@ class TestStaffDashboard(unittest.TestCase):
         self.ctx = app.app_context()
         self.ctx.push()
         
+        db.session.rollback()
+        db.session.close()
         db.create_all()
         seed_db()
 
     def tearDown(self):
-        db.session.remove()
+        db.session.rollback()
+        db.session.close()
         db.drop_all()
         self.ctx.pop()
 

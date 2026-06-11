@@ -359,11 +359,18 @@ const TsMap = {
     trekDataMap() {
       const map = {};
       this.treksList.forEach(t => {
-        const state = t.location;
-        if (!map[state]) {
-          map[state] = [];
+        let state = t.location || '';
+        if (state.includes(',')) {
+          const parts = state.split(',');
+          state = parts[parts.length - 1].trim();
         }
-        map[state].push(t);
+        state = normalizeName(state);
+        if (state) {
+          if (!map[state]) {
+            map[state] = [];
+          }
+          map[state].push(t);
+        }
       });
       return map;
     }

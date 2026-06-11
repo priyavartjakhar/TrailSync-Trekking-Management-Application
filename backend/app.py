@@ -8,7 +8,7 @@ from datetime import datetime, date, timedelta
 import redis
 import json
 
-from backend.models.models import db, User, Trek, Booking, StaffProfile, BookingChecklistItem, TrekGuideItem
+from backend.models.models import db, User, Trek, Booking, StaffProfile, BookingChecklistItem, TrekGuideItem, SupportTicket
 
 app = Flask(__name__, 
             template_folder=os.path.join(os.path.dirname(__file__), '../frontend'),
@@ -511,6 +511,41 @@ def seed_db():
                 
     db.session.commit()
 
+    # Seed mock support tickets
+    tickets = [
+        SupportTicket(
+            name='Kabir Shah',
+            email='kabir@mail.com',
+            subject='Refund query for cancelled trek',
+            message='Hi, I cancelled my booking for Kedarkantha Trek 3 days ago but I have not received the refund yet. Can you please check?',
+            status='Open'
+        ),
+        SupportTicket(
+            name='Sneha Rao',
+            email='sneha@mail.com',
+            subject='Difficulty query for Hampta Pass',
+            message='Is Hampta Pass trek suitable for beginners with no prior trekking experience? What kind of preparation is required?',
+            status='Open'
+        ),
+        SupportTicket(
+            name='Aryan Mehta',
+            email='aryan@mail.com',
+            subject='Medical certificate upload failure',
+            message='I am trying to upload my medical fitness certificate but it keeps throwing an error: Invalid File Format. The file is a PDF.',
+            status='Open'
+        ),
+        SupportTicket(
+            name='Riya Joshi',
+            email='riya@mail.com',
+            subject='Guide contact info',
+            message='Hello, where can I find the contact details of the guide assigned to my upcoming trek next week?',
+            status='Resolved'
+        )
+    ]
+    for tk in tickets:
+        db.session.add(tk)
+    db.session.commit()
+
 # Ensure tables are created and seeded
 with app.app_context():
     seed_db()
@@ -893,19 +928,19 @@ def admin_dashboard_data():
         return jsonify({'error': 'Unauthorized'}), 403
         
     total_treks = Trek.query.count()
-    active_staff = User.query.filter_by(role='staff', active=True).count()
     registered_users = User.query.filter_by(role='user').count()
     total_bookings = Booking.query.count()
     open_treks = Trek.query.filter_by(status='Open').count()
-    blacklisted_count = User.query.filter_by(blacklisted=True).count()
+    cancelled_bookings_count = Booking.query.filter_by(status='Cancelled').count()
+    staff_count = User.query.filter_by(role='staff').count()
     
     stats = [
-        {'label': 'Total Trekkers', 'value': registered_users, 'icon': 'users'},
-        {'label': 'Total Staff', 'value': User.query.filter_by(role='staff').count(), 'icon': 'staff'},
-        {'label': 'Total Treks', 'value': total_treks, 'icon': 'mountain'},
-        {'label': 'Total Bookings', 'value': total_bookings, 'icon': 'book'},
-        {'label': 'Active Treks', 'value': open_treks, 'icon': 'active'},
-        {'label': 'Blacklisted', 'value': blacklisted_count, 'icon': 'block'}
+        {'label': 'Total Trekkers', 'value': registered_users, 'icon': 'users', 'category': 'people'},
+        {'label': 'Total Staff', 'value': staff_count, 'icon': 'staff', 'category': 'people'},
+        {'label': 'Total Treks', 'value': total_treks, 'icon': 'mountain', 'category': 'treks'},
+        {'label': 'Active Treks', 'value': open_treks, 'icon': 'active', 'category': 'treks'},
+        {'label': 'Total Bookings', 'value': total_bookings, 'icon': 'book', 'category': 'bookings'},
+        {'label': 'Cancelled Bookings', 'value': cancelled_bookings_count, 'icon': 'cancel', 'category': 'bookings'}
     ]
     
     pending_treks_count = Trek.query.filter_by(status='Pending').count()
@@ -1128,6 +1163,7 @@ def admin_dashboard_data():
     pending_approval_count = Trek.query.filter_by(status='Pending').count()
     inactive_staff_count = User.query.filter_by(role='staff', active=False).count()
     unassigned_treks_count = Trek.query.filter(Trek.status.in_(['Open', 'Approved']), Trek.staff_id == None).count()
+    pending_tickets_count = SupportTicket.query.filter_by(status='Open').count()
     
     from datetime import date, timedelta
     today_val = date.today()
@@ -1141,8 +1177,11 @@ def admin_dashboard_data():
         {'label': 'Treks Awaiting Approval', 'count': pending_approval_count, 'type': 'pending_approvals'},
         {'label': 'Staff Accounts Inactive', 'count': inactive_staff_count, 'type': 'inactive_staff'},
         {'label': 'Trek Has No Assigned Staff', 'count': unassigned_treks_count, 'type': 'unassigned_staff'},
-        {'label': 'Treks Starting This Week', 'count': treks_starting_week_count, 'type': 'starting_this_week'}
+        {'label': 'Treks Starting This Week', 'count': treks_starting_week_count, 'type': 'starting_this_week'},
+        {'label': 'Pending Support Tickets', 'count': pending_tickets_count, 'type': 'pending_tickets'}
     ]
+
+    support_tickets = [st.to_json() for st in SupportTicket.query.order_by(SupportTicket.created_at.desc()).all()]
         
     return jsonify({
         'stats': stats,
@@ -1167,7 +1206,8 @@ def admin_dashboard_data():
         'userGrowth': user_growth,
         'revenueData': revenue_data,
         'blacklistedUsers': blacklisted_users,
-        'pendingTreks': pending_treks
+        'pendingTreks': pending_treks,
+        'supportTickets': support_tickets
     })
 
 @app.route('/api/admin/treks', methods=['POST'])
@@ -1443,6 +1483,18 @@ def admin_export():
         json.dump(export_data, f, indent=4)
         
     return jsonify({'success': True, 'message': f'Exported {export_type} database successfully.'})
+
+@app.route('/api/admin/support_tickets/resolve/<int:ticket_id>', methods=['POST'])
+@login_required
+def admin_resolve_support_ticket(ticket_id):
+    if current_user.role != 'admin':
+        return jsonify({'error': 'Unauthorized'}), 403
+    ticket = SupportTicket.query.get(ticket_id)
+    if not ticket:
+        return jsonify({'error': 'Ticket not found'}), 404
+    ticket.status = 'Resolved'
+    db.session.commit()
+    return jsonify({'success': True, 'message': f'Ticket #{ticket_id} resolved.'})
 
 @app.route('/api/admin/treks/assign/<int:trek_id>', methods=['POST'])
 @login_required

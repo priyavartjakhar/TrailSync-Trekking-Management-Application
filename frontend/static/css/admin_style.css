@@ -258,7 +258,7 @@ body { font-family:'DM Sans',sans-serif; background:var(--snow); color:var(--bar
   flex-direction:column;
   gap:.9rem;
   margin-top:.5rem;
-  max-height:270px;
+  max-height:350px;
   overflow-y:auto;
   padding-right:6px;
   scrollbar-width:thin;
@@ -451,39 +451,51 @@ body { font-family:'DM Sans',sans-serif; background:var(--snow); color:var(--bar
 .task-alert-label { font-size:.78rem; color:var(--stone); font-weight:500; }
 .task-resolve-btn { margin-left:auto; }
 
-/* ── Redesigned Stat Cards ───────────────────────────────── */
-.stats-bar-inline { display:grid; grid-template-columns:repeat(6,1fr); gap:1.25rem; margin-bottom:2rem; }
-.stat-item {
-  background:#fff; border:1px solid rgba(26,46,26,.08);
-  border-radius:6px; padding:1.25rem; position:relative; overflow:hidden;
-  transition:all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+/* ── Redesigned Grouped Stat Cards ───────────────────────── */
+.stats-grouped-container {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-bottom: 2rem;
+}
+.stats-group {
+  background: #fff; border: 1px solid rgba(26,46,26,.08); border-radius: 6px; padding: 1.25rem;
   box-shadow: 0 4px 12px rgba(26,46,26,.02);
-  display:flex; flex-direction:column; justify-content:space-between;
 }
-.stat-item:hover {
-  transform:translateY(-4px);
-  box-shadow: 0 12px 24px rgba(26,46,26,.08);
-  border-color:var(--gold-light);
+.stats-group-title {
+  font-family: 'DM Sans', sans-serif; font-size: 0.8rem; font-weight: 700; color: var(--gold);
+  text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.9rem;
+  border-bottom: 1px solid rgba(26,46,26,0.06); padding-bottom: 0.5rem;
 }
-.stat-card-header-row { display:flex; align-items:center; justify-content:space-between; width:100%; }
-.stat-num { font-family:'DM Sans',sans-serif; font-size:2.2rem; font-weight:700; color:var(--forest); line-height:1; }
-.stat-label { font-family:'DM Sans',sans-serif; font-size:.78rem; font-weight:600; text-transform:none; color:var(--stone); margin-top:.5rem; letter-spacing:0.01em; }
+.stats-group-cards {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;
+}
+.stat-item-grouped {
+  display: flex; flex-direction: column; justify-content: space-between;
+  background: var(--snow); padding: 1rem; border-radius: 4px; border: 1px solid rgba(26,46,26,.04);
+  transition: all 0.25s ease;
+}
+.stat-item-grouped:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px rgba(26,46,26,0.05);
+  border-color: rgba(200,146,42,0.3);
+}
+.stat-card-header-row { display: flex; align-items: center; justify-content: space-between; width: 100%; }
+.stat-num { font-family: 'DM Sans', sans-serif; font-size: 2rem; font-weight: 700; color: var(--forest); line-height: 1; }
+.stat-label { font-family: 'DM Sans', sans-serif; font-size: 0.76rem; font-weight: 600; color: var(--stone); margin-top: 0.5rem; }
 
 /* SVG wrapper styling */
 .stat-icon-wrapper {
-  width:40px; height:40px; border-radius:50%;
-  display:flex; align-items:center; justify-content:center;
-  transition:all .3s ease;
+  width: 34px; height: 34px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.3s ease;
 }
-.stat-icon-wrapper svg { width:20px; height:20px; stroke-width:2; }
+.stat-icon-wrapper svg { width: 16px; height: 16px; stroke-width: 2.2; }
 
 /* Dynamic color coding for icons */
-.stat-icon-users { background:rgba(34,197,94,.1); color:#15803d; }
-.stat-icon-staff { background:rgba(59,130,246,.1); color:#1d4ed8; }
-.stat-icon-mountain { background:rgba(200,146,42,.1); color:var(--gold); }
-.stat-icon-book { background:rgba(168,197,160,.2); color:var(--forest-mid); }
-.stat-icon-active { background:rgba(245,158,11,.1); color:#b45309; }
-.stat-icon-block { background:rgba(239,68,68,.1); color:var(--red); }
+.stat-icon-users { background: rgba(34,197,94,0.1); color: #15803d; }
+.stat-icon-staff { background: rgba(59,130,246,0.1); color: #1d4ed8; }
+.stat-icon-mountain { background: rgba(200,146,42,0.1); color: var(--gold); }
+.stat-icon-book { background: rgba(168,197,160,0.2); color: var(--forest-mid); }
+.stat-icon-active { background: rgba(245,158,11,0.1); color: #b45309; }
+.stat-icon-cancel { background: rgba(239,68,68,0.1); color: var(--red); }
 
 /* ── Live overview bar ───────────────────────────────────── */
 .pulse-indicator {
@@ -523,30 +535,122 @@ body { font-family:'DM Sans',sans-serif; background:var(--snow); color:var(--bar
 .task-card-num { font-family: 'DM Sans', sans-serif; font-size: 1.4rem; font-weight: 700; color: var(--forest); line-height: 1.2; }
 .task-card-label { font-size: 0.76rem; color: var(--stone); font-weight: 600; }
 
-/* ── Console Actions Grid ────────────────────────────────── */
-.console-actions-grid {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;
+/* ── Console Actions/Groups ──────────────────────────────── */
+.console-groups-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
 }
-.console-action-btn {
-  display: flex; align-items: center; gap: 8px; padding: 0.65rem 0.9rem;
-  background: var(--cream); color: var(--forest); border: 1px solid rgba(26,46,26,0.1); border-radius: 4px;
-  font-family: 'DM Sans', sans-serif; font-size: 0.8rem; font-weight: 600; cursor: pointer;
-  transition: all 0.2s ease;
+.console-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: var(--snow);
+  border: 1px solid rgba(26, 46, 26, 0.04);
+  border-radius: 4px;
 }
-.console-action-btn:hover {
-  background: var(--forest); color: var(--cream); border-color: var(--forest);
+.console-group-label {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding-left: 8px;
+  line-height: 1;
 }
-.console-action-btn.btn-gold {
-  background: rgba(200,146,42,0.08); color: var(--gold); border-color: rgba(200,146,42,0.3);
+
+/* Color Coding borders and labels for console groups */
+.console-group:nth-child(1) {
+  border-left: 3px solid var(--gold);
 }
-.console-action-btn.btn-gold:hover {
-  background: var(--gold); color: var(--forest); border-color: var(--gold);
+.console-group:nth-child(1) .console-group-label {
+  color: var(--gold);
 }
-.console-action-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2.2; flex-shrink: 0; }
+
+.console-group:nth-child(2) {
+  border-left: 3px solid var(--forest-light);
+}
+.console-group:nth-child(2) .console-group-label {
+  color: var(--forest-light);
+}
+
+.console-group:nth-child(3) {
+  border-left: 3px solid var(--blue);
+}
+.console-group:nth-child(3) .console-group-label {
+  color: var(--blue);
+}
+
+.console-group-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem;
+}
+.console-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0.65rem 0.9rem;
+  border-radius: 4px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  text-align: center;
+  border: 1px solid transparent;
+}
+.console-btn svg {
+  width: 14px;
+  height: 14px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2.2;
+  flex-shrink: 0;
+}
+
+/* Category Color Modifications */
+/* 1. Create Buttons (Gold Theme) */
+.console-btn.btn-create {
+  background: rgba(200, 146, 42, 0.06);
+  color: var(--gold);
+  border-color: rgba(200, 146, 42, 0.2);
+}
+.console-btn.btn-create:hover {
+  background: var(--gold);
+  color: var(--forest);
+  border-color: var(--gold);
+}
+
+/* 2. Manage Buttons (Forest Green Theme) */
+.console-btn.btn-manage {
+  background: rgba(61, 107, 61, 0.06);
+  color: var(--forest-light);
+  border-color: rgba(61, 107, 61, 0.2);
+}
+.console-btn.btn-manage:hover {
+  background: var(--forest-mid);
+  color: var(--snow);
+  border-color: var(--forest-mid);
+}
+
+/* 3. Data/Insights Buttons (Slate Blue Theme) */
+.console-btn.btn-data {
+  background: rgba(59, 130, 246, 0.06);
+  color: var(--blue);
+  border-color: rgba(59, 130, 246, 0.2);
+}
+.console-btn.btn-data:hover {
+  background: var(--blue);
+  color: #fff;
+  border-color: var(--blue);
+}
 
 /* ── Responsive ──────────────────────────────────────────── */
 @media(max-width:1200px) {
-  .stats-bar-inline { grid-template-columns:repeat(3,1fr); }
+  .stats-grouped-container { grid-template-columns: 1fr; }
   .revenue-cards    { grid-template-columns:repeat(2,1fr); }
   .alerts-tasks-grid { grid-template-columns:repeat(2,1fr); }
   .alerts-tasks-dashboard-grid { grid-template-columns:1fr; }
@@ -568,11 +672,12 @@ body { font-family:'DM Sans',sans-serif; background:var(--snow); color:var(--bar
   .ts-sidebar .su-info,
   .ts-sidebar .brand-name,
   .ts-sidebar .su-logout { display:none; }
-  .stats-bar-inline { grid-template-columns:repeat(2,1fr); }
+  .stats-grouped-container { grid-template-columns: 1fr; }
+  .stats-group-cards { grid-template-columns: 1fr; }
   .cards-grid { grid-template-columns:1fr; }
   .revenue-cards { grid-template-columns:1fr 1fr; }
   .tab-content { padding:1rem; }
   .ts-topbar { padding:1rem; }
   .alerts-tasks-grid { grid-template-columns:1fr; }
-  .console-actions-grid { grid-template-columns:1fr; }
+  .console-group-buttons { grid-template-columns:1fr; }
 }

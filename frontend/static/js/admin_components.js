@@ -40,6 +40,7 @@ const TsAdminLayout = {
         blacklist:    'Blacklisted Accounts',
         jobs:         'Scheduled Jobs',
         revenue:      'Revenue Dashboard',
+        support_tickets: 'Support Tickets',
       },
 
       trekForm: {
@@ -73,6 +74,7 @@ const TsAdminLayout = {
       blacklistedUsers:   [],
       pendingTreks:       [],
       alertsAndTasks:     [],
+      supportTickets:     [],
     };
   },
 
@@ -82,6 +84,7 @@ const TsAdminLayout = {
         treks:'Search treks…', staff:'Search staff…',
         users:'Search users…', bookings:'Search bookings…',
         audit:'Search audit logs…', approvals:'Search pending treks…',
+        support_tickets:'Search tickets…',
       };
       return map[this.activeTab] || 'Search…';
     },
@@ -157,6 +160,22 @@ const TsAdminLayout = {
     maxWorkload() {
       const vals = this.staffList.map(s => s.treks.length);
       return vals.length ? Math.max(...vals) : 1;
+    },
+    peopleStats() { return this.stats.filter(s => s.category === 'people'); },
+    treksStats() { return this.stats.filter(s => s.category === 'treks'); },
+    bookingsStats() { return this.stats.filter(s => s.category === 'bookings'); },
+    filteredTickets() {
+      let list = this.supportTickets;
+      if (this.searchQuery) {
+        const q = this.searchQuery.toLowerCase();
+        list = list.filter(t =>
+          t.name.toLowerCase().includes(q) ||
+          t.email.toLowerCase().includes(q) ||
+          t.subject.toLowerCase().includes(q) ||
+          t.message.toLowerCase().includes(q)
+        );
+      }
+      return list;
     }
   },
 
@@ -176,6 +195,8 @@ const TsAdminLayout = {
       } else if (type === 'starting_this_week') {
         this.activeTab = 'treks';
         this.trekFilter = 'All';
+      } else if (type === 'pending_tickets') {
+        this.activeTab = 'support_tickets';
       }
     },
     async loadData() {
@@ -211,6 +232,7 @@ const TsAdminLayout = {
         revenueData: REVENUE_DATA,
         blacklistedUsers: BLACKLISTED_USERS,
         pendingTreks: PENDING_TREKS,
+        supportTickets: [],
       });
     },
 
@@ -381,6 +403,19 @@ const TsAdminLayout = {
       this.showToast('Booking cancelled (mock)');
     },
 
+    async resolveTicket(ticket) {
+      try {
+        const res = await fetch(`/api/admin/support_tickets/resolve/${ticket.id}`, { method:'POST' });
+        if (res.ok) {
+          this.showToast(`Ticket #${ticket.id} resolved`);
+          this.loadData();
+          return;
+        }
+      } catch (_) {}
+      ticket.status = 'Resolved';
+      this.showToast(`Ticket #${ticket.id} resolved (mock)`);
+    },
+
     // ── Reports / Jobs ─────────────────────────────────────
     async triggerReport(type) {
       try {
@@ -496,6 +531,11 @@ const TsAdminLayout = {
           <span>Blacklist</span>
           <span v-if="blacklistedUsers.length" class="nav-badge">{{ blacklistedUsers.length }}</span>
         </a>
+        <a class="nav-item" :class="{ active: activeTab==='support_tickets' }" @click="activeTab='support_tickets'">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+          <span>Support Tickets</span>
+          <span v-if="supportTickets.filter(t => t.status==='Open').length" class="nav-badge">{{ supportTickets.filter(t => t.status==='Open').length }}</span>
+        </a>
 
         <div class="nav-section-label">Insights</div>
         <a class="nav-item" :class="{ active: activeTab==='analytics' }" @click="activeTab='analytics'">
@@ -567,21 +607,55 @@ const TsAdminLayout = {
       <!-- ══ DASHBOARD ══════════════════════════════════════ -->
       <section v-if="activeTab==='dashboard'" class="tab-content">
 
-        <!-- Row 1: Stats Row -->
-        <div class="stats-bar-inline">
-          <div class="stat-item" v-for="s in stats" :key="s.label">
-            <div class="stat-card-header-row">
-              <div class="stat-num">{{ s.value }}</div>
-              <div class="stat-icon-wrapper" :class="'stat-icon-'+s.icon">
-                <svg v-if="s.icon === 'users'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-                <svg v-else-if="s.icon === 'staff'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><polyline points="17 11 19 13 23 9"></polyline></svg>
-                <svg v-else-if="s.icon === 'mountain'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path><path d="M12 8l-6 10h12l-6-10z"></path></svg>
-                <svg v-else-if="s.icon === 'book'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
-                <svg v-else-if="s.icon === 'active'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-                <svg v-else-if="s.icon === 'block'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>
+        <!-- Row 1: Grouped Stats Row -->
+        <div class="stats-grouped-container">
+          <!-- Group 1: People & Accounts -->
+          <div class="stats-group">
+            <div class="stats-group-title">People & Accounts</div>
+            <div class="stats-group-cards">
+              <div class="stat-item-grouped" v-for="s in peopleStats" :key="s.label">
+                <div class="stat-card-header-row">
+                  <div class="stat-num">{{ s.value }}</div>
+                  <div class="stat-icon-wrapper" :class="'stat-icon-'+s.icon">
+                    <svg v-if="s.icon === 'users'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                    <svg v-else-if="s.icon === 'staff'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><polyline points="17 11 19 13 23 9"></polyline></svg>
+                  </div>
+                </div>
+                <div class="stat-label">{{ s.label }}</div>
               </div>
             </div>
-            <div class="stat-label">{{ s.label }}</div>
+          </div>
+          <!-- Group 2: Trek Operations -->
+          <div class="stats-group">
+            <div class="stats-group-title">Trek Operations</div>
+            <div class="stats-group-cards">
+              <div class="stat-item-grouped" v-for="s in treksStats" :key="s.label">
+                <div class="stat-card-header-row">
+                  <div class="stat-num">{{ s.value }}</div>
+                  <div class="stat-icon-wrapper" :class="'stat-icon-'+s.icon">
+                    <svg v-if="s.icon === 'mountain'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path><path d="M12 8l-6 10h12l-6-10z"></path></svg>
+                    <svg v-else-if="s.icon === 'active'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                  </div>
+                </div>
+                <div class="stat-label">{{ s.label }}</div>
+              </div>
+            </div>
+          </div>
+          <!-- Group 3: Bookings Status -->
+          <div class="stats-group">
+            <div class="stats-group-title">Bookings Status</div>
+            <div class="stats-group-cards">
+              <div class="stat-item-grouped" v-for="s in bookingsStats" :key="s.label">
+                <div class="stat-card-header-row">
+                  <div class="stat-num">{{ s.value }}</div>
+                  <div class="stat-icon-wrapper" :class="'stat-icon-'+s.icon">
+                    <svg v-if="s.icon === 'book'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+                    <svg v-else-if="s.icon === 'cancel'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+                  </div>
+                </div>
+                <div class="stat-label">{{ s.label }}</div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -608,34 +682,54 @@ const TsAdminLayout = {
             </div>
           </div>
 
-          <!-- Right side: Console Actions -->
+          <!-- Right side: Operations Control Deck -->
           <div class="dash-card">
-            <div class="dash-card-header"><span class="dash-card-title">Console Actions</span></div>
-            <div class="console-actions-grid">
-              <button class="console-action-btn btn-gold" @click="openTrekModal()">
-                <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                <span>Create Trek</span>
-              </button>
-              <button class="console-action-btn btn-gold" @click="openStaffModal()">
-                <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                <span>Add Staff</span>
-              </button>
-              <button class="console-action-btn" @click="activeTab='users'">
-                <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M2 19c0-3 3-5 7-5"/><circle cx="16" cy="10" r="3"/><path d="M13 19c0-3 2.7-5 6-5"/></svg>
-                <span>Manage Users</span>
-              </button>
-              <button class="console-action-btn" @click="activeTab='approvals'">
-                <svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                <span>Approvals ({{ pendingTreks.length }})</span>
-              </button>
-              <button class="console-action-btn" @click="activeTab='reports'">
-                <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-                <span>Reports Center</span>
-              </button>
-              <button class="console-action-btn" @click="exportCSV('all')">
-                <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                <span>Export Data</span>
-              </button>
+            <div class="dash-card-header"><span class="dash-card-title">Operations Console</span></div>
+            <div class="console-groups-container">
+              <!-- Group 1: Creation Tools -->
+              <div class="console-group">
+                <div class="console-group-label">Creation Tools</div>
+                <div class="console-group-buttons">
+                  <button class="console-btn btn-create" @click="openTrekModal()">
+                    <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    <span>Create Trek</span>
+                  </button>
+                  <button class="console-btn btn-create" @click="openStaffModal()">
+                    <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    <span>Add Staff</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Group 2: Directory Management -->
+              <div class="console-group">
+                <div class="console-group-label">Directory Management</div>
+                <div class="console-group-buttons">
+                  <button class="console-btn btn-manage" @click="activeTab='users'">
+                    <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M2 19c0-3 3-5 7-5"/><circle cx="16" cy="10" r="3"/><path d="M13 19c0-3 2.7-5 6-5"/></svg>
+                    <span>Manage Trekkers</span>
+                  </button>
+                  <button class="console-btn btn-manage" @click="activeTab='staff'">
+                    <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+                    <span>Manage Staff</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Group 3: Data & Insights -->
+              <div class="console-group">
+                <div class="console-group-label">Data & Insights</div>
+                <div class="console-group-buttons">
+                  <button class="console-btn btn-data" @click="activeTab='reports'">
+                    <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                    <span>Reports Center</span>
+                  </button>
+                  <button class="console-btn btn-data" @click="exportCSV('all')">
+                    <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    <span>Export Data</span>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -1233,6 +1327,53 @@ const TsAdminLayout = {
               <button class="act-btn act-del"   @click="blacklistedUsers = blacklistedUsers.filter(b=>b.id!==u.id); showToast(u.name+' permanently removed')">Remove</button>
             </div>
           </div>
+        </div>
+      </section>
+
+      <!-- ══ SUPPORT TICKETS ════════════════════════════════ -->
+      <section v-if="activeTab==='support_tickets'" class="tab-content">
+        <div style="margin-bottom:1rem; color:var(--stone); font-size:.9rem;">
+          {{ supportTickets.filter(t => t.status === 'Open').length }} open support ticket{{ supportTickets.filter(t => t.status === 'Open').length !== 1 ? 's' : '' }}
+        </div>
+        <div v-if="filteredTickets.length === 0" class="empty-state">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+          <p>No support tickets found.</p>
+        </div>
+        <div v-else class="ts-table-wrap">
+          <table class="ts-table">
+            <thead>
+              <tr>
+                <th>Ticket ID</th>
+                <th>Sender</th>
+                <th>Subject</th>
+                <th>Message</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="t in filteredTickets" :key="t.id">
+                <td class="mono">#{{ t.id }}</td>
+                <td>
+                  <div style="font-weight:600; color:var(--forest)">{{ t.name }}</div>
+                  <div style="font-size:0.75rem; color:var(--stone)">{{ t.email }}</div>
+                </td>
+                <td style="font-weight:500">{{ t.subject }}</td>
+                <td style="max-width:300px; font-size:0.82rem; color:var(--stone)">{{ t.message }}</td>
+                <td>
+                  <span class="status-pill" :class="t.status === 'Open' ? 'status-pending' : 'status-approved'">
+                    {{ t.status }}
+                  </span>
+                </td>
+                <td>
+                  <div class="action-btns" v-if="t.status === 'Open'">
+                    <button class="act-btn act-green" @click="resolveTicket(t)">Resolve</button>
+                  </div>
+                  <span v-else style="color:var(--stone); font-size:0.8rem; font-style:italic">No actions</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </section>
 

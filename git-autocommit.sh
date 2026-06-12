@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Configuration
-INTERVAL=20 # Default to 30 minutes in seconds
+INTERVAL=1800 # Default to 30 minutes in seconds
 if [ -n "$AUTOCOMMIT_INTERVAL" ]; then
   INTERVAL="$AUTOCOMMIT_INTERVAL"
 fi

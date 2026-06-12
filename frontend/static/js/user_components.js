@@ -994,8 +994,244 @@ const TsUserLayout = {
                 </button>
               </div>
 
+              <!-- Live Prep Check-Meter -->
+              <div v-if="nextTrek" class="ts-card prep-meter-card" style="margin-top: 1.25rem;">
+                <div class="ts-card-header">
+                  <div class="ts-card-title">🎒 Live Prep Check-Meter</div>
+                </div>
+                <div class="ts-card-body" style="display:flex; flex-direction:column; align-items:center; padding: 1.25rem 1rem;">
+                  <div class="prep-meter-circle-container" @click="showPrepDrawer = !showPrepDrawer" style="cursor:pointer; position:relative; width:120px; height:120px; display:flex; align-items:center; justify-content:center;">
+                    <svg class="prep-ring" width="120" height="120" style="transform: rotate(-90deg);">
+                      <!-- Background circle -->
+                      <circle class="prep-ring-bg" cx="60" cy="60" r="50" stroke="rgba(255,255,255,0.06)" stroke-width="8" fill="transparent"></circle>
+                      <!-- Active circle -->
+                      <circle class="prep-ring-bar" cx="60" cy="60" r="50" stroke="url(#prep-glow-grad)" stroke-width="8" fill="transparent" stroke-linecap="round" stroke-dasharray="314.16" stroke-dashoffset="62.83" style="transition: stroke-dashoffset 0.35s ease;"></circle>
+                      <!-- Gradient definition -->
+                      <defs>
+                        <linearGradient id="prep-glow-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                          <stop offset="0%" stop-color="var(--gold)" />
+                          <stop offset="100%" stop-color="var(--gold-light)" />
+                        </linearGradient>
+                      </defs>
+                    </svg>
+                    <div class="prep-ring-text" style="position:absolute; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;">
+                      <span class="prep-pct" style="font-family:'Playfair Display',serif; font-size:1.45rem; font-weight:700; color:var(--gold-light); line-height:1;">80%</span>
+                      <span class="prep-lbl" style="font-family:'Space Mono',monospace; font-size:0.58rem; text-transform:uppercase; color:rgba(255,255,255,0.5); margin-top:2px;">Ready</span>
+                    </div>
+                  </div>
+                  
+                  <div style="font-size:0.8rem; color:rgba(255,255,255,0.6); margin-top:0.75rem; text-align:center;">
+                    Click the ring to show readiness checklists
+                  </div>
+
+                  <!-- Collapsible detail drawer -->
+                  <div class="prep-drawer" v-show="showPrepDrawer" style="width:100%; margin-top:1.25rem; border-top:1px solid rgba(255,255,255,0.1); padding-top:1rem; display:flex; flex-direction:column; gap:0.9rem;">
+                    <div class="prep-drawer-item">
+                      <div class="pdi-header" style="display:flex; justify-content:space-between; font-size:0.8rem; color:#fff; font-weight:600; margin-bottom:4px;">
+                        <span>🎒 Gear Checklist</span>
+                        <strong>60%</strong>
+                      </div>
+                      <div class="pdi-bar" style="height:6px; background:rgba(255,255,255,0.1); border-radius:3px; overflow:hidden;">
+                        <div class="pdi-fill" style="width:60%; height:100%; background:var(--gold); border-radius:3px;"></div>
+                      </div>
+                      <div class="pdi-detail" style="font-size:0.7rem; color:rgba(255,255,255,0.5); margin-top:3px;">3/5 items packed</div>
+                    </div>
+                    <div class="prep-drawer-item">
+                      <div class="pdi-header" style="display:flex; justify-content:space-between; font-size:0.8rem; color:#fff; font-weight:600; margin-bottom:4px;">
+                        <span>📄 Required Documents</span>
+                        <strong style="color:#22c55e;">100%</strong>
+                      </div>
+                      <div class="pdi-bar" style="height:6px; background:rgba(255,255,255,0.1); border-radius:3px; overflow:hidden;">
+                        <div class="pdi-fill pdi-completed" style="width:100%; height:100%; background:#22c55e; border-radius:3px;"></div>
+                      </div>
+                      <div class="pdi-detail" style="font-size:0.7rem; color:rgba(255,255,255,0.5); margin-top:3px;">Medical certificate uploaded</div>
+                    </div>
+                    <div class="prep-drawer-item">
+                      <div class="pdi-header" style="display:flex; justify-content:space-between; font-size:0.8rem; color:#fff; font-weight:600; margin-bottom:4px;">
+                        <span>🏃 Fitness Training</span>
+                        <strong>80%</strong>
+                      </div>
+                      <div class="pdi-bar" style="height:6px; background:rgba(255,255,255,0.1); border-radius:3px; overflow:hidden;">
+                        <div class="pdi-fill" style="width:80%; height:100%; background:var(--gold-light); border-radius:3px;"></div>
+                      </div>
+                      <div class="pdi-detail" style="font-size:0.7rem; color:rgba(255,255,255,0.5); margin-top:3px;">4 days logged</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Guide Connection Chat -->
+              <div v-if="nextTrek" class="ts-card guide-chat-card" style="margin-top: 1.25rem;">
+                <div class="ts-card-header" style="display:flex; align-items:center; justify-content:space-between;">
+                  <div class="ts-card-title">💬 Guide Connection</div>
+                  <div style="display:flex; align-items:center; gap:5px; font-size:0.68rem; color:#22c55e; font-weight:600; text-transform:uppercase; letter-spacing:0.05em;">
+                    <span style="display:inline-block; width:6px; height:6px; background:#22c55e; border-radius:50%; animation: pulse-dot 1.5s infinite;"></span>
+                    Online
+                  </div>
+                </div>
+                <div class="ts-card-body" style="padding: 1rem; display:flex; flex-direction:column; gap:0.75rem;">
+                  <!-- Chat content area -->
+                  <div class="guide-chat-body" style="height: 180px; overflow-y: auto; display:flex; flex-direction:column; gap:0.6rem; padding-right:4px;">
+                    <div v-for="(msg, index) in guideChatHistory" :key="index" style="display:flex; flex-direction:column;" :style="{ alignItems: msg.sender === 'user' ? 'flex-end' : 'flex-start' }">
+                      <div style="font-size:0.62rem; color:rgba(255,255,255,0.4); margin-bottom:2px;" :style="{ marginRight: msg.sender === 'user' ? '4px' : '0', marginLeft: msg.sender === 'guide' ? '4px' : '0' }">
+                        {{ msg.sender === 'user' ? 'You' : (nextTrek.guide ? nextTrek.guide.name : 'Guide') }}
+                      </div>
+                      <div style="max-width:85%; padding:0.55rem 0.75rem; border-radius:8px; font-size:0.78rem; line-height:1.4;"
+                           :style="msg.sender === 'user' 
+                             ? { background: 'var(--gold)', color: 'var(--forest)', borderTopRightRadius: '0' } 
+                             : { background: 'rgba(255,255,255,0.08)', color: '#fff', borderTopLeftRadius: '0' }">
+                        {{ msg.text }}
+                      </div>
+                    </div>
+                    <!-- Typing Indicator -->
+                    <div v-if="guideIsTyping" style="display:flex; flex-direction:column; align-items:flex-start;">
+                      <div style="font-size:0.62rem; color:rgba(255,255,255,0.4); margin-bottom:2px; margin-left:4px;">
+                        Guide is typing...
+                      </div>
+                      <div style="background: rgba(255,255,255,0.08); padding:0.55rem 0.75rem; border-radius:8px; border-top-left-radius:0; display:flex; gap:3px; align-items:center;">
+                        <span class="typing-dot" style="width:5px; height:5px; background:rgba(255,255,255,0.6); border-radius:50%; animation: bounce-dot 1.2s infinite 0.1s;"></span>
+                        <span class="typing-dot" style="width:5px; height:5px; background:rgba(255,255,255,0.6); border-radius:50%; animation: bounce-dot 1.2s infinite 0.2s;"></span>
+                        <span class="typing-dot" style="width:5px; height:5px; background:rgba(255,255,255,0.6); border-radius:50%; animation: bounce-dot 1.2s infinite 0.3s;"></span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <!-- Input Row -->
+                  <div class="guide-chat-input-row" style="display:flex; gap:8px; border-top:1px solid rgba(255,255,255,0.1); padding-top:0.75rem;">
+                    <input v-model="guideMessage" type="text" placeholder="Ask your guide a question..." @keyup.enter="sendGuideMessage" style="flex:1; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12); border-radius:4px; padding:0.45rem 0.75rem; color:#fff; font-size:0.78rem;" />
+                    <button @click="sendGuideMessage" style="background:var(--gold); border:none; color:var(--forest); width:32px; height:32px; border-radius:4px; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:all 0.2s ease;">
+                      <svg viewBox="0 0 24 24" style="width:14px; height:14px; stroke:currentColor; fill:none; stroke-width:2.5;"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
             </div>
           </div>
+
+          <!-- ── CATEGORIZED TREK ROWS ── -->
+          <div class="dashboard-trek-categories" style="margin-top: 3.5rem;">
+            
+            <!-- Easy Treks Row -->
+            <div class="category-row-wrapper" style="margin-bottom: 3rem;">
+              <div class="category-row-header" style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:1.25rem; border-bottom:1px solid rgba(26,46,26,0.08); padding-bottom:8px;">
+                <div class="category-row-title" style="font-family:'Playfair Display',serif; font-size:1.4rem; font-weight:700; color:var(--forest);">🏔️ Easy Trails <span style="font-family:'Space Mono',monospace; font-size:0.7rem; color:var(--gold); text-transform:uppercase; margin-left:10px; letter-spacing:0.05em; font-weight:600;">Beginner Friendly</span></div>
+                <button class="btn-category-view-all" @click="goTab('explore')" style="background:none; border:none; color:var(--forest); font-weight:600; font-size:0.85rem; cursor:pointer; text-decoration:underline;">View All Easy Treks →</button>
+              </div>
+              <div class="trek-cards-grid" style="display:grid; grid-template-columns:repeat(3, 1fr); gap:1.5rem;">
+                <div v-for="t in dashboardEasyTreks" :key="t.name" class="trek-category-card" @click="navigateToTrek(t.name)" style="cursor:pointer; background:#fff; border:1px solid rgba(26,46,26,0.07); border-radius:var(--radius); overflow:hidden; box-shadow:0 2px 12px var(--shadow); transition:var(--transition);">
+                  <div class="tcc-image-wrapper" style="height:150px; position:relative; overflow:hidden;">
+                    <img :src="t.imageUrl || 'https://images.unsplash.com/photo-1544644181-1484b3fdfc62?w=500&q=80'" :alt="t.name" style="width:100%; height:100%; object-fit:cover; transition:transform 0.5s ease;" />
+                    <div class="tcc-glass-overlay" style="position:absolute; inset:0; background:rgba(26,46,26,0.4); backdrop-filter:blur(4px); opacity:0; display:flex; flex-direction:column; justify-content:space-between; padding:1rem; transition:opacity 0.3s ease;">
+                      <div class="tcc-overlay-info" style="display:flex; justify-content:space-between; align-items:center;">
+                        <span class="tcc-overlay-loc" style="color:#fff; font-size:0.75rem; font-weight:600;"><span class="css-loc-pin" style="background:var(--gold); transform:rotate(-45deg) scale(0.8);"></span>{{ t.location }}</span>
+                        <span class="tcc-overlay-price" style="color:var(--gold-light); font-weight:700; font-family:'Space Mono',monospace; font-size:0.85rem;">₹{{ t.price.toLocaleString() }}</span>
+                      </div>
+                      <button class="tcc-overlay-btn" style="width:100%; border:none; background:var(--gold); color:var(--forest); font-weight:700; font-size:0.75rem; padding:0.45rem; border-radius:4px; text-transform:uppercase; letter-spacing:0.05em; cursor:pointer;">Book Now</button>
+                    </div>
+                  </div>
+                  <div class="tcc-info" style="padding:1rem;">
+                    <div class="tcc-name" style="font-family:'Playfair Display',serif; font-size:1.1rem; font-weight:700; color:var(--forest); margin-bottom:4px;">{{ t.name }}</div>
+                    <div class="tcc-meta" style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--stone);">
+                      <span>⏱ {{ t.duration }} Days</span>
+                      <span>📏 {{ t.distance || 12 }} km</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Moderate Treks Row -->
+            <div class="category-row-wrapper" style="margin-bottom: 3rem;">
+              <div class="category-row-header" style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:1.25rem; border-bottom:1px solid rgba(26,46,26,0.08); padding-bottom:8px;">
+                <div class="category-row-title" style="font-family:'Playfair Display',serif; font-size:1.4rem; font-weight:700; color:var(--forest);">🌄 Moderate Passages <span style="font-family:'Space Mono',monospace; font-size:0.7rem; color:var(--gold); text-transform:uppercase; margin-left:10px; letter-spacing:0.05em; font-weight:600;">Epic Journeys</span></div>
+                <button class="btn-category-view-all" @click="goTab('explore')" style="background:none; border:none; color:var(--forest); font-weight:600; font-size:0.85rem; cursor:pointer; text-decoration:underline;">View All Moderate Treks →</button>
+              </div>
+              <div class="trek-cards-grid" style="display:grid; grid-template-columns:repeat(3, 1fr); gap:1.5rem;">
+                <div v-for="t in dashboardModerateTreks" :key="t.name" class="trek-category-card" @click="navigateToTrek(t.name)" style="cursor:pointer; background:#fff; border:1px solid rgba(26,46,26,0.07); border-radius:var(--radius); overflow:hidden; box-shadow:0 2px 12px var(--shadow); transition:var(--transition);">
+                  <div class="tcc-image-wrapper" style="height:150px; position:relative; overflow:hidden;">
+                    <img :src="t.imageUrl || 'https://images.unsplash.com/photo-1544644181-1484b3fdfc62?w=500&q=80'" :alt="t.name" style="width:100%; height:100%; object-fit:cover; transition:transform 0.5s ease;" />
+                    <div class="tcc-glass-overlay" style="position:absolute; inset:0; background:rgba(26,46,26,0.4); backdrop-filter:blur(4px); opacity:0; display:flex; flex-direction:column; justify-content:space-between; padding:1rem; transition:opacity 0.3s ease;">
+                      <div class="tcc-overlay-info" style="display:flex; justify-content:space-between; align-items:center;">
+                        <span class="tcc-overlay-loc" style="color:#fff; font-size:0.75rem; font-weight:600;"><span class="css-loc-pin" style="background:var(--gold); transform:rotate(-45deg) scale(0.8);"></span>{{ t.location }}</span>
+                        <span class="tcc-overlay-price" style="color:var(--gold-light); font-weight:700; font-family:'Space Mono',monospace; font-size:0.85rem;">₹{{ t.price.toLocaleString() }}</span>
+                      </div>
+                      <button class="tcc-overlay-btn" style="width:100%; border:none; background:var(--gold); color:var(--forest); font-weight:700; font-size:0.75rem; padding:0.45rem; border-radius:4px; text-transform:uppercase; letter-spacing:0.05em; cursor:pointer;">Book Now</button>
+                    </div>
+                  </div>
+                  <div class="tcc-info" style="padding:1rem;">
+                    <div class="tcc-name" style="font-family:'Playfair Display',serif; font-size:1.1rem; font-weight:700; color:var(--forest); margin-bottom:4px;">{{ t.name }}</div>
+                    <div class="tcc-meta" style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--stone);">
+                      <span>⏱ {{ t.duration }} Days</span>
+                      <span>📏 {{ t.distance || 35 }} km</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Hard Treks Row -->
+            <div class="category-row-wrapper" style="margin-bottom: 3rem;">
+              <div class="category-row-header" style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:1.25rem; border-bottom:1px solid rgba(26,46,26,0.08); padding-bottom:8px;">
+                <div class="category-row-title" style="font-family:'Playfair Display',serif; font-size:1.4rem; font-weight:700; color:var(--forest);">⚡ Challenging Summits <span style="font-family:'Space Mono',monospace; font-size:0.7rem; color:var(--gold); text-transform:uppercase; margin-left:10px; letter-spacing:0.05em; font-weight:600;">For Experienced Climbers</span></div>
+                <button class="btn-category-view-all" @click="goTab('explore')" style="background:none; border:none; color:var(--forest); font-weight:600; font-size:0.85rem; cursor:pointer; text-decoration:underline;">View All Hard Treks →</button>
+              </div>
+              <div class="trek-cards-grid" style="display:grid; grid-template-columns:repeat(3, 1fr); gap:1.5rem;">
+                <div v-for="t in dashboardHardTreks" :key="t.name" class="trek-category-card" @click="navigateToTrek(t.name)" style="cursor:pointer; background:#fff; border:1px solid rgba(26,46,26,0.07); border-radius:var(--radius); overflow:hidden; box-shadow:0 2px 12px var(--shadow); transition:var(--transition);">
+                  <div class="tcc-image-wrapper" style="height:150px; position:relative; overflow:hidden;">
+                    <img :src="t.imageUrl || 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=500&q=80'" :alt="t.name" style="width:100%; height:100%; object-fit:cover; transition:transform 0.5s ease;" />
+                    <div class="tcc-glass-overlay" style="position:absolute; inset:0; background:rgba(26,46,26,0.4); backdrop-filter:blur(4px); opacity:0; display:flex; flex-direction:column; justify-content:space-between; padding:1rem; transition:opacity 0.3s ease;">
+                      <div class="tcc-overlay-info" style="display:flex; justify-content:space-between; align-items:center;">
+                        <span class="tcc-overlay-loc" style="color:#fff; font-size:0.75rem; font-weight:600;"><span class="css-loc-pin" style="background:var(--gold); transform:rotate(-45deg) scale(0.8);"></span>{{ t.location }}</span>
+                        <span class="tcc-overlay-price" style="color:var(--gold-light); font-weight:700; font-family:'Space Mono',monospace; font-size:0.85rem;">₹{{ t.price.toLocaleString() }}</span>
+                      </div>
+                      <button class="tcc-overlay-btn" style="width:100%; border:none; background:var(--gold); color:var(--forest); font-weight:700; font-size:0.75rem; padding:0.45rem; border-radius:4px; text-transform:uppercase; letter-spacing:0.05em; cursor:pointer;">Book Now</button>
+                    </div>
+                  </div>
+                  <div class="tcc-info" style="padding:1rem;">
+                    <div class="tcc-name" style="font-family:'Playfair Display',serif; font-size:1.1rem; font-weight:700; color:var(--forest); margin-bottom:4px;">{{ t.name }}</div>
+                    <div class="tcc-meta" style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--stone);">
+                      <span>⏱ {{ t.duration }} Days</span>
+                      <span>📏 {{ t.distance || 50 }} km</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- ── Tales from the Trail (Community Feed) ── -->
+          <div class="dashboard-community-feed" style="margin-top: 3.5rem;">
+            <div class="feed-header" style="border-bottom:1px solid rgba(26,46,26,0.08); padding-bottom:8px; margin-bottom:1.5rem;">
+              <div class="feed-title" style="font-family:'Playfair Display',serif; font-size:1.45rem; font-weight:700; color:var(--forest);">🎒 Tales from the Trail <span style="font-family:'Space Mono',monospace; font-size:0.7rem; color:var(--gold); text-transform:uppercase; margin-left:10px; letter-spacing:0.05em; font-weight:600;">Stories & Reviews from fellow Trekkers</span></div>
+            </div>
+            
+            <div class="pinterest-grid" style="column-count:2; column-gap:1.5rem; width:100%;">
+              <div v-for="p in communityPosts" :key="p.id" class="pin-card" style="break-inside:avoid; background:#fff; border:1px solid rgba(26,46,26,0.07); border-radius:var(--radius); overflow:hidden; box-shadow:0 2px 12px var(--shadow); margin-bottom:1.5rem; transition:var(--transition); display:inline-block; width:100%;">
+                <div class="pin-img-container" style="position:relative; overflow:hidden; cursor:pointer;">
+                  <img :src="p.img" :alt="p.title" style="width:100%; object-fit:cover; display:block; transition:transform 0.5s ease;" />
+                  <div class="pin-glass-overlay" style="position:absolute; inset:0; background:rgba(26,46,26,0.45); backdrop-filter:blur(6px); opacity:0; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:0.75rem; transition:opacity 0.3s ease;">
+                    <div class="pin-overlay-stats" style="color:#fff; font-size:0.9rem; font-weight:600; display:flex; gap:1.25rem;">
+                      <span>❤️ {{ p.likes }}</span>
+                      <span>💬 {{ p.comments }}</span>
+                    </div>
+                    <button class="btn-pin-action" @click.stop="navigateToTrek(p.trekName)" style="border:none; background:var(--gold); color:var(--forest); font-weight:700; font-size:0.72rem; padding:0.45rem 1rem; border-radius:4px; text-transform:uppercase; letter-spacing:0.05em; cursor:pointer;">Go to Trek</button>
+                  </div>
+                </div>
+                <div class="pin-content" style="padding:1.1rem;">
+                  <div class="pin-author" style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+                    <span class="pin-avatar" style="width:24px; height:24px; border-radius:50%; background:var(--gold); color:var(--forest); font-size:0.65rem; font-weight:700; display:flex; align-items:center; justify-content:center; font-family:'Playfair Display',serif;">{{ p.avatar }}</span>
+                    <span class="pin-author-name" style="font-size:0.8rem; font-weight:600; color:var(--forest);">{{ p.author }}</span>
+                  </div>
+                  <h4 class="pin-card-title" style="font-family:'Playfair Display',serif; font-size:1.15rem; font-weight:700; color:var(--forest); margin-bottom:6px;">{{ p.title }}</h4>
+                  <div class="pin-trek-tag" style="font-family:'Space Mono',monospace; font-size:0.65rem; color:var(--gold); font-weight:600; margin-bottom:8px;">📍 {{ p.trekName }}</div>
+                  <p class="pin-text" style="font-size:0.82rem; color:var(--stone); line-height:1.45; margin:0;">{{ p.text }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
         </section>
 
         <!-- ════════ EXPLORE TREKS TAB ════════ -->

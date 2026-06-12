@@ -257,9 +257,16 @@ const TsUserLayout = {
   methods: {
     // ── NAV ────────────────────────────────────────
     goTab(tab) {
-      this.activeTab = tab;
-      this.sidebarOpen = false;
-      localStorage.setItem('userActiveTab', tab);
+      window.location.hash = tab;
+    },
+    handleHashChange() {
+      const hash = window.location.hash.slice(1);
+      const validTabs = ['dashboard', 'explore', 'bookings', 'history', 'calendar', 'profile'];
+      if (hash && validTabs.includes(hash)) {
+        this.activeTab = hash;
+        this.sidebarOpen = false;
+        localStorage.setItem('userActiveTab', hash);
+      }
     },
     sendGuideMessage() {
       if (!this.guideMessage.trim()) return;
@@ -689,14 +696,29 @@ const TsUserLayout = {
   mounted() {
     this.fetchUserData();
     this.startCountdown();
-    const savedTab = localStorage.getItem('userActiveTab');
-    if (savedTab) {
-      this.activeTab = savedTab;
+    
+    // Hash routing initialization
+    window.addEventListener('hashchange', this.handleHashChange);
+    
+    const hash = window.location.hash.slice(1);
+    const validTabs = ['dashboard', 'explore', 'bookings', 'history', 'calendar', 'profile'];
+    if (hash && validTabs.includes(hash)) {
+      this.activeTab = hash;
+      localStorage.setItem('userActiveTab', hash);
+    } else {
+      const savedTab = localStorage.getItem('userActiveTab');
+      if (savedTab && validTabs.includes(savedTab)) {
+        this.activeTab = savedTab;
+        window.location.hash = savedTab;
+      } else {
+        window.location.hash = 'dashboard';
+      }
     }
   },
 
   beforeUnmount() {
     if (this.countdownTimer) clearInterval(this.countdownTimer);
+    window.removeEventListener('hashchange', this.handleHashChange);
   },
 
   template: `

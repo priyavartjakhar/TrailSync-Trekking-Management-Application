@@ -773,7 +773,6 @@ const TsUserLayout = {
         <div class="topbar-brand-group">
           <template v-if="sidebarCollapsed">
             <span class="topbar-logo-text" @click="goTab('dashboard')">Trail<span>Sync</span></span>
-            <span class="topbar-logo-sub">{{ activeTab === 'dashboard' ? 'Home' : (activeTab.charAt(0).toUpperCase() + activeTab.slice(1)) }}</span>
           </template>
           <template v-else>
             <div class="topbar-breadcrumb">

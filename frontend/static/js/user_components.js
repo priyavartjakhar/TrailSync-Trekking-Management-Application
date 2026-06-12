@@ -259,6 +259,7 @@ const TsUserLayout = {
     goTab(tab) {
       this.activeTab = tab;
       this.sidebarOpen = false;
+      localStorage.setItem('userActiveTab', tab);
     },
     sendGuideMessage() {
       if (!this.guideMessage.trim()) return;
@@ -679,12 +680,19 @@ const TsUserLayout = {
     },
 
     // ── LOGOUT ────────────────────────────────────
-    handleLogout() { this.$emit('logout'); },
+    handleLogout() {
+      localStorage.removeItem('userActiveTab');
+      this.$emit('logout');
+    },
   },
 
   mounted() {
     this.fetchUserData();
     this.startCountdown();
+    const savedTab = localStorage.getItem('userActiveTab');
+    if (savedTab) {
+      this.activeTab = savedTab;
+    }
   },
 
   beforeUnmount() {

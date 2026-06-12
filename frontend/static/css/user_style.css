@@ -298,7 +298,7 @@ body {
 
 /* ── TOP BAR ─────────────────────────────────────────── */
 .ts-topbar {
-  height: 68px;
+  height: 84px;
   background: #fff;
   border-bottom: 1px solid rgba(26,46,26,0.07);
   display: flex;

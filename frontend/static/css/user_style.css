@@ -1663,3 +1663,115 @@ body {
 .up-loc .css-loc-pin::after {
   background: var(--forest); /* Match background of upcoming-trek card */
 }
+
+/* ── INTERACTIVE SIDEBAR WIDGETS ───────────────────── */
+
+/* Prep Check-Meter Card */
+.prep-meter-card {
+  background: linear-gradient(135deg, var(--forest), var(--forest-mid)) !important;
+  color: #fff !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+}
+.prep-meter-card .ts-card-header .ts-card-title {
+  color: var(--gold-light) !important;
+}
+.prep-meter-circle-container:hover .prep-ring-bar {
+  stroke: var(--gold-light);
+  filter: drop-shadow(0 0 6px rgba(232, 184, 75, 0.6));
+}
+
+/* Guide Connection Chat Card */
+.guide-chat-card {
+  background: linear-gradient(135deg, var(--forest), var(--forest-mid)) !important;
+  color: #fff !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+}
+.guide-chat-card .ts-card-header .ts-card-title {
+  color: var(--gold-light) !important;
+}
+.guide-chat-body::-webkit-scrollbar {
+  width: 4px;
+}
+.guide-chat-body::-webkit-scrollbar-track {
+  background: rgba(255,255,255,0.03);
+}
+.guide-chat-body::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.15);
+  border-radius: 2px;
+}
+.guide-chat-body::-webkit-scrollbar-thumb:hover {
+  background: var(--gold-light);
+}
+
+/* Animations */
+@keyframes bounce-dot {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+@keyframes pulse-dot {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.4); opacity: 0.4; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* ── CATEGORIZED TREK ROWS & CARDS ────────────────── */
+.btn-category-view-all:hover {
+  color: var(--gold) !important;
+  transform: translateX(3px);
+}
+.trek-category-card:hover {
+  transform: translateY(-4px) !important;
+  box-shadow: 0 12px 30px rgba(26,46,26,0.16) !important;
+}
+.trek-category-card:hover img {
+  transform: scale(1.08) !important;
+}
+.trek-category-card:hover .tcc-glass-overlay {
+  opacity: 1 !important;
+}
+.tcc-overlay-btn:hover {
+  background: var(--gold-light) !important;
+  transform: scale(1.02);
+}
+
+/* ── Tales from the Trail (Community Pinterest Feed) ── */
+.pinterest-grid {
+  margin-top: 1rem;
+}
+.pin-card {
+  display: inline-block;
+  width: 100%;
+}
+.pin-card:hover {
+  transform: translateY(-4px) !important;
+  box-shadow: 0 12px 30px rgba(26,46,26,0.16) !important;
+}
+.pin-card:hover img {
+  transform: scale(1.06) !important;
+}
+.pin-card:hover .pin-glass-overlay {
+  opacity: 1 !important;
+}
+.btn-pin-action:hover {
+  background: var(--gold-light) !important;
+  transform: scale(1.02);
+}
+.pin-avatar {
+  text-shadow: 0 1px 1px rgba(0,0,0,0.1);
+}
+
+/* Responsive adjustments for trek categories & community feed */
+@media (max-width: 900px) {
+  .trek-cards-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  .pinterest-grid {
+    column-count: 1 !important;
+  }
+}
+@media (max-width: 600px) {
+  .trek-cards-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+

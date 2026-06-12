@@ -12,6 +12,7 @@ const TsUserLayout = {
       // ── UI STATE ──────────────────────────────────
       activeTab: 'dashboard',
       sidebarOpen: false,
+      sidebarCollapsed: false,
       toast: { show: false, msg: '', type: 'success' },
 
       // ── DATA ──────────────────────────────────────
@@ -64,6 +65,20 @@ const TsUserLayout = {
         icon: '⛅',
         locationName: '',
       },
+
+      // ── INTERACTIVE WIDGETS STATE ──────────────────
+      showPrepDrawer: false,
+      guideMessage: '',
+      guideChatHistory: [
+        { sender: 'guide', text: 'Hello! I am your guide for the upcoming Tada Falls Trek. Feel free to ask me any questions about prep, gear, or conditions!' }
+      ],
+      guideIsTyping: false,
+      communityPosts: [
+        { id: 1, author: 'Aarav Mehta', avatar: 'AM', title: 'Tada Falls Wonder', trekName: 'Tada Falls Trek', text: 'Beautiful cascades! A bit slippery on the rocks but the pools are worth it.', likes: 24, comments: 5, img: 'https://images.unsplash.com/photo-1544644181-1484b3fdfc62?w=600&fit=crop' },
+        { id: 2, author: 'Nisha Sharma', avatar: 'NS', title: 'Kedarkantha Summit!', trekName: 'Kedarkantha Trek', text: 'Summit day was freezing (-6°C) but watching the sunrise over the Himalayas was spiritual.', likes: 142, comments: 18, img: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=600&fit=crop' },
+        { id: 3, author: 'Kabir Dev', avatar: 'KD', title: 'Valley of Flowers Bloom', trekName: 'Valley of Flowers', text: 'Perfect timing in late July. Miles of flowers, mist, and absolute silence.', likes: 89, comments: 12, img: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=600&fit=crop' },
+        { id: 4, author: 'Priya Verma', avatar: 'PV', title: 'Crossing Hampta Pass', trekName: 'Hampta Pass', text: 'The contrast between the lush green Kullu valley and the barren Spiti valley is mindblowing.', likes: 76, comments: 9, img: 'https://images.unsplash.com/photo-1454496522488-7a8e488e8606?w=600&fit=crop' }
+      ],
     };
   },
 
@@ -205,6 +220,36 @@ const TsUserLayout = {
       });
       return list.sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
     },
+    dashboardEasyTreks() {
+      const list = this.availableTreks.filter(t => t.difficulty.toLowerCase() === 'easy');
+      if (list.length >= 3) return list.slice(0, 3);
+      const fallbacks = [
+        { name: 'Triund Trek', location: 'Dharamshala, HP', duration: 2, distance: 9, difficulty: 'Easy', price: 2500, imageUrl: 'https://images.unsplash.com/photo-1596831167051-11c67bd1fc73?w=500&q=80' },
+        { name: 'Kheerganga Trek', location: 'Kasol, HP', duration: 2, distance: 12, difficulty: 'Easy', price: 1800, imageUrl: 'https://images.unsplash.com/photo-1626621422471-eb1fa6fc1816?w=500&q=80' },
+        { name: 'Nag Tibba', location: 'Mussoorie, UK', duration: 2, distance: 10, difficulty: 'Easy', price: 2200, imageUrl: 'https://images.unsplash.com/photo-1544644181-1484b3fdfc62?w=500&q=80' }
+      ];
+      return [...list, ...fallbacks].slice(0, 3);
+    },
+    dashboardModerateTreks() {
+      const list = this.availableTreks.filter(t => t.difficulty.toLowerCase() === 'moderate');
+      if (list.length >= 3) return list.slice(0, 3);
+      const fallbacks = [
+        { name: 'Valley of Flowers', location: 'Chamoli, UK', duration: 6, distance: 38, difficulty: 'Moderate', price: 8200, imageUrl: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=500&q=80' },
+        { name: 'Hampta Pass', location: 'Manali, HP', duration: 5, distance: 35, difficulty: 'Moderate', price: 8200, imageUrl: 'https://images.unsplash.com/photo-1544644181-1484b3fdfc62?w=500&q=80' },
+        { name: 'Kuari Pass', location: 'Joshimath, UK', duration: 6, distance: 33, difficulty: 'Moderate', price: 7800, imageUrl: 'https://images.unsplash.com/photo-1454496522488-7a8e488e8606?w=500&q=80' }
+      ];
+      return [...list, ...fallbacks].slice(0, 3);
+    },
+    dashboardHardTreks() {
+      const list = this.availableTreks.filter(t => t.difficulty.toLowerCase() === 'hard' || t.difficulty.toLowerCase() === 'difficult');
+      if (list.length >= 3) return list.slice(0, 3);
+      const fallbacks = [
+        { name: 'Roopkund Trek', location: 'Chamoli, UK', duration: 8, distance: 53, difficulty: 'Hard', price: 11000, imageUrl: 'https://images.unsplash.com/photo-1585409677983-0f6c41ca9c3b?w=500&q=80' },
+        { name: 'Pin Parvati Pass', location: 'Kullu, HP', duration: 11, distance: 110, difficulty: 'Hard', price: 24000, imageUrl: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=500&q=80' },
+        { name: 'Rupin Pass', location: 'Sangla, HP', duration: 8, distance: 52, difficulty: 'Hard', price: 13500, imageUrl: 'https://images.unsplash.com/photo-1454496522488-7a8e488e8606?w=500&q=80' }
+      ];
+      return [...list, ...fallbacks].slice(0, 3);
+    },
   },
 
   methods: {
@@ -213,8 +258,50 @@ const TsUserLayout = {
       this.activeTab = tab;
       this.sidebarOpen = false;
     },
+    sendGuideMessage() {
+      if (!this.guideMessage.trim()) return;
+      const userTxt = this.guideMessage.trim();
+      this.guideChatHistory.push({ sender: 'user', text: userTxt });
+      this.guideMessage = '';
+      this.guideIsTyping = true;
+      setTimeout(() => {
+        this.guideIsTyping = false;
+        let reply = '';
+        const txtLower = userTxt.toLowerCase();
+        if (txtLower.includes('woolen') || txtLower.includes('cold') || txtLower.includes('jacket') || txtLower.includes('sweater')) {
+          reply = "Yes, temperatures can drop down to 10°C or lower near the waterfalls at night, especially if it rains. I highly recommend packing at least one warm fleece or a light jacket and a waterproof outer layer!";
+        } else if (txtLower.includes('shoes') || txtLower.includes('boot') || txtLower.includes('gear')) {
+          reply = "For Tada Falls, the trail involves walking over wet, slippery boulders and river crossings. Good trekking shoes with excellent grip (like Vibram soles) are a must. Avoid normal trainers if possible!";
+        } else if (txtLower.includes('weather') || txtLower.includes('rain') || txtLower.includes('storm')) {
+          reply = "There is a live thunderstorm warning for the district. The water levels in the pools can rise quickly. We will monitor the conditions closely on the morning of departure and take safety precautions.";
+        } else {
+          reply = "I've noted your query! Make sure you carry a 20-30L daypack, a raincoat, and energy bars. Let me know if you need help with anything else for your Tada Falls trip.";
+        }
+        this.guideChatHistory.push({ sender: 'guide', text: reply });
+      }, 1500);
+    },
+    navigateToTrek(trekName) {
+      this.goTab('explore');
+      this.searchQuery = trekName;
+      setTimeout(() => {
+        const trek = this.availableTreks.find(t => t.name.toLowerCase() === trekName.toLowerCase());
+        if (trek) {
+          this.openBookingModal(trek);
+        }
+      }, 100);
+    },
 
     // ── TREK HELPERS ──────────────────────────────
+    bookFeaturedTrek(trekName) {
+      if (!this.availableTreks) return;
+      const trek = this.availableTreks.find(t => t.name.toLowerCase() === trekName.toLowerCase());
+      if (trek) {
+        this.openBookingModal(trek);
+      } else {
+        this.goTab('explore');
+        this.showToast(`Looking for "${trekName}" in the catalog...`, 'info');
+      }
+    },
     isBooked(trekId) { return this.bookedTrekIds.has(trekId); },
     isFull(t) { return t.booked >= t.slots; },
     slotsLeft(t) { return t.slots - t.booked; },
@@ -613,14 +700,13 @@ const TsUserLayout = {
       <svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
     </button>
 
-    <!-- ── SIDEBAR ─────────────────────────────────── -->
-    <aside class="ts-sidebar" :class="{ open: sidebarOpen }">
+    <aside class="ts-sidebar" :class="{ open: sidebarOpen, collapsed: sidebarCollapsed }">
       <!-- Brand -->
       <div class="sidebar-brand">
-        <div class="sidebar-brand-icon">
-          <svg viewBox="0 0 24 24"><path d="M3 17l4-8 4 4 4-6 4 10"/></svg>
-        </div>
         <span class="sidebar-brand-name">Trail<span>Sync</span></span>
+        <button class="btn-sidebar-close" @click="sidebarCollapsed = true" title="Close Sidebar">
+          <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
       </div>
 
       <!-- User chip -->
@@ -637,31 +723,31 @@ const TsUserLayout = {
         <div class="sidebar-section-label">Main</div>
         <div class="sidebar-nav-item" :class="{ active: activeTab === 'dashboard' }" @click="goTab('dashboard')">
           <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-          Dashboard
+          <span>Dashboard</span>
         </div>
         <div class="sidebar-nav-item" :class="{ active: activeTab === 'explore' }" @click="goTab('explore')">
           <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          Explore Treks
+          <span>Explore Treks</span>
         </div>
         <div class="sidebar-nav-item" :class="{ active: activeTab === 'bookings' }" @click="goTab('bookings')">
-          <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-          My Bookings
+          <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M10 16l2 2 4-4"/></svg>
+          <span>My Bookings</span>
           <span v-if="myBookings.filter(b=>b.status==='Booked').length" class="sidebar-badge">
             {{ myBookings.filter(b=>b.status==='Booked').length }}
           </span>
         </div>
         <div class="sidebar-nav-item" :class="{ active: activeTab === 'history' }" @click="goTab('history')">
-          <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/></svg>
-          Trek History
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span>Trek History</span>
         </div>
         <div class="sidebar-nav-item" :class="{ active: activeTab === 'calendar' }" @click="goTab('calendar')">
           <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-          Trek Calendar
+          <span>Trek Calendar</span>
         </div>
         <div class="sidebar-section-label" style="margin-top:0.5rem">Account</div>
         <div class="sidebar-nav-item" :class="{ active: activeTab === 'profile' }" @click="goTab('profile')">
           <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-          My Profile
+          <span>My Profile</span>
         </div>
       </nav>
 
@@ -675,10 +761,13 @@ const TsUserLayout = {
     </aside>
 
     <!-- ── MAIN CONTENT ─────────────────────────────── -->
-    <div class="ts-main-content">
+    <div class="ts-main-content" :class="{ expanded: sidebarCollapsed }">
 
       <!-- Top bar -->
       <div class="ts-topbar">
+        <button v-if="sidebarCollapsed" class="btn-sidebar-open" @click="sidebarCollapsed = false" title="Open Sidebar">
+          <svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+        </button>
         <div class="topbar-breadcrumb">
           TrailSync / <span>{{ activeTab.charAt(0).toUpperCase() + activeTab.slice(1) }}</span>
         </div>
@@ -703,39 +792,127 @@ const TsUserLayout = {
 
         <!-- ════════ DASHBOARD TAB ════════ -->
         <section v-if="activeTab === 'dashboard'">
-          <!-- Hero strip -->
-          <div class="dash-hero">
-            <div class="dash-hero-text">
-              <div class="dash-hero-greeting">Welcome back, Trekker</div>
-              <div class="dash-hero-name">Hello, <em>{{ profile.name ? profile.name.split(' ')[0] : 'Trekker' }}</em> 🏔️</div>
-              <div class="dash-hero-sub">Your next adventure is waiting. {{ filteredTreks.length }} treks open for booking right now.</div>
-            </div>
-            <div class="dash-hero-cta">
-              <button class="btn-hero-primary" @click="goTab('explore')">Explore Treks</button>
-              <button class="btn-hero-ghost" @click="goTab('bookings')">My Bookings</button>
-            </div>
-          </div>
 
-          <!-- Stats row -->
-          <div class="stats-row">
-            <div v-for="s in userStats" :key="s.label" class="stat-card">
-              <div class="stat-icon" :class="s.color">
-                <!-- Active Bookings: Calendar with grid details -->
-                <svg v-if="s.icon==='calendar'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01"></path></svg>
-                <!-- Treks Completed: Mountain Summit Checkmark -->
-                <svg v-if="s.icon==='check'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20L12 4l9 16H3z"></path><path d="M9 12l2 2 4-4"></path></svg>
-                <!-- Available Treks: Folded Map routes -->
-                <svg v-if="s.icon==='map'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"></polygon><line x1="9" y1="3" x2="9" y2="18"></line><line x1="15" y1="6" x2="15" y2="21"></line></svg>
-                <!-- Total Invested: Correct, fully visible Indian Rupee Symbol -->
-                <svg v-if="s.icon==='rupee'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 5h12M6 10h12M6 5a5 5 0 0 1 0 10H6M12 10L6 20"/></svg>
+          <!-- ── TALL HERO BANNER ────────────────────── -->
+          <div class="dash-hero">
+
+            <!-- Background image slideshow layers -->
+            <div class="dash-hero-bg-layer dash-hero-bg-layer-1"></div>
+            <div class="dash-hero-bg-layer dash-hero-bg-layer-2"></div>
+            <div class="dash-hero-bg-layer dash-hero-bg-layer-3"></div>
+
+            <!-- Dark gradient overlay -->
+            <div class="dash-hero-overlay"></div>
+
+            <!-- Slideshow indicator dots -->
+            <div class="hero-slide-dots">
+              <div class="hero-dot" id="hero-dot-1"></div>
+              <div class="hero-dot" id="hero-dot-2"></div>
+              <div class="hero-dot" id="hero-dot-3"></div>
+            </div>
+
+            <!-- Two-column content layout inside hero -->
+            <div class="dash-hero-inner">
+              <!-- Left: Greeting + Stats + CTA Buttons -->
+              <div class="dash-hero-left">
+                <div class="dash-hero-greeting">Welcome back, Trekker</div>
+                <div class="dash-hero-name">Hello, <em>{{ profile.name ? profile.name.split(' ')[0] : 'Trekker' }}</em> <i class="bi bi-person-walking" style="color: var(--gold-light); font-size: 2.2rem; margin-left: 2px; vertical-align: middle;"></i></div>
+                <div class="dash-hero-punchline">Scale new heights. Discover your next epic journey.</div>
+                
+                <div class="dash-hero-stats-grid">
+                  <div v-for="s in userStats" :key="s.label" class="hero-stat-item">
+                    <div class="hero-stat-icon" :class="s.color">
+                      <svg v-if="s.icon==='calendar'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01"></path></svg>
+                      <svg v-if="s.icon==='check'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20L12 4l9 16H3z"></path><path d="M9 12l2 2 4-4"></path></svg>
+                      <svg v-if="s.icon==='map'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"></polygon><line x1="9" y1="3" x2="9" y2="18"></line><line x1="15" y1="6" x2="15" y2="21"></line></svg>
+                      <svg v-if="s.icon==='rupee'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 5h12M6 10h12M6 5a5 5 0 0 1 0 10H6M12 10L6 20"/></svg>
+                    </div>
+                    <div class="hero-stat-info">
+                      <div class="hero-stat-val">{{ s.value }}</div>
+                      <div class="hero-stat-lbl">{{ s.label }}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="dash-hero-left-cta">
+                  <button class="btn-hero-primary" @click="goTab('explore')">Explore Treks</button>
+                  <button class="btn-hero-ghost" @click="goTab('bookings')">My Bookings</button>
+                </div>
               </div>
-              <div class="stat-info">
-                <div class="stat-val">{{ s.value }}</div>
-                <div class="stat-lbl">{{ s.label }}</div>
-                <div v-if="s.trend" class="stat-trend">{{ s.trend }}</div>
+
+              <!-- Right: Recommended Trek -->
+              <div class="dash-hero-right">
+                <div class="hero-trek-card-container">
+                  <!-- Slide 1 Card: Hampta Pass -->
+                  <div class="hero-trek-card slide-1">
+                    <div class="htc-badge moderate">Moderate</div>
+                    <div class="htc-name">Hampta Pass</div>
+                    <div class="htc-details">
+                      <span class="htc-detail">
+                        <svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                        Himachal Pradesh
+                      </span>
+                      <span class="htc-detail">
+                        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        5 days
+                      </span>
+                      <span class="htc-detail">
+                        <svg viewBox="0 0 24 24"><path d="M3 17l4-8 4 4 4-6 4 10"/></svg>
+                        35 km
+                      </span>
+                    </div>
+                    <div class="htc-price">₹ 8,200 / person</div>
+                    <button class="btn-card-book" @click.stop="bookFeaturedTrek('Hampta Pass')">Book Now</button>
+                  </div>
+
+                  <!-- Slide 2 Card: Kedarkantha Trek -->
+                  <div class="hero-trek-card slide-2">
+                    <div class="htc-badge easy">Easy</div>
+                    <div class="htc-name">Kedarkantha Trek</div>
+                    <div class="htc-details">
+                      <span class="htc-detail">
+                        <svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                        Uttarakhand
+                      </span>
+                      <span class="htc-detail">
+                        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        6 days
+                      </span>
+                      <span class="htc-detail">
+                        <svg viewBox="0 0 24 24"><path d="M3 17l4-8 4 4 4-6 4 10"/></svg>
+                        20 km
+                      </span>
+                    </div>
+                    <div class="htc-price">₹ 6,500 / person</div>
+                    <button class="btn-card-book" @click.stop="bookFeaturedTrek('Kedarkantha Trek')">Book Now</button>
+                  </div>
+
+                  <!-- Slide 3 Card: Valley of Flowers -->
+                  <div class="hero-trek-card slide-3">
+                    <div class="htc-badge moderate">Moderate</div>
+                    <div class="htc-name">Valley of Flowers</div>
+                    <div class="htc-details">
+                      <span class="htc-detail">
+                        <svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                        Chamoli, UK
+                      </span>
+                      <span class="htc-detail">
+                        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        6 days
+                      </span>
+                      <span class="htc-detail">
+                        <svg viewBox="0 0 24 24"><path d="M3 17l4-8 4 4 4-6 4 10"/></svg>
+                        38 km
+                      </span>
+                    </div>
+                    <div class="htc-price">₹ 8,200 / person</div>
+                    <button class="btn-card-book" @click.stop="bookFeaturedTrek('Valley of Flowers')">Book Now</button>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
+
+          </div><!-- /dash-hero -->
 
           <!-- Main two-column grid -->
           <div class="dashboard-grid">
@@ -743,7 +920,7 @@ const TsUserLayout = {
             <div class="dashboard-main">
 
               <!-- Upcoming Treks panel -->
-              <div class="ts-card" style="margin-bottom:1.75rem">
+              <div class="ts-card">
                 <div class="ts-card-header">
                   <div>
                     <div class="ts-card-title">Upcoming Booked Treks</div>
@@ -761,8 +938,8 @@ const TsUserLayout = {
                       <div class="booking-accent" :class="'ba-' + b.difficulty.toLowerCase()"></div>
                       <div class="booking-main">
                         <div class="booking-trek-name">{{ b.trekName }}</div>
-                        <div class="booking-loc">📍 {{ b.location }}</div>
-                        <div class="booking-dates mono">{{ b.startDate }} → {{ b.endDate }}</div>
+                        <div class="booking-loc"><span class="css-loc-pin"></span>{{ b.location }}</div>
+                        <div class="booking-dates mono">{{ formatDate(b.startDate) }} → {{ formatDate(b.endDate) }}</div>
                         <div v-if="b.guide" class="booking-guide-info" style="font-size: 0.78rem; color: var(--stone); margin-top: 6px; display: flex; align-items: center; gap: 8px;">
                           <span>👤 Guide: <strong>{{ b.guide.name }}</strong> ({{ b.guide.phone }})</span>
                           <button style="color: var(--forest); font-weight: 600; cursor: pointer; border: none; background: none; padding: 0; font-size: 0.78rem; text-decoration: underline;" @click="openGuideModal(b.guide)">View Profile</button>
@@ -782,63 +959,18 @@ const TsUserLayout = {
                 </div>
               </div>
 
-              <!-- Recommended Treks -->
-              <div class="ts-card">
-                <div class="ts-card-header">
-                  <div>
-                    <div class="ts-card-title">Recommended For You</div>
-                    <div class="ts-card-subtitle">Based on your trekking history</div>
-                  </div>
-                  <button class="ts-card-action" @click="goTab('explore')">See all →</button>
-                </div>
-                <div class="ts-card-body">
-                  <div class="treks-grid-user">
-                    <div v-for="t in availableTreks.slice(0, 3)" :key="t.id" class="trek-card-user">
-                      <div class="trek-img-user">
-                        <img v-if="t.imageUrl" :src="t.imageUrl" :alt="t.name" style="width: 100%; height: 100%; object-fit: cover;" />
-                        <div v-else class="trek-img-placeholder" :style="{ background: getGradient(t) }">
-                          <svg viewBox="0 0 24 24"><path d="M3 17l4-8 4 4 4-6 4 10"/></svg>
-                        </div>
-                        <span :class="'trek-badge badge-' + t.difficulty.toLowerCase()">{{ t.difficulty }}</span>
-                        <span class="trek-open-tag">Open</span>
-                      </div>
-                      <div class="trek-body" style="display: flex; flex-direction: column; min-height: 220px;">
-                        <div class="trek-name-user">{{ t.name }}</div>
-                        <div class="trek-loc-user" style="margin-bottom: 0.4rem;">
-                          <svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                          {{ t.location }}
-                        </div>
-                        <div style="font-size:0.75rem; color:var(--stone); line-height:1.4; margin-bottom:0.75rem; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; text-overflow:ellipsis; flex-grow:1;">
-                          {{ cleanDescription(t) }}
-                        </div>
-                        <div class="trek-row-meta" style="margin-bottom:1rem; border-top: 1px solid var(--stone-light); padding-top: 8px;">
-                          <span class="trek-meta-pill">
-                            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                            {{ t.duration }} days
-                          </span>
-                          <span class="trek-meta-pill">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M3 17l4-8 4 4 4-6 4 10"/></svg>
-                            {{ t.distance }} km
-                          </span>
-                        </div>
-                        <button class="btn-book" @click="openBookingModal(t)">
-                          Book Now
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
             </div>
 
             <!-- Right sidebar panel -->
             <div class="dashboard-sidebar-panel">
 
               <!-- Countdown to next trek -->
-              <div v-if="nextTrek" class="upcoming-trek" style="margin-bottom:1.25rem">
-                <div class="up-label">⏱ Next Trek In</div>
-                <div class="up-name">{{ nextTrek.trekName }}</div>
-                <div class="up-loc">📍 {{ nextTrek.location }}</div>
+              <div v-if="nextTrek" class="upcoming-trek">
+                <div>
+                  <div class="up-label">⏱ Next Trek In</div>
+                  <div class="up-name">{{ nextTrek.trekName }}</div>
+                  <div class="up-loc"><span class="css-loc-pin"></span>{{ nextTrek.location }}</div>
+                </div>
                 <div class="up-countdown">
                   <div class="countdown-unit">
                     <span class="cu-val">{{ countdownVals.days }}</span>
@@ -857,88 +989,10 @@ const TsUserLayout = {
                     <span class="cu-lbl">Sec</span>
                   </div>
                 </div>
+                <button class="btn-up-details" @click="goTab('bookings')">
+                  View Details
+                </button>
               </div>
-
-              <!-- Weather Widget -->
-              <div v-if="nextTrek" class="weather-widget" style="margin-bottom:1.25rem">
-                <div v-if="weather.loading" style="text-align: center; padding: 1.5rem 0;">
-                  <div class="spinner" style="margin-bottom: 0.5rem;"></div>
-                  <div style="font-size: 0.8rem; color: rgba(255,255,255,0.6);">Fetching real-time weather...</div>
-                </div>
-                <div v-else-if="weather.error" style="text-align: center; padding: 1.5rem 0; color: rgba(255,255,255,0.6); font-size: 0.85rem;">
-                  ⚠️ Failed to load weather data
-                </div>
-                <div v-else>
-                  <div class="weather-header">
-                    <div>
-                      <div class="weather-loc">📍 {{ weather.locationName }}</div>
-                      <div class="weather-temp">{{ weather.temp }}<span class="weather-unit">°C</span></div>
-                    </div>
-                    <div class="weather-icon">{{ weather.icon }}</div>
-                  </div>
-                  <div class="weather-desc">{{ weather.desc }} — Live Forecast</div>
-                  <div class="weather-metrics">
-                    <div class="weather-metric"><strong>{{ weather.humidity }}%</strong>Humidity</div>
-                    <div class="weather-metric"><strong>{{ weather.windSpeed }} km/h</strong>Wind</div>
-                    <div class="weather-metric">
-                      <strong>{{ nextTrek.latitude ? nextTrek.latitude.toFixed(2) : '0.0' }}°, {{ nextTrek.longitude ? nextTrek.longitude.toFixed(2) : '0.0' }}°</strong>
-                      Coords
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Mini Calendar -->
-              <div class="ts-card" style="margin-bottom:1.25rem">
-                <div class="ts-card-header">
-                  <div class="ts-card-title">Trek Calendar</div>
-                  <button class="ts-card-action" @click="goTab('calendar')">Expand →</button>
-                </div>
-                <div class="ts-card-body" style="padding-top:0.75rem">
-                  <div class="mini-calendar">
-                    <div class="calendar-nav">
-                      <div class="cal-nav-btn" @click="prevMonth">
-                        <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
-                      </div>
-                      <div class="calendar-month">{{ calMonthLabel }}</div>
-                      <div class="cal-nav-btn" @click="nextMonth">
-                        <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
-                      </div>
-                    </div>
-                    <div class="calendar-grid">
-                      <div v-for="d in ['Su','Mo','Tu','We','Th','Fr','Sa']" :key="d" class="cal-day-header">{{ d }}</div>
-                      <div
-                        v-for="(day, i) in calendarDays"
-                        :key="i"
-                        class="cal-day"
-                        :class="{
-                          today: day.isToday,
-                          'has-trek': day.hasTrek,
-                          'other-month': day.month !== 'current'
-                        }"
-                      >{{ day.day }}</div>
-                    </div>
-                    <div class="calendar-legend">
-                      <div class="calendar-legend-item">
-                        <div class="legend-dot ld-today"></div> Today
-                      </div>
-                      <div class="calendar-legend-item">
-                        <div class="legend-dot ld-trek"></div> Trek Day
-                      </div>
-                    </div>
-                    <!-- Events this month -->
-                    <div v-if="calendarEvents.length" class="calendar-events">
-                      <div v-for="e in calendarEvents" :key="e.name" class="cal-event">
-                        <div class="cal-event-dot" style="background: var(--forest)"></div>
-                        <span class="cal-event-name">{{ e.name }}</span>
-                        <span class="cal-event-date">{{ e.date }}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-
 
             </div>
           </div>
@@ -1064,8 +1118,8 @@ const TsUserLayout = {
               <div class="booking-accent" :class="'ba-' + b.difficulty.toLowerCase()"></div>
               <div class="booking-main">
                 <div class="booking-trek-name">{{ b.trekName }}</div>
-                <div class="booking-loc">📍 {{ b.location }}</div>
-                <div class="booking-dates mono">{{ b.startDate }} → {{ b.endDate }}</div>
+                <div class="booking-loc"><span class="css-loc-pin"></span>{{ b.location }}</div>
+                <div class="booking-dates mono">{{ formatDate(b.startDate) }} → {{ formatDate(b.endDate) }}</div>
                 <div v-if="b.guide" class="booking-guide-info" style="font-size: 0.78rem; color: var(--stone); margin-top: 6px; display: flex; align-items: center; gap: 8px;">
                   <span>👤 Guide: <strong>{{ b.guide.name }}</strong> ({{ b.guide.phone }})</span>
                   <button style="color: var(--forest); font-weight: 600; cursor: pointer; border: none; background: none; padding: 0; font-size: 0.78rem; text-decoration: underline;" @click="openGuideModal(b.guide)">View Profile</button>
@@ -1135,7 +1189,7 @@ const TsUserLayout = {
                 <tr v-for="h in trekHistory" :key="h.id">
                   <td class="cell-name">{{ h.trekName }}</td>
                   <td>{{ h.location }}</td>
-                  <td class="mono">{{ h.startDate }}<br>→ {{ h.endDate }}</td>
+                  <td class="mono">{{ formatDate(h.startDate) }}<br>→ {{ formatDate(h.endDate) }}</td>
                   <td>—</td>
                   <td><span :class="'diff-pill pill-' + h.difficulty.toLowerCase()">{{ h.difficulty }}</span></td>
                   <td class="mono">{{ h.price > 0 ? '₹' + h.price.toLocaleString() : '—' }}</td>
@@ -1216,8 +1270,8 @@ const TsUserLayout = {
                   <div v-for="b in myBookings.filter(b=>b.status==='Booked')" :key="b.id"
                     style="padding:1rem 0; border-bottom:1px solid rgba(26,46,26,0.06)">
                     <div style="font-family:'Playfair Display',serif; font-size:1rem; font-weight:700; color:var(--forest); margin-bottom:0.25rem">{{ b.trekName }}</div>
-                    <div style="font-size:0.78rem; color:var(--stone); margin-bottom:0.35rem">📍 {{ b.location }}</div>
-                    <div style="font-family:'Space Mono',monospace; font-size:0.72rem; color:var(--bark)">{{ b.startDate }} → {{ b.endDate }}</div>
+                    <div style="font-size:0.78rem; color:var(--stone); margin-bottom:0.35rem"><span class="css-loc-pin" style="background:var(--gold)"></span>{{ b.location }}</div>
+                    <div style="font-family:'Space Mono',monospace; font-size:0.72rem; color:var(--bark)">{{ formatDate(b.startDate) }} → {{ formatDate(b.endDate) }}</div>
                   </div>
                 </div>
               </div>
@@ -1364,7 +1418,7 @@ const TsUserLayout = {
                   <img :src="bookingTarget.imageUrl" :alt="bookingTarget.name" style="width: 100%; height: 100%; object-fit: cover;" />
                 </div>
                 <div style="font-size: 1.2rem; font-weight: 700; color: var(--forest); margin-bottom: 4px;">{{ bookingTarget.name }}</div>
-                <div style="font-size: 0.85rem; color: var(--stone); margin-bottom: 0.75rem;">📍 {{ bookingTarget.location }}</div>
+                <div style="font-size: 0.85rem; color: var(--stone); margin-bottom: 0.75rem;"><span class="css-loc-pin" style="background:var(--gold)"></span>{{ bookingTarget.location }}</div>
                 
                 <div style="margin-top: 0.5rem; background: var(--snow); padding: 10px; border-radius: 4px; border: 1px solid var(--stone-light); font-size: 0.82rem; display: flex; flex-direction: column; gap: 6px;">
                   <div style="display: flex; justify-content: space-between;"><strong>Difficulty:</strong> <span :class="'diff-pill pill-'+bookingTarget.difficulty.toLowerCase()">{{ bookingTarget.difficulty }}</span></div>

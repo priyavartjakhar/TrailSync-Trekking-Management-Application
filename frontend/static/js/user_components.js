@@ -1256,6 +1256,10 @@ const TsUserLayout = {
               <div class="page-eyebrow">Open Adventures</div>
               <div class="page-title">Explore <em>Treks</em></div>
             </div>
+            <button class="btn-back-home" @click="goTab('dashboard')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+              Back to Home
+            </button>
           </div>
 
           <!-- Search & Filters -->
@@ -1356,6 +1360,10 @@ const TsUserLayout = {
               <div class="page-eyebrow">Trekker</div>
               <div class="page-title">My <em>Bookings</em></div>
             </div>
+            <button class="btn-back-home" @click="goTab('dashboard')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+              Back to Home
+            </button>
           </div>
 
           <div v-if="myBookings.length === 0" class="empty-state">
@@ -1413,9 +1421,15 @@ const TsUserLayout = {
               <div class="page-eyebrow">Trekker</div>
               <div class="page-title">Trek <em>History</em></div>
             </div>
-            <button class="btn-gold" @click="requestExport" :disabled="exportPending">
-              {{ exportPending ? '⏳ Exporting…' : '⬇ Export CSV' }}
-            </button>
+            <div style="display: flex; gap: 0.75rem; align-items: flex-end;">
+              <button class="btn-gold" @click="requestExport" :disabled="exportPending">
+                {{ exportPending ? '⏳ Exporting…' : '⬇ Export CSV' }}
+              </button>
+              <button class="btn-back-home" @click="goTab('dashboard')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                Back to Home
+              </button>
+            </div>
           </div>
 
           <div v-if="trekHistory.length === 0" class="empty-state">
@@ -1463,6 +1477,10 @@ const TsUserLayout = {
               <div class="page-eyebrow">Schedule</div>
               <div class="page-title">Trek <em>Calendar</em></div>
             </div>
+            <button class="btn-back-home" @click="goTab('dashboard')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+              Back to Home
+            </button>
           </div>
 
           <div style="display:grid; grid-template-columns:1fr 320px; gap:1.75rem; align-items:start">
@@ -1555,6 +1573,10 @@ const TsUserLayout = {
               <div class="page-eyebrow">Account</div>
               <div class="page-title">My <em>Profile</em></div>
             </div>
+            <button class="btn-back-home" @click="goTab('dashboard')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+              Back to Home
+            </button>
           </div>
 
           <div class="profile-layout">

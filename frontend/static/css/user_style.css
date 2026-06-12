@@ -1534,6 +1534,33 @@ body {
 }
 .btn-gold:hover { background: var(--gold-light); transform: translateY(-1px); }
 
+.btn-back-home {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: 1px solid rgba(26,46,26,0.15);
+  border-radius: var(--radius);
+  padding: 0.55rem 1.1rem;
+  color: var(--forest);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.83rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+}
+.btn-back-home:hover {
+  background: var(--cream);
+  color: var(--gold);
+  border-color: var(--gold);
+  transform: translateY(-1px);
+}
+.btn-back-home svg {
+  width: 15px;
+  height: 15px;
+  stroke: currentColor;
+}
+
 .btn-outline {
   padding: 0.55rem 1.4rem;
   background: transparent; border: 1px solid rgba(26,46,26,0.18); border-radius: var(--radius);

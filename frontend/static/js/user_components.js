@@ -267,6 +267,13 @@ const TsUserLayout = {
         this.activeTab = hash;
         this.sidebarOpen = false;
         localStorage.setItem('userActiveTab', hash);
+        
+        // Reset scroll position to top on tab change
+        this.$nextTick(() => {
+          window.scrollTo(0, 0);
+          const el = document.querySelector('.page-content');
+          if (el) el.scrollTop = 0;
+        });
       }
     },
     goProfileTab() {
@@ -1290,7 +1297,7 @@ const TsUserLayout = {
         </section>
 
         <!-- ════════ EXPLORE TREKS TAB ════════ -->
-        <section v-if="activeTab === 'explore'">
+        <section v-if="activeTab === 'explore'" class="tab-section-content">
           <div class="page-header">
             <div class="page-header-left">
               <div class="page-eyebrow">Open Adventures</div>
@@ -1394,7 +1401,7 @@ const TsUserLayout = {
         </section>
 
         <!-- ════════ MY BOOKINGS TAB ════════ -->
-        <section v-if="activeTab === 'bookings'">
+        <section v-if="activeTab === 'bookings'" class="tab-section-content">
           <div class="page-header">
             <div class="page-header-left">
               <div class="page-eyebrow">Trekker</div>
@@ -1455,7 +1462,7 @@ const TsUserLayout = {
         </section>
 
         <!-- ════════ TREK HISTORY TAB ════════ -->
-        <section v-if="activeTab === 'history'">
+        <section v-if="activeTab === 'history'" class="tab-section-content">
           <div class="page-header">
             <div class="page-header-left">
               <div class="page-eyebrow">Trekker</div>
@@ -1511,7 +1518,7 @@ const TsUserLayout = {
         </section>
 
         <!-- ════════ TREK CALENDAR TAB ════════ -->
-        <section v-if="activeTab === 'calendar'">
+        <section v-if="activeTab === 'calendar'" class="tab-section-content">
           <div class="page-header">
             <div class="page-header-left">
               <div class="page-eyebrow">Schedule</div>
@@ -1607,7 +1614,7 @@ const TsUserLayout = {
         </section>
 
         <!-- ════════ PROFILE TAB ════════ -->
-        <section v-if="activeTab === 'profile'">
+        <section v-if="activeTab === 'profile'" class="tab-section-content">
           <div class="page-header">
             <div class="page-header-left">
               <div class="page-eyebrow">Account</div>

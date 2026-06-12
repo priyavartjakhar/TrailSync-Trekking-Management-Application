@@ -1750,44 +1750,25 @@ body {
   transform: scale(1.02);
 }
 
-/* ── Tales from the Trail (Community Pinterest Feed) ── */
-.pinterest-grid {
-  margin-top: 1rem;
-}
+/* ── Tales from the Trail (Community Feed) ── */
 .pin-card {
-  display: inline-block;
-  width: 100%;
+  background: #fff;
+  border: 1px solid rgba(26,46,26,0.07);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: 0 4px 16px var(--shadow);
+  transition: var(--transition);
+  display: flex;
+  flex-direction: column;
 }
 .pin-card:hover {
-  transform: translateY(-4px) !important;
-  box-shadow: 0 12px 30px rgba(26,46,26,0.16) !important;
-}
-.pin-card:hover img {
-  transform: scale(1.06) !important;
-}
-.pin-card:hover .pin-glass-overlay {
-  opacity: 1 !important;
-}
-.btn-pin-action:hover {
-  background: var(--gold-light) !important;
-  transform: scale(1.02);
+  transform: translateY(-5px);
+  box-shadow: 0 16px 40px var(--shadow-deep);
 }
 .pin-avatar {
   text-shadow: 0 1px 1px rgba(0,0,0,0.1);
 }
-
-/* Responsive adjustments for trek categories & community feed */
-@media (max-width: 900px) {
-  .trek-cards-grid {
-    grid-template-columns: repeat(2, 1fr) !important;
-  }
-  .pinterest-grid {
-    column-count: 1 !important;
-  }
-}
-@media (max-width: 600px) {
-  .trek-cards-grid {
-    grid-template-columns: 1fr !important;
-  }
+.btn-pin-static-action:hover {
+  color: var(--gold-light) !important;
 }
 

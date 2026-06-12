@@ -1118,24 +1118,36 @@ const TsUserLayout = {
                 <div class="category-row-title" style="font-family:'Playfair Display',serif; font-size:1.4rem; font-weight:700; color:var(--forest);">🏔️ Easy Trails <span style="font-family:'Space Mono',monospace; font-size:0.7rem; color:var(--gold); text-transform:uppercase; margin-left:10px; letter-spacing:0.05em; font-weight:600;">Beginner Friendly</span></div>
                 <button class="btn-category-view-all" @click="goTab('explore')" style="background:none; border:none; color:var(--forest); font-weight:600; font-size:0.85rem; cursor:pointer; text-decoration:underline;">View All Easy Treks →</button>
               </div>
-              <div class="trek-cards-grid" style="display:grid; grid-template-columns:repeat(3, 1fr); gap:1.5rem;">
-                <div v-for="t in dashboardEasyTreks" :key="t.name" class="trek-category-card" @click="navigateToTrek(t.name)" style="cursor:pointer; background:#fff; border:1px solid rgba(26,46,26,0.07); border-radius:var(--radius); overflow:hidden; box-shadow:0 2px 12px var(--shadow); transition:var(--transition);">
-                  <div class="tcc-image-wrapper" style="height:150px; position:relative; overflow:hidden;">
-                    <img :src="t.imageUrl || 'https://images.unsplash.com/photo-1544644181-1484b3fdfc62?w=500&q=80'" :alt="t.name" style="width:100%; height:100%; object-fit:cover; transition:transform 0.5s ease;" />
-                    <div class="tcc-glass-overlay" style="position:absolute; inset:0; background:rgba(26,46,26,0.4); backdrop-filter:blur(4px); opacity:0; display:flex; flex-direction:column; justify-content:space-between; padding:1rem; transition:opacity 0.3s ease;">
-                      <div class="tcc-overlay-info" style="display:flex; justify-content:space-between; align-items:center;">
-                        <span class="tcc-overlay-loc" style="color:#fff; font-size:0.75rem; font-weight:600;"><span class="css-loc-pin" style="background:var(--gold); transform:rotate(-45deg) scale(0.8);"></span>{{ t.location }}</span>
-                        <span class="tcc-overlay-price" style="color:var(--gold-light); font-weight:700; font-family:'Space Mono',monospace; font-size:0.85rem;">₹{{ t.price.toLocaleString() }}</span>
-                      </div>
-                      <button class="tcc-overlay-btn" style="width:100%; border:none; background:var(--gold); color:var(--forest); font-weight:700; font-size:0.75rem; padding:0.45rem; border-radius:4px; text-transform:uppercase; letter-spacing:0.05em; cursor:pointer;">Book Now</button>
+              <div class="treks-grid-user">
+                <div v-for="t in dashboardEasyTreks" :key="t.name" class="trek-card-user" @click="navigateToTrek(t.name)" style="cursor:pointer;">
+                  <div class="trek-img-user">
+                    <img v-if="t.imageUrl" :src="t.imageUrl" :alt="t.name" style="width: 100%; height: 100%; object-fit: cover;" />
+                    <div v-else class="trek-img-placeholder" :style="{ background: getGradient(t) }">
+                      <svg viewBox="0 0 24 24"><path d="M3 17l4-8 4 4 4-6 4 10"/></svg>
                     </div>
+                    <span :class="'trek-badge badge-' + t.difficulty.toLowerCase()">{{ t.difficulty }}</span>
+                    <span class="trek-open-tag">Open</span>
                   </div>
-                  <div class="tcc-info" style="padding:1rem;">
-                    <div class="tcc-name" style="font-family:'Playfair Display',serif; font-size:1.1rem; font-weight:700; color:var(--forest); margin-bottom:4px;">{{ t.name }}</div>
-                    <div class="tcc-meta" style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--stone);">
-                      <span>⏱ {{ t.duration }} Days</span>
-                      <span>📏 {{ t.distance || 12 }} km</span>
+                  <div class="trek-body" style="display: flex; flex-direction: column; min-height: 220px;">
+                    <div class="trek-name-user">{{ t.name }}</div>
+                    <div class="trek-loc-user" style="margin-bottom: 0.4rem;">
+                      <svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                      {{ t.location }}
                     </div>
+                    <div style="font-size:0.78rem; color:var(--stone); margin-bottom:0.75rem; line-height:1.5; flex-grow: 1;">{{ cleanDescription(t) }}</div>
+                    <div class="trek-row-meta" style="margin-bottom:1rem; border-top: 1px solid var(--stone-light); padding-top: 8px;">
+                      <span class="trek-meta-pill">
+                        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        {{ t.duration }} days
+                      </span>
+                      <span class="trek-meta-pill">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M3 17l4-8 4 4 4-6 4 10"/></svg>
+                        {{ t.distance || 12 }} km
+                      </span>
+                    </div>
+                    <button class="btn-book" @click.stop="navigateToTrek(t.name)">
+                      Book Now
+                    </button>
                   </div>
                 </div>
               </div>
@@ -1147,24 +1159,36 @@ const TsUserLayout = {
                 <div class="category-row-title" style="font-family:'Playfair Display',serif; font-size:1.4rem; font-weight:700; color:var(--forest);">🌄 Moderate Passages <span style="font-family:'Space Mono',monospace; font-size:0.7rem; color:var(--gold); text-transform:uppercase; margin-left:10px; letter-spacing:0.05em; font-weight:600;">Epic Journeys</span></div>
                 <button class="btn-category-view-all" @click="goTab('explore')" style="background:none; border:none; color:var(--forest); font-weight:600; font-size:0.85rem; cursor:pointer; text-decoration:underline;">View All Moderate Treks →</button>
               </div>
-              <div class="trek-cards-grid" style="display:grid; grid-template-columns:repeat(3, 1fr); gap:1.5rem;">
-                <div v-for="t in dashboardModerateTreks" :key="t.name" class="trek-category-card" @click="navigateToTrek(t.name)" style="cursor:pointer; background:#fff; border:1px solid rgba(26,46,26,0.07); border-radius:var(--radius); overflow:hidden; box-shadow:0 2px 12px var(--shadow); transition:var(--transition);">
-                  <div class="tcc-image-wrapper" style="height:150px; position:relative; overflow:hidden;">
-                    <img :src="t.imageUrl || 'https://images.unsplash.com/photo-1544644181-1484b3fdfc62?w=500&q=80'" :alt="t.name" style="width:100%; height:100%; object-fit:cover; transition:transform 0.5s ease;" />
-                    <div class="tcc-glass-overlay" style="position:absolute; inset:0; background:rgba(26,46,26,0.4); backdrop-filter:blur(4px); opacity:0; display:flex; flex-direction:column; justify-content:space-between; padding:1rem; transition:opacity 0.3s ease;">
-                      <div class="tcc-overlay-info" style="display:flex; justify-content:space-between; align-items:center;">
-                        <span class="tcc-overlay-loc" style="color:#fff; font-size:0.75rem; font-weight:600;"><span class="css-loc-pin" style="background:var(--gold); transform:rotate(-45deg) scale(0.8);"></span>{{ t.location }}</span>
-                        <span class="tcc-overlay-price" style="color:var(--gold-light); font-weight:700; font-family:'Space Mono',monospace; font-size:0.85rem;">₹{{ t.price.toLocaleString() }}</span>
-                      </div>
-                      <button class="tcc-overlay-btn" style="width:100%; border:none; background:var(--gold); color:var(--forest); font-weight:700; font-size:0.75rem; padding:0.45rem; border-radius:4px; text-transform:uppercase; letter-spacing:0.05em; cursor:pointer;">Book Now</button>
+              <div class="treks-grid-user">
+                <div v-for="t in dashboardModerateTreks" :key="t.name" class="trek-card-user" @click="navigateToTrek(t.name)" style="cursor:pointer;">
+                  <div class="trek-img-user">
+                    <img v-if="t.imageUrl" :src="t.imageUrl" :alt="t.name" style="width: 100%; height: 100%; object-fit: cover;" />
+                    <div v-else class="trek-img-placeholder" :style="{ background: getGradient(t) }">
+                      <svg viewBox="0 0 24 24"><path d="M3 17l4-8 4 4 4-6 4 10"/></svg>
                     </div>
+                    <span :class="'trek-badge badge-' + t.difficulty.toLowerCase()">{{ t.difficulty }}</span>
+                    <span class="trek-open-tag">Open</span>
                   </div>
-                  <div class="tcc-info" style="padding:1rem;">
-                    <div class="tcc-name" style="font-family:'Playfair Display',serif; font-size:1.1rem; font-weight:700; color:var(--forest); margin-bottom:4px;">{{ t.name }}</div>
-                    <div class="tcc-meta" style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--stone);">
-                      <span>⏱ {{ t.duration }} Days</span>
-                      <span>📏 {{ t.distance || 35 }} km</span>
+                  <div class="trek-body" style="display: flex; flex-direction: column; min-height: 220px;">
+                    <div class="trek-name-user">{{ t.name }}</div>
+                    <div class="trek-loc-user" style="margin-bottom: 0.4rem;">
+                      <svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                      {{ t.location }}
                     </div>
+                    <div style="font-size:0.78rem; color:var(--stone); margin-bottom:0.75rem; line-height:1.5; flex-grow: 1;">{{ cleanDescription(t) }}</div>
+                    <div class="trek-row-meta" style="margin-bottom:1rem; border-top: 1px solid var(--stone-light); padding-top: 8px;">
+                      <span class="trek-meta-pill">
+                        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        {{ t.duration }} days
+                      </span>
+                      <span class="trek-meta-pill">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M3 17l4-8 4 4 4-6 4 10"/></svg>
+                        {{ t.distance || 35 }} km
+                      </span>
+                    </div>
+                    <button class="btn-book" @click.stop="navigateToTrek(t.name)">
+                      Book Now
+                    </button>
                   </div>
                 </div>
               </div>
@@ -1176,24 +1200,36 @@ const TsUserLayout = {
                 <div class="category-row-title" style="font-family:'Playfair Display',serif; font-size:1.4rem; font-weight:700; color:var(--forest);">⚡ Challenging Summits <span style="font-family:'Space Mono',monospace; font-size:0.7rem; color:var(--gold); text-transform:uppercase; margin-left:10px; letter-spacing:0.05em; font-weight:600;">For Experienced Climbers</span></div>
                 <button class="btn-category-view-all" @click="goTab('explore')" style="background:none; border:none; color:var(--forest); font-weight:600; font-size:0.85rem; cursor:pointer; text-decoration:underline;">View All Hard Treks →</button>
               </div>
-              <div class="trek-cards-grid" style="display:grid; grid-template-columns:repeat(3, 1fr); gap:1.5rem;">
-                <div v-for="t in dashboardHardTreks" :key="t.name" class="trek-category-card" @click="navigateToTrek(t.name)" style="cursor:pointer; background:#fff; border:1px solid rgba(26,46,26,0.07); border-radius:var(--radius); overflow:hidden; box-shadow:0 2px 12px var(--shadow); transition:var(--transition);">
-                  <div class="tcc-image-wrapper" style="height:150px; position:relative; overflow:hidden;">
-                    <img :src="t.imageUrl || 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=500&q=80'" :alt="t.name" style="width:100%; height:100%; object-fit:cover; transition:transform 0.5s ease;" />
-                    <div class="tcc-glass-overlay" style="position:absolute; inset:0; background:rgba(26,46,26,0.4); backdrop-filter:blur(4px); opacity:0; display:flex; flex-direction:column; justify-content:space-between; padding:1rem; transition:opacity 0.3s ease;">
-                      <div class="tcc-overlay-info" style="display:flex; justify-content:space-between; align-items:center;">
-                        <span class="tcc-overlay-loc" style="color:#fff; font-size:0.75rem; font-weight:600;"><span class="css-loc-pin" style="background:var(--gold); transform:rotate(-45deg) scale(0.8);"></span>{{ t.location }}</span>
-                        <span class="tcc-overlay-price" style="color:var(--gold-light); font-weight:700; font-family:'Space Mono',monospace; font-size:0.85rem;">₹{{ t.price.toLocaleString() }}</span>
-                      </div>
-                      <button class="tcc-overlay-btn" style="width:100%; border:none; background:var(--gold); color:var(--forest); font-weight:700; font-size:0.75rem; padding:0.45rem; border-radius:4px; text-transform:uppercase; letter-spacing:0.05em; cursor:pointer;">Book Now</button>
+              <div class="treks-grid-user">
+                <div v-for="t in dashboardHardTreks" :key="t.name" class="trek-card-user" @click="navigateToTrek(t.name)" style="cursor:pointer;">
+                  <div class="trek-img-user">
+                    <img v-if="t.imageUrl" :src="t.imageUrl" :alt="t.name" style="width: 100%; height: 100%; object-fit: cover;" />
+                    <div v-else class="trek-img-placeholder" :style="{ background: getGradient(t) }">
+                      <svg viewBox="0 0 24 24"><path d="M3 17l4-8 4 4 4-6 4 10"/></svg>
                     </div>
+                    <span :class="'trek-badge badge-' + t.difficulty.toLowerCase()">{{ t.difficulty }}</span>
+                    <span class="trek-open-tag">Open</span>
                   </div>
-                  <div class="tcc-info" style="padding:1rem;">
-                    <div class="tcc-name" style="font-family:'Playfair Display',serif; font-size:1.1rem; font-weight:700; color:var(--forest); margin-bottom:4px;">{{ t.name }}</div>
-                    <div class="tcc-meta" style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--stone);">
-                      <span>⏱ {{ t.duration }} Days</span>
-                      <span>📏 {{ t.distance || 50 }} km</span>
+                  <div class="trek-body" style="display: flex; flex-direction: column; min-height: 220px;">
+                    <div class="trek-name-user">{{ t.name }}</div>
+                    <div class="trek-loc-user" style="margin-bottom: 0.4rem;">
+                      <svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                      {{ t.location }}
                     </div>
+                    <div style="font-size:0.78rem; color:var(--stone); margin-bottom:0.75rem; line-height:1.5; flex-grow: 1;">{{ cleanDescription(t) }}</div>
+                    <div class="trek-row-meta" style="margin-bottom:1rem; border-top: 1px solid var(--stone-light); padding-top: 8px;">
+                      <span class="trek-meta-pill">
+                        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        {{ t.duration }} days
+                      </span>
+                      <span class="trek-meta-pill">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M3 17l4-8 4 4 4-6 4 10"/></svg>
+                        {{ t.distance || 53 }} km
+                      </span>
+                    </div>
+                    <button class="btn-book" @click.stop="navigateToTrek(t.name)">
+                      Book Now
+                    </button>
                   </div>
                 </div>
               </div>

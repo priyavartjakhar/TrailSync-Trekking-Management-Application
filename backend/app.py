@@ -640,6 +640,7 @@ def user_dashboard_data():
     trek_history = [b.to_json() for b in history_query]
     
     profile = {
+        'memberId': current_user.to_json()['memberId'],
         'name': current_user.name,
         'email': current_user.email,
         'phone': current_user.phone or '',

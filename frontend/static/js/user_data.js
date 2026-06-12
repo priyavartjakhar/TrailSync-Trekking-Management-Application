@@ -11,6 +11,7 @@ const USER_MY_BOOKINGS = [];
 const USER_TREK_HISTORY = [];
 
 const USER_INITIAL_PROFILE = {
+  memberId: '',
   name: '',
   email: '',
   phone: '',

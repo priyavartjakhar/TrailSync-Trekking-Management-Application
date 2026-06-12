@@ -122,6 +122,13 @@ body {
 .ts-main-content.expanded {
   margin-left: 0;
 }
+.ts-main-content.expanded .dashboard-trek-categories,
+.ts-main-content.expanded .dashboard-community-feed {
+  max-width: 1100px;
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+}
 
 .sidebar-brand-name {
   font-family: 'Playfair Display', serif;

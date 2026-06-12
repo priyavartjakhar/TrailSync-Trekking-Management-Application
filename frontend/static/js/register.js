@@ -54,6 +54,15 @@ createApp({
 
     const showPass    = ref(false);
     const showConfirm = ref(false);
+    const profileImageFile = ref(null);
+
+    function handleFileChange(event) {
+      if (event.target.files && event.target.files.length > 0) {
+        profileImageFile.value = event.target.files[0];
+      } else {
+        profileImageFile.value = null;
+      }
+    }
 
     /* ── Options for pickers ── */
     const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
@@ -196,32 +205,32 @@ createApp({
         // Construct composite fields matching backend capabilities
         const fullName = `${form.value.first_name} ${form.value.last_name}`.trim();
         const emergencyContact = `${form.value.emergency_name} (${form.value.emergency_phone})`;
-        
-        // Bundle safety metrics, medical alerts, and trek preferences in bio
-        const fitness = form.value.fitness_level ? `Fitness: ${form.value.fitness_level}` : 'Fitness: Not specified';
-        const blood = `Blood: ${form.value.blood_group}`;
-        const dob = `DOB: ${form.value.dob}`;
-        const medical = form.value.medical_info ? `Medical: ${form.value.medical_info}` : 'Medical: None';
-        const treksDone = `Treks done: ${form.value.treks_done || 0}`;
-        const diffPref = form.value.preferred_difficulty ? `Difficulty pref: ${form.value.preferred_difficulty}` : 'Difficulty pref: Any';
-        const durPref = form.value.preferred_duration ? `Duration pref: ${form.value.preferred_duration}` : 'Duration pref: Any';
-        const regionsPref = form.value.preferred_regions.length > 0 ? `Regions: ${form.value.preferred_regions.join(', ')}` : 'Regions: Any';
-        const userBio = form.value.bio.trim() ? `Bio: ${form.value.bio.trim()}` : '';
+        const userBio = form.value.bio.trim() || '';
 
-        const fullBio = [fitness, blood, dob, medical, treksDone, diffPref, durPref, regionsPref, userBio].filter(Boolean).join(' | ');
+        const formData = new FormData();
+        formData.append('email', form.value.email.trim().toLowerCase());
+        formData.append('name', fullName);
+        formData.append('phone', form.value.phone.trim());
+        formData.append('password', form.value.password);
+        formData.append('city', form.value.city.trim());
+        formData.append('emergency', emergencyContact);
+        formData.append('bio', userBio);
+        formData.append('dob', form.value.dob);
+        formData.append('blood_group', form.value.blood_group);
+        formData.append('medical_info', form.value.medical_info);
+        formData.append('fitness_level', form.value.fitness_level);
+        formData.append('treks_done', form.value.treks_done);
+        formData.append('preferred_difficulty', form.value.preferred_difficulty);
+        formData.append('preferred_duration', form.value.preferred_duration);
+        formData.append('preferred_regions', form.value.preferred_regions.join(', '));
+        
+        if (profileImageFile.value) {
+          formData.append('profile_image', profileImageFile.value);
+        }
 
         const res = await fetch('/api/auth/register', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email:    form.value.email.trim().toLowerCase(),
-            name:     fullName,
-            phone:    form.value.phone.trim(),
-            password: form.value.password,
-            city:     form.value.city.trim(),
-            emergency: emergencyContact,
-            bio:      fullBio
-          }),
+          body: formData,
         });
 
         const data = await res.json();
@@ -253,7 +262,7 @@ createApp({
 
     return {
       particles, steps, step, loading, error, success,
-      form, showPass, showConfirm,
+      form, showPass, showConfirm, profileImageFile, handleFileChange,
       bloodGroups, difficulties, durations, regions,
       v, passwordStrength, strengthLabel,
       toggleRegion, nextStep, handleRegister

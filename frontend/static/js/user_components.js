@@ -18,6 +18,9 @@ const TsUserLayout = {
 
       // ── DATA ──────────────────────────────────────
       userName: USER_INITIAL_NAME,
+      isEditingProfile: false,
+      editProfile: { ...USER_INITIAL_PROFILE },
+      profileImageFile: null,
       profile: { ...USER_INITIAL_PROFILE },
       pwForm: { current: '', new: '', confirm: '' },
       availableTreks: JSON.parse(JSON.stringify(USER_AVAILABLE_TREKS)),
@@ -258,7 +261,7 @@ const TsUserLayout = {
   methods: {
     // ── NAV ────────────────────────────────────────
     goTab(tab) {
-      const validTabs = ['dashboard', 'explore', 'bookings', 'history', 'calendar', 'profile'];
+      const validTabs = ['dashboard', 'explore', 'bookings', 'history', 'profile'];
       if (!validTabs.includes(tab)) return;
 
       if (window.location.hash.slice(1) === tab) {
@@ -269,12 +272,14 @@ const TsUserLayout = {
       window.location.hash = tab;
     },
     activateTab(tab) {
-      const validTabs = ['dashboard', 'explore', 'bookings', 'history', 'calendar', 'profile'];
+      const validTabs = ['dashboard', 'explore', 'bookings', 'history', 'profile'];
       if (!tab || !validTabs.includes(tab)) return;
 
       this.activeTab = tab;
-      this.sidebarOpen = false;
-      this.sidebarCollapsed = true;
+      if (window.innerWidth <= 900) {
+        this.sidebarOpen = false;
+        this.sidebarCollapsed = true;
+      }
       localStorage.setItem('userActiveTab', tab);
 
       this.resetPageScroll();
@@ -481,16 +486,37 @@ const TsUserLayout = {
     },
 
     // ── PROFILE ──────────────────────────────────
+    handleProfileImageChange(e) {
+      if (e.target.files && e.target.files.length > 0) {
+        this.profileImageFile = e.target.files[0];
+      } else {
+        this.profileImageFile = null;
+      }
+    },
     async saveProfile() {
       try {
+        const formData = new FormData();
+        Object.keys(this.editProfile).forEach(key => {
+          if (this.editProfile[key] !== null && this.editProfile[key] !== undefined) {
+            formData.append(key, this.editProfile[key]);
+          }
+        });
+        if (this.profileImageFile) {
+          formData.append('profile_image', this.profileImageFile);
+        }
+
         const res = await fetch('/api/user/profile', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(this.profile)
+          body: formData
         });
         const data = await res.json();
         if (res.ok) {
+          this.profile = { ...this.editProfile };
+          if (data.profile_image_url) {
+            this.profile.profile_image_url = data.profile_image_url;
+          }
           this.userName = this.profile.name;
+          this.isEditingProfile = false;
           this.showToast(data.message || 'Profile saved.', 'success');
           await this.fetchUserData();
         } else {
@@ -541,8 +567,8 @@ const TsUserLayout = {
           this.myBookings = data.my_bookings || this.myBookings;
           this.trekHistory = data.trek_history || this.trekHistory;
           this.profile = data.profile || this.profile;
+          this.editProfile = { ...this.profile };
           this.userName = this.profile.name;
-          this.updateAchievements();
           this.fetchWeather();
         } else {
           console.error('Fetch user data returned status:', res.status);
@@ -749,7 +775,7 @@ const TsUserLayout = {
     document.addEventListener('click', this.clickListener);
 
     const hash = window.location.hash.slice(1);
-    const validTabs = ['dashboard', 'explore', 'bookings', 'history', 'calendar', 'profile'];
+    const validTabs = ['dashboard', 'explore', 'bookings', 'history', 'profile'];
     if (hash && validTabs.includes(hash)) {
       this.activeTab = hash;
       localStorage.setItem('userActiveTab', hash);
@@ -821,10 +847,7 @@ const TsUserLayout = {
           <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
           <span>Trek History</span>
         </div>
-        <div class="sidebar-nav-item" :class="{ active: activeTab === 'calendar' }" @click="goTab('calendar')">
-          <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-          <span>Trek Calendar</span>
-        </div>
+
         <div class="sidebar-section-label" style="margin-top:0.5rem">Account</div>
         <div class="sidebar-nav-item" :class="{ active: activeTab === 'profile' }" @click="goTab('profile')">
           <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -1482,46 +1505,27 @@ const TsUserLayout = {
             </div>
           </div>
 
-          <div class="dashboard-grid">
-            <div class="dashboard-main">
-              <div class="ts-card">
-                <div class="ts-card-header">
-                  <div class="ts-card-title">Completed Treks</div>
-                </div>
-                <div class="ts-card-body">
-                  <div v-if="trekHistory.length === 0" class="empty-state">
-                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                    <p>No past treks found.</p>
-                  </div>
-                  <div class="bookings-stack">
-                    <div v-for="h in trekHistory" :key="h.id" class="booking-row" style="opacity: 0.85">
-                      <div class="booking-accent" style="background: var(--stone)"></div>
-                      <div class="booking-main">
-                        <div class="booking-trek-name">{{ h.trekName }}</div>
-                        <div class="booking-loc"><span class="css-loc-pin"></span>{{ h.location }}</div>
-                        <div class="booking-dates mono">{{ formatDate(h.startDate) }} → {{ formatDate(h.endDate) }}</div>
-                      </div>
-                      <div class="booking-meta">
-                        <div class="bm-row"><span class="bm-label">Status</span><span class="status-pill status-completed" style="background: var(--mist); color: var(--forest)">{{ h.status }}</span></div>
-                        <div class="bm-row"><span class="bm-label">Amount</span><span class="bm-price">₹{{ h.price.toLocaleString() }}</span></div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+          <div style="max-width: 900px;">
+            <div class="ts-card">
+              <div class="ts-card-header">
+                <div class="ts-card-title">Completed Treks</div>
               </div>
-            </div>
-
-            <div class="dashboard-sidebar-panel">
-              <div class="ts-card">
-                <div class="ts-card-header">
-                  <div class="ts-card-title">Achievements</div>
+              <div class="ts-card-body">
+                <div v-if="trekHistory.length === 0" class="empty-state">
+                  <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  <p>No past treks found.</p>
                 </div>
-                <div class="ts-card-body" style="display: flex; flex-direction: column; gap: 1rem">
-                  <div v-for="a in achievements" :key="a.name" style="display: flex; align-items: center; gap: 1rem; padding: 0.5rem; border-radius: 8px; background: rgba(26,46,26,0.03);">
-                    <div style="font-size: 2rem; opacity: a.earned ? 1 : 0.3; filter: a.earned ? 'none' : 'grayscale(100%)'">{{ a.icon }}</div>
-                    <div>
-                      <div style="font-weight: 600; color: var(--forest)">{{ a.name }}</div>
-                      <div style="font-size: 0.75rem; color: var(--stone)">{{ a.desc }}</div>
+                <div class="bookings-stack">
+                  <div v-for="h in trekHistory" :key="h.id" class="booking-row" style="opacity: 0.85">
+                    <div class="booking-accent" style="background: var(--stone)"></div>
+                    <div class="booking-main">
+                      <div class="booking-trek-name">{{ h.trekName }}</div>
+                      <div class="booking-loc"><span class="css-loc-pin"></span>{{ h.location }}</div>
+                      <div class="booking-dates mono">{{ formatDate(h.startDate) }} → {{ formatDate(h.endDate) }}</div>
+                    </div>
+                    <div class="booking-meta">
+                      <div class="bm-row"><span class="bm-label">Status</span><span class="status-pill status-completed" style="background: var(--mist); color: var(--forest)">{{ h.status }}</span></div>
+                      <div class="bm-row"><span class="bm-label">Amount</span><span class="bm-price">₹{{ h.price.toLocaleString() }}</span></div>
                     </div>
                   </div>
                 </div>
@@ -1530,48 +1534,7 @@ const TsUserLayout = {
           </div>
         </section>
 
-        <!-- ════════ TREK CALENDAR TAB ════════ -->
-        <section v-if="activeTab === 'calendar'" class="tab-section-content">
-          <div class="page-header">
-            <div class="page-header-left">
-              <div class="page-eyebrow">Schedule</div>
-              <div class="page-title">Trek <em>Calendar</em></div>
-            </div>
-            <div style="display: flex; align-items: center; gap: 1rem; background: #fff; padding: 0.5rem; border-radius: 8px; box-shadow: 0 2px 8px var(--shadow)">
-              <button @click="prevMonth" style="border: none; background: none; cursor: pointer; padding: 0.25rem 0.5rem; color: var(--forest)">←</button>
-              <div style="font-family: 'Playfair Display', serif; font-weight: 700; color: var(--forest); min-width: 120px; text-align: center;">{{ calMonthLabel }}</div>
-              <button @click="nextMonth" style="border: none; background: none; cursor: pointer; padding: 0.25rem 0.5rem; color: var(--forest)">→</button>
-            </div>
-          </div>
 
-          <div class="ts-card" style="padding: 1.5rem; max-width: 700px">
-            <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.5rem; text-align: center; margin-bottom: 0.5rem; font-family: 'Space Mono', monospace; font-size: 0.8rem; font-weight: 700; color: var(--stone)">
-              <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
-            </div>
-            <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.5rem;">
-              <div v-for="(day, i) in calendarDays" :key="i"
-                   style="aspect-ratio: 1; display: flex; align-items: center; justify-content: center; border-radius: 8px; position: relative; font-weight: 500;"
-                   :style="{
-                     background: day.hasTrek ? 'var(--gold-light)' : (day.isToday ? 'var(--forest)' : (day.month === 'current' ? 'rgba(26,46,26,0.03)' : 'transparent')),
-                     color: day.hasTrek ? 'var(--forest)' : (day.isToday ? '#fff' : (day.month === 'current' ? 'var(--bark)' : 'var(--stone)')),
-                     opacity: day.month === 'current' ? 1 : 0.4
-                   }">
-                {{ day.day }}
-                <div v-if="day.hasTrek" style="position: absolute; bottom: 4px; width: 4px; height: 4px; border-radius: 50%; background: var(--forest)"></div>
-              </div>
-            </div>
-
-            <div v-if="calendarEvents.length" style="margin-top: 2rem; border-top: 1px solid var(--stone-light); padding-top: 1.5rem">
-              <h4 style="font-family: 'Playfair Display', serif; color: var(--forest); margin-bottom: 1rem">Treks this month</h4>
-              <div style="display: flex; flex-direction: column; gap: 0.75rem">
-                <div v-for="(ev, i) in calendarEvents" :key="i" style="display: flex; align-items: center; gap: 1rem; padding: 0.75rem; background: var(--snow); border-left: 3px solid var(--gold); border-radius: 4px">
-                  <div style="font-family: 'Space Mono', monospace; font-size: 0.85rem; color: var(--forest-light); font-weight: 700">{{ formatDate(ev.date) }}</div>
-                  <div style="font-weight: 600; color: var(--forest)">{{ ev.name }}</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
 
         <!-- ════════ PROFILE TAB ════════ -->
         <section v-if="activeTab === 'profile'" class="tab-section-content">
@@ -1585,22 +1548,148 @@ const TsUserLayout = {
           <div class="dashboard-grid">
             <div class="dashboard-main">
               <div class="ts-card">
-                <div class="ts-card-header">
+                <div class="ts-card-header" style="display: flex; justify-content: space-between; align-items: center;">
                   <div class="ts-card-title">Personal Information</div>
+                  <button class="btn-outline" @click="isEditingProfile = !isEditingProfile" style="padding: 0.3rem 0.8rem; font-size: 0.8rem;">
+                    {{ isEditingProfile ? 'Cancel Edit' : 'Edit Profile' }}
+                  </button>
                 </div>
+                
                 <div class="ts-card-body">
-                  <form @submit.prevent="saveProfile" style="display: flex; flex-direction: column; gap: 1.25rem">
-                    <div>
-                      <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--forest); margin-bottom: 0.4rem">Full Name</label>
-                      <input type="text" v-model="profile.name" style="width: 100%; padding: 0.75rem; border: 1px solid rgba(26,46,26,0.15); border-radius: 6px; font-family: 'DM Sans', sans-serif; background: #fff" />
+                  <!-- VIEW MODE -->
+                  <div v-if="!isEditingProfile" style="display: flex; flex-direction: column; gap: 1.5rem">
+                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem">
+                      <div style="width: 80px; height: 80px; border-radius: 50%; background: var(--forest); color: white; display: flex; align-items: center; justify-content: center; font-size: 2rem; overflow: hidden; flex-shrink: 0;">
+                        <img v-if="profile.profile_image_url" :src="profile.profile_image_url" style="width: 100%; height: 100%; object-fit: cover;" />
+                        <span v-else>{{ profile.name ? profile.name[0].toUpperCase() : 'T' }}</span>
+                      </div>
+                      <div>
+                        <div style="font-family: 'Playfair Display', serif; font-size: 1.5rem; font-weight: 700; color: var(--forest)">{{ profile.name }}</div>
+                        <div style="font-size: 0.85rem; color: var(--stone)">{{ profile.email }}</div>
+                      </div>
                     </div>
-                    <div>
-                      <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--forest); margin-bottom: 0.4rem">Email Address</label>
-                      <input type="email" v-model="profile.email" style="width: 100%; padding: 0.75rem; border: 1px solid rgba(26,46,26,0.15); border-radius: 6px; font-family: 'DM Sans', sans-serif; background: #f0f0f0" disabled />
+                    
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.25rem; background: var(--snow); padding: 1.5rem; border-radius: 8px;">
+                      <div>
+                        <div style="font-size: 0.75rem; font-weight: 600; color: var(--stone); text-transform: uppercase; margin-bottom: 0.2rem">Phone</div>
+                        <div style="color: var(--forest); font-weight: 500">{{ profile.phone || '—' }}</div>
+                      </div>
+                      <div>
+                        <div style="font-size: 0.75rem; font-weight: 600; color: var(--stone); text-transform: uppercase; margin-bottom: 0.2rem">DOB</div>
+                        <div style="color: var(--forest); font-weight: 500">{{ profile.dob || '—' }}</div>
+                      </div>
+                      <div>
+                        <div style="font-size: 0.75rem; font-weight: 600; color: var(--stone); text-transform: uppercase; margin-bottom: 0.2rem">Blood Group</div>
+                        <div style="color: var(--forest); font-weight: 500">{{ profile.blood_group || '—' }}</div>
+                      </div>
+                      <div>
+                        <div style="font-size: 0.75rem; font-weight: 600; color: var(--stone); text-transform: uppercase; margin-bottom: 0.2rem">Location</div>
+                        <div style="color: var(--forest); font-weight: 500">{{ profile.city || '—' }}</div>
+                      </div>
                     </div>
-                    <div>
-                      <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--forest); margin-bottom: 0.4rem">Phone Number</label>
-                      <input type="tel" v-model="profile.phone" style="width: 100%; padding: 0.75rem; border: 1px solid rgba(26,46,26,0.15); border-radius: 6px; font-family: 'DM Sans', sans-serif; background: #fff" />
+                    
+                    <div style="background: var(--snow); padding: 1.5rem; border-radius: 8px;">
+                      <h4 style="font-size: 0.85rem; font-weight: 700; color: var(--forest); margin-bottom: 0.8rem">Safety & Medical</h4>
+                      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.25rem;">
+                        <div>
+                          <div style="font-size: 0.75rem; font-weight: 600; color: var(--stone); text-transform: uppercase; margin-bottom: 0.2rem">Emergency Contact</div>
+                          <div style="color: var(--forest); font-weight: 500">{{ profile.emergency || '—' }}</div>
+                        </div>
+                        <div>
+                          <div style="font-size: 0.75rem; font-weight: 600; color: var(--stone); text-transform: uppercase; margin-bottom: 0.2rem">Medical Info</div>
+                          <div style="color: var(--forest); font-weight: 500">{{ profile.medical_info || 'None' }}</div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div style="background: var(--snow); padding: 1.5rem; border-radius: 8px;">
+                      <h4 style="font-size: 0.85rem; font-weight: 700; color: var(--forest); margin-bottom: 0.8rem">Trek Preferences</h4>
+                      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1.25rem;">
+                        <div>
+                          <div style="font-size: 0.75rem; font-weight: 600; color: var(--stone); text-transform: uppercase; margin-bottom: 0.2rem">Fitness Level</div>
+                          <div style="color: var(--forest); font-weight: 500" style="text-transform: capitalize">{{ profile.fitness_level || '—' }}</div>
+                        </div>
+                        <div>
+                          <div style="font-size: 0.75rem; font-weight: 600; color: var(--stone); text-transform: uppercase; margin-bottom: 0.2rem">Treks Done</div>
+                          <div style="color: var(--forest); font-weight: 500">{{ profile.treks_done || 0 }}</div>
+                        </div>
+                        <div>
+                          <div style="font-size: 0.75rem; font-weight: 600; color: var(--stone); text-transform: uppercase; margin-bottom: 0.2rem">Pref. Difficulty</div>
+                          <div style="color: var(--forest); font-weight: 500" style="text-transform: capitalize">{{ profile.preferred_difficulty || '—' }}</div>
+                        </div>
+                        <div>
+                          <div style="font-size: 0.75rem; font-weight: 600; color: var(--stone); text-transform: uppercase; margin-bottom: 0.2rem">Pref. Duration</div>
+                          <div style="color: var(--forest); font-weight: 500" style="text-transform: capitalize">{{ profile.preferred_duration || '—' }}</div>
+                        </div>
+                        <div style="grid-column: 1 / -1;">
+                          <div style="font-size: 0.75rem; font-weight: 600; color: var(--stone); text-transform: uppercase; margin-bottom: 0.2rem">Bio</div>
+                          <div style="color: var(--forest); font-weight: 500">{{ profile.bio || 'No bio provided.' }}</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- EDIT MODE -->
+                  <form v-else @submit.prevent="saveProfile" style="display: flex; flex-direction: column; gap: 1.25rem">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                      <div style="grid-column: 1 / -1; margin-bottom: 0.5rem">
+                        <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--forest); margin-bottom: 0.4rem">Profile Image</label>
+                        <input type="file" accept="image/*" @change="handleProfileImageChange" style="width: 100%; padding: 0.6rem; border: 1px solid rgba(26,46,26,0.15); border-radius: 6px; background: #fff" />
+                      </div>
+                      
+                      <div>
+                        <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--forest); margin-bottom: 0.4rem">Full Name</label>
+                        <input type="text" v-model="editProfile.name" style="width: 100%; padding: 0.75rem; border: 1px solid rgba(26,46,26,0.15); border-radius: 6px; background: #fff" required />
+                      </div>
+                      <div>
+                        <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--forest); margin-bottom: 0.4rem">Email Address</label>
+                        <input type="email" v-model="editProfile.email" style="width: 100%; padding: 0.75rem; border: 1px solid rgba(26,46,26,0.15); border-radius: 6px; background: #f0f0f0" disabled />
+                      </div>
+                      <div>
+                        <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--forest); margin-bottom: 0.4rem">Phone Number</label>
+                        <input type="tel" v-model="editProfile.phone" style="width: 100%; padding: 0.75rem; border: 1px solid rgba(26,46,26,0.15); border-radius: 6px; background: #fff" />
+                      </div>
+                      <div>
+                        <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--forest); margin-bottom: 0.4rem">Date of Birth</label>
+                        <input type="date" v-model="editProfile.dob" style="width: 100%; padding: 0.75rem; border: 1px solid rgba(26,46,26,0.15); border-radius: 6px; background: #fff" />
+                      </div>
+                      <div>
+                        <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--forest); margin-bottom: 0.4rem">Blood Group</label>
+                        <select v-model="editProfile.blood_group" style="width: 100%; padding: 0.75rem; border: 1px solid rgba(26,46,26,0.15); border-radius: 6px; background: #fff">
+                          <option value="A+">A+</option><option value="A-">A-</option>
+                          <option value="B+">B+</option><option value="B-">B-</option>
+                          <option value="AB+">AB+</option><option value="AB-">AB-</option>
+                          <option value="O+">O+</option><option value="O-">O-</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--forest); margin-bottom: 0.4rem">City / State</label>
+                        <input type="text" v-model="editProfile.city" style="width: 100%; padding: 0.75rem; border: 1px solid rgba(26,46,26,0.15); border-radius: 6px; background: #fff" />
+                      </div>
+                      <div style="grid-column: 1 / -1">
+                        <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--forest); margin-bottom: 0.4rem">Emergency Contact (Name & Phone)</label>
+                        <input type="text" v-model="editProfile.emergency" style="width: 100%; padding: 0.75rem; border: 1px solid rgba(26,46,26,0.15); border-radius: 6px; background: #fff" />
+                      </div>
+                      <div style="grid-column: 1 / -1">
+                        <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--forest); margin-bottom: 0.4rem">Medical Conditions / Allergies</label>
+                        <textarea v-model="editProfile.medical_info" rows="2" style="width: 100%; padding: 0.75rem; border: 1px solid rgba(26,46,26,0.15); border-radius: 6px; background: #fff"></textarea>
+                      </div>
+                      <div>
+                        <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--forest); margin-bottom: 0.4rem">Fitness Level</label>
+                        <select v-model="editProfile.fitness_level" style="width: 100%; padding: 0.75rem; border: 1px solid rgba(26,46,26,0.15); border-radius: 6px; background: #fff">
+                          <option value="beginner">Beginner</option>
+                          <option value="intermediate">Intermediate</option>
+                          <option value="experienced">Experienced</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--forest); margin-bottom: 0.4rem">Treks Done</label>
+                        <input type="number" v-model="editProfile.treks_done" min="0" style="width: 100%; padding: 0.75rem; border: 1px solid rgba(26,46,26,0.15); border-radius: 6px; background: #fff" />
+                      </div>
+                      <div style="grid-column: 1 / -1">
+                        <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--forest); margin-bottom: 0.4rem">Bio</label>
+                        <textarea v-model="editProfile.bio" rows="2" style="width: 100%; padding: 0.75rem; border: 1px solid rgba(26,46,26,0.15); border-radius: 6px; background: #fff"></textarea>
+                      </div>
                     </div>
                     <button type="submit" class="btn-book" style="align-self: flex-start; padding: 0.75rem 1.5rem">Save Changes</button>
                   </form>

@@ -111,6 +111,10 @@
                 </div>
                 <div class="invalid-msg" v-if="v.confirm">{{ v.confirm }}</div>
               </div>
+              <div class="col-12">
+                <label for="r_profile_image" class="field-label">Profile image <span class="field-hint-inline">(optional)</span></label>
+                <input id="r_profile_image" type="file" class="ts-input" accept="image/*" @change="handleFileChange" />
+              </div>
             </div>
 
             <button class="ts-btn-submit mt-4" @click="nextStep(1)">Continue →</button>

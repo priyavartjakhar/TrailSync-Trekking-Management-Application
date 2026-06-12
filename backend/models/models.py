@@ -16,6 +16,15 @@ class User(db.Model, UserMixin):
     city = db.Column(db.String(100))
     emergency = db.Column(db.String(20))
     bio = db.Column(db.Text)
+    profile_image_url = db.Column(db.String(255))
+    dob = db.Column(db.String(50))
+    blood_group = db.Column(db.String(20))
+    medical_info = db.Column(db.Text)
+    fitness_level = db.Column(db.String(50))
+    treks_done = db.Column(db.Integer, default=0)
+    preferred_difficulty = db.Column(db.String(50))
+    preferred_duration = db.Column(db.String(50))
+    preferred_regions = db.Column(db.Text)
     active = db.Column(db.Boolean, default=True)
     blacklisted = db.Column(db.Boolean, default=False)
     registered_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -40,9 +49,18 @@ class User(db.Model, UserMixin):
             'city': self.city or '',
             'emergency': self.emergency or '',
             'bio': self.bio or '',
+            'profile_image_url': self.profile_image_url,
+            'dob': self.dob,
+            'blood_group': self.blood_group,
+            'medical_info': self.medical_info,
+            'fitness_level': self.fitness_level,
+            'treks_done': self.treks_done,
+            'preferred_difficulty': self.preferred_difficulty,
+            'preferred_duration': self.preferred_duration,
+            'preferred_regions': self.preferred_regions,
             'active': self.active,
             'blacklisted': self.blacklisted,
-            'registered': self.registered_at.strftime('%Y-%m-%d')
+            'registered': self.registered_at.strftime('%Y-%m-%d') if self.registered_at else ''
         }
 
 class TrekRoute(db.Model):

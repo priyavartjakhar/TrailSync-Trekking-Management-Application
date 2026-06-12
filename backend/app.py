@@ -577,7 +577,15 @@ def api_login():
 
 @app.route('/api/auth/register', methods=['POST'])
 def api_register():
-    data = request.get_json() or {}
+    import os
+    import time
+    from werkzeug.utils import secure_filename
+    
+    if request.is_json:
+        data = request.get_json() or {}
+    else:
+        data = request.form
+        
     email = data.get('email')
     name = data.get('name')
     phone = data.get('phone')
@@ -590,6 +598,21 @@ def api_register():
     if existing:
         return jsonify({'error': 'Email already registered.'}), 400
         
+    profile_image_url = None
+    if 'profile_image' in request.files:
+        file = request.files['profile_image']
+        if file and file.filename != '':
+            filename = secure_filename(f"{int(time.time())}_{file.filename}")
+            upload_dir = os.path.join(app.root_path, '..', 'frontend', 'static', 'uploads', 'profiles')
+            os.makedirs(upload_dir, exist_ok=True)
+            file.save(os.path.join(upload_dir, filename))
+            profile_image_url = f"/static/uploads/profiles/{filename}"
+            
+    try:
+        treks_done_val = int(data.get('treks_done', 0) or 0)
+    except ValueError:
+        treks_done_val = 0
+        
     user = User(
         email=email,
         name=name,
@@ -598,7 +621,16 @@ def api_register():
         role='user',
         city=data.get('city'),
         emergency=data.get('emergency'),
-        bio=data.get('bio')
+        bio=data.get('bio'),
+        dob=data.get('dob'),
+        blood_group=data.get('blood_group'),
+        medical_info=data.get('medical_info'),
+        fitness_level=data.get('fitness_level'),
+        treks_done=treks_done_val,
+        preferred_difficulty=data.get('preferred_difficulty'),
+        preferred_duration=data.get('preferred_duration'),
+        preferred_regions=data.get('preferred_regions'),
+        profile_image_url=profile_image_url
     )
     db.session.add(user)
     db.session.commit()
@@ -847,12 +879,45 @@ def user_export():
 @app.route('/api/user/profile', methods=['POST'])
 @login_required
 def user_profile():
-    data = request.get_json() or {}
+    import os
+    import time
+    from werkzeug.utils import secure_filename
+    
+    if request.is_json:
+        data = request.get_json() or {}
+    else:
+        data = request.form
+        
     current_user.name = data.get('name', current_user.name)
     current_user.phone = data.get('phone', current_user.phone)
     current_user.city = data.get('city', current_user.city)
     current_user.emergency = data.get('emergency', current_user.emergency)
     current_user.bio = data.get('bio', current_user.bio)
+    
+    current_user.dob = data.get('dob', current_user.dob)
+    current_user.blood_group = data.get('blood_group', current_user.blood_group)
+    current_user.medical_info = data.get('medical_info', current_user.medical_info)
+    current_user.fitness_level = data.get('fitness_level', current_user.fitness_level)
+    
+    if 'treks_done' in data:
+        try:
+            current_user.treks_done = int(data.get('treks_done', 0) or 0)
+        except ValueError:
+            pass
+            
+    current_user.preferred_difficulty = data.get('preferred_difficulty', current_user.preferred_difficulty)
+    current_user.preferred_duration = data.get('preferred_duration', current_user.preferred_duration)
+    current_user.preferred_regions = data.get('preferred_regions', current_user.preferred_regions)
+    
+    if 'profile_image' in request.files:
+        file = request.files['profile_image']
+        if file and file.filename != '':
+            filename = secure_filename(f"{int(time.time())}_{file.filename}")
+            upload_dir = os.path.join(app.root_path, '..', 'frontend', 'static', 'uploads', 'profiles')
+            os.makedirs(upload_dir, exist_ok=True)
+            file.save(os.path.join(upload_dir, filename))
+            current_user.profile_image_url = f"/static/uploads/profiles/{filename}"
+            
     db.session.commit()
     return jsonify({'message': 'Profile updated successfully.'})
 

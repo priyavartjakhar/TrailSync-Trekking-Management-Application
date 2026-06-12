@@ -825,7 +825,6 @@ const TsUserLayout = {
           <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <input v-model="searchQuery" type="text" placeholder="Search treks…" @keyup.enter="goTab('explore')" />
         </div>
-        <div class="topbar-spacer"></div>
         <div class="topbar-actions">
           <!-- User Profile Pill -->
           <div class="topbar-user-pill" @click.stop="showProfileDropdown = !showProfileDropdown" title="Profile">

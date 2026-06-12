@@ -129,6 +129,7 @@ body {
   margin-bottom: 2rem;
   max-width: none;
   width: auto;
+  border-radius: 0 0 3.75rem 3.75rem;
 }
 .ts-main-content.expanded .dash-hero-inner {
   max-width: 1200px;
@@ -1638,7 +1639,7 @@ body {
     margin-left: -1.25rem;
     margin-right: -1.25rem;
     margin-bottom: 1.5rem;
-    border-radius: 0;
+    border-radius: 0 0 2.25rem 2.25rem;
   }
   .dash-hero-inner { flex-direction: column; align-items: flex-start; text-align: left; padding: 2rem 1.5rem; gap: 1.5rem; }
   .dash-hero-left { width: 100%; }

@@ -1074,7 +1074,7 @@ const TsUserLayout = {
                   <div class="guide-chat-body" style="height: 180px; overflow-y: auto; display:flex; flex-direction:column; gap:0.6rem; padding-right:4px;">
                     <div v-for="(msg, index) in guideChatHistory" :key="index" style="display:flex; flex-direction:column;" :style="{ alignItems: msg.sender === 'user' ? 'flex-end' : 'flex-start' }">
                       <div style="font-size:0.62rem; color:rgba(255,255,255,0.4); margin-bottom:2px;" :style="{ marginRight: msg.sender === 'user' ? '4px' : '0', marginLeft: msg.sender === 'guide' ? '4px' : '0' }">
-                        {{ msg.sender === 'user' ? 'You' : (nextTrek.guide ? nextTrek.guide.name : 'Guide') }}
+                        {{ msg.sender === 'user' ? 'You' : (nextTrek && nextTrek.guide ? nextTrek.guide.name : 'Guide') }}
                       </div>
                       <div style="max-width:85%; padding:0.55rem 0.75rem; border-radius:8px; font-size:0.78rem; line-height:1.4;"
                            :style="msg.sender === 'user' 
@@ -1116,7 +1116,7 @@ const TsUserLayout = {
             <div class="category-row-wrapper" style="margin-bottom: 3rem;">
               <div class="category-row-header" style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:1.25rem; border-bottom:1px solid rgba(26,46,26,0.08); padding-bottom:8px;">
                 <div class="category-row-title" style="font-family:'Playfair Display',serif; font-size:1.4rem; font-weight:700; color:var(--forest);">Easy Trails <span style="font-family:'Space Mono',monospace; font-size:0.7rem; color:var(--gold); text-transform:uppercase; margin-left:10px; letter-spacing:0.05em; font-weight:600;">Beginner Friendly</span></div>
-                <button class="btn-category-view-all" @click="goTab('explore')" style="background:none; border:none; color:var(--forest); font-weight:600; font-size:0.85rem; cursor:pointer; text-decoration:underline;">View All Easy Treks →</button>
+                <button class="btn-category-view-all" @click="goTab('explore')" style="background:none; border:none; color:var(--gold); font-weight:600; font-size:0.85rem; cursor:pointer; text-decoration:none; transition: all 0.2s ease;">View All Easy Treks →</button>
               </div>
               <div class="treks-grid-user">
                 <div v-for="t in dashboardEasyTreks" :key="t.name" class="trek-card-user" @click="navigateToTrek(t.name)" style="cursor:pointer;">
@@ -1157,7 +1157,7 @@ const TsUserLayout = {
             <div class="category-row-wrapper" style="margin-bottom: 3rem;">
               <div class="category-row-header" style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:1.25rem; border-bottom:1px solid rgba(26,46,26,0.08); padding-bottom:8px;">
                 <div class="category-row-title" style="font-family:'Playfair Display',serif; font-size:1.4rem; font-weight:700; color:var(--forest);">Moderate Passages <span style="font-family:'Space Mono',monospace; font-size:0.7rem; color:var(--gold); text-transform:uppercase; margin-left:10px; letter-spacing:0.05em; font-weight:600;">Epic Journeys</span></div>
-                <button class="btn-category-view-all" @click="goTab('explore')" style="background:none; border:none; color:var(--forest); font-weight:600; font-size:0.85rem; cursor:pointer; text-decoration:underline;">View All Moderate Treks →</button>
+                <button class="btn-category-view-all" @click="goTab('explore')" style="background:none; border:none; color:var(--gold); font-weight:600; font-size:0.85rem; cursor:pointer; text-decoration:none; transition: all 0.2s ease;">View All Moderate Treks →</button>
               </div>
               <div class="treks-grid-user">
                 <div v-for="t in dashboardModerateTreks" :key="t.name" class="trek-card-user" @click="navigateToTrek(t.name)" style="cursor:pointer;">
@@ -1198,7 +1198,7 @@ const TsUserLayout = {
             <div class="category-row-wrapper" style="margin-bottom: 3rem;">
               <div class="category-row-header" style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:1.25rem; border-bottom:1px solid rgba(26,46,26,0.08); padding-bottom:8px;">
                 <div class="category-row-title" style="font-family:'Playfair Display',serif; font-size:1.4rem; font-weight:700; color:var(--forest);"> Challenging Summits <span style="font-family:'Space Mono',monospace; font-size:0.7rem; color:var(--gold); text-transform:uppercase; margin-left:10px; letter-spacing:0.05em; font-weight:600;">For Experienced Climbers</span></div>
-                <button class="btn-category-view-all" @click="goTab('explore')" style="background:none; border:none; color:var(--forest); font-weight:600; font-size:0.85rem; cursor:pointer; text-decoration:underline;">View All Hard Treks →</button>
+                <button class="btn-category-view-all" @click="goTab('explore')" style="background:none; border:none; color:var(--gold); font-weight:600; font-size:0.85rem; cursor:pointer; text-decoration:none; transition: all 0.2s ease;">View All Hard Treks →</button>
               </div>
               <div class="treks-grid-user">
                 <div v-for="t in dashboardHardTreks" :key="t.name" class="trek-card-user" @click="navigateToTrek(t.name)" style="cursor:pointer;">

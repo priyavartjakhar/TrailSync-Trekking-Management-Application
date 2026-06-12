@@ -1269,12 +1269,8 @@ const TsUserLayout = {
                     <span class="quote-mark quote-end" style="font-family:'Playfair Display',serif; font-size:2.5rem; color:var(--gold-light); line-height:1; position:absolute; right:-0.2rem; bottom:-1.2rem; user-select:none; opacity:0.8;">”</span>
                   </div>
                 </div>
-                <!-- Card footer with likes and action button -->
-                <div class="pin-footer" style="padding:0.75rem 1.1rem; border-top:1px solid var(--stone-light); display:flex; justify-content:space-between; align-items:center;">
-                  <div class="pin-footer-stats" style="font-size:0.78rem; color:var(--stone); display:flex; gap:0.85rem; font-weight:600;">
-                    <span>❤️ {{ p.likes }}</span>
-                    <span>💬 {{ p.comments }}</span>
-                  </div>
+                <!-- Card footer with action button -->
+                <div class="pin-footer" style="padding:0.75rem 1.1rem; border-top:1px solid var(--stone-light); display:flex; justify-content:flex-end; align-items:center;">
                   <button class="btn-pin-static-action" @click="navigateToTrek(p.trekName)" style="border:none; background:none; color:var(--gold); font-weight:700; font-size:0.75rem; cursor:pointer; padding:0; display:flex; align-items:center; gap:4px; transition:color 0.2s ease;">
                     Go to Trek →
                   </button>

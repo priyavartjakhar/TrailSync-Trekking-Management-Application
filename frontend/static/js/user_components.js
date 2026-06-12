@@ -818,7 +818,7 @@ const TsUserLayout = {
               <!-- Left: Greeting + CTA Buttons -->
               <div class="dash-hero-left">
                 <div class="dash-hero-greeting">Welcome back, Trekker</div>
-                <div class="dash-hero-name">Hello, <em>{{ profile.name ? profile.name.split(' ')[0] : 'Trekker' }}</em> <i class="bi bi-person-walking" style="color: var(--gold-light); font-size: 2.2rem; margin-left: 2px; vertical-align: middle;"></i></div>
+                <div class="dash-hero-name">Hello, <em>{{ profile.name ? profile.name.split(' ')[0] : 'Trekker' }}</em> <i class="bi bi-person-walking" style="color: var(--gold-light); font-size: 2.8rem; margin-left: 2px; vertical-align: middle;"></i></div>
                 <div class="dash-hero-punchline">Scale new heights. Discover your next epic journey.</div>
                 
                 <div class="dash-hero-left-cta">

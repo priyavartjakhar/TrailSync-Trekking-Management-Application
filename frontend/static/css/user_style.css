@@ -122,16 +122,6 @@ body {
 .ts-main-content.expanded {
   margin-left: 0;
 }
-.ts-main-content.expanded .page-content {
-  max-width: 1100px;
-  width: 100%;
-  margin: 0 auto;
-}
-@media (min-width: 1100px) {
-  .ts-main-content.expanded .ts-topbar {
-    padding: 0 calc((100% - 1100px) / 2 + 2.25rem);
-  }
-}
 
 .sidebar-brand-name {
   font-family: 'Playfair Display', serif;

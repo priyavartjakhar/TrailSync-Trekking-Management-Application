@@ -40,7 +40,13 @@ body {
 ::-webkit-scrollbar-thumb:hover { background: var(--forest-light); }
 
 /* ── LAYOUT ─────────────────────────────────────────── */
-.ts-user-layout { height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+.ts-user-layout {
+  height: 100vh;
+  width: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
 
 /* ── SIDEBAR ─────────────────────────────────────────── */
 .ts-sidebar {
@@ -117,7 +123,8 @@ body {
 }
 
 .ts-sidebar.collapsed {
-  transform: translateX(-260px);
+  transform: translateX(-100%);
+  pointer-events: none;
 }
 .ts-main-content.expanded {
   margin-left: 0;
@@ -288,6 +295,8 @@ body {
 .ts-main-content {
   margin-left: 0;
   padding-left: 260px;
+  width: 100%;
+  min-width: 0;
   flex: 1;
   height: 100vh;
   overflow: hidden;
@@ -589,6 +598,8 @@ body {
   flex: 1;
   padding: 2rem 2.25rem;
   overflow-y: auto;
+  min-height: 0;
+  scroll-behavior: auto;
 }
 
 .tab-section-content {
@@ -1310,178 +1321,266 @@ body {
 .btn-full { background: #ffebee !important; color: #c62828 !important; border: 1px solid #ffcdd2 !important; cursor: default !important; }
 .btn-full:hover { background: #ffebee !important; transform: none !important; }
 
-/* ── BOOKINGS LIST ──────────────────────────────────── */
-.bookings-stack { display: flex; flex-direction: column; gap: 1.1rem; }
-
+/* ── BOOKINGS STACK (Dashboard & Tabs) ── */
+.bookings-stack {
+  display: flex; flex-direction: column; gap: 1rem;
+}
 .booking-row {
-  background: #fff;
-  border: 1px solid rgba(26,46,26,0.07);
-  border-radius: var(--radius);
-  box-shadow: 0 2px 10px var(--shadow);
   display: flex;
+  background: #fff;
+  border: 1px solid rgba(26,46,26,0.08);
+  border-radius: 8px;
   overflow: hidden;
-  transition: var(--transition);
+  box-shadow: 0 2px 10px rgba(0,0,0,0.02);
+  transition: all 0.2s ease;
 }
-.booking-row:hover { box-shadow: 0 6px 24px var(--shadow-deep); }
-
+.booking-row:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(26,46,26,0.06);
+}
 .booking-accent { width: 5px; flex-shrink: 0; }
-.ba-moderate { background: #ef6c00; }
-.ba-easy { background: #2e7d32; }
-.ba-hard { background: #c62828; }
+.ba-easy { background: linear-gradient(180deg, #2e7d32, #81c784); }
+.ba-moderate { background: linear-gradient(180deg, #ef6c00, #ffb74d); }
+.ba-hard { background: linear-gradient(180deg, #c62828, #e57373); }
 
-.booking-main { flex: 1; padding: 1.1rem 1.25rem; }
-.booking-trek-name {
-  font-family: 'Playfair Display', serif;
-  font-size: 1.1rem; font-weight: 700; color: var(--forest);
-  margin-bottom: 0.2rem;
-}
-.booking-loc { font-size: 0.78rem; color: var(--stone); margin-bottom: 0.5rem; }
-.booking-dates {
-  font-family: 'Space Mono', monospace; font-size: 0.75rem; color: var(--bark);
-}
+.booking-main { flex: 1; padding: 1.2rem; display: flex; flex-direction: column; justify-content: center; }
+.booking-trek-name { font-family: 'Playfair Display', serif; font-size: 1.2rem; font-weight: 700; color: var(--forest); margin-bottom: 0.25rem; }
+.booking-loc { font-size: 0.8rem; color: var(--stone); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 4px; }
+.booking-dates { font-size: 0.75rem; color: var(--bark); background: rgba(245, 240, 232, 0.6); padding: 3px 8px; border-radius: 4px; width: fit-content; border: 1px solid rgba(26, 46, 26, 0.04); }
 
-.booking-meta {
-  width: 260px; padding: 1.1rem 1.25rem;
-  background: var(--cream);
-  border-left: 1px solid rgba(0,0,0,0.05);
-  display: flex; flex-direction: column; gap: 0.45rem;
-  flex-shrink: 0;
-}
-.bm-row {
-  display: flex; justify-content: space-between; align-items: center;
-  font-size: 0.8rem;
-}
+.booking-meta { width: 220px; padding: 1.2rem; background: rgba(245, 240, 232, 0.3); border-left: 1px solid rgba(26,46,26,0.04); display: flex; flex-direction: column; gap: 0.5rem; justify-content: center; flex-shrink: 0; }
+.bm-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; }
 .bm-label { color: var(--stone); }
 .bm-price { font-weight: 700; color: var(--forest); }
-.mono { font-family: 'Space Mono', monospace; font-size: 0.75rem; }
 
-.btn-cancel {
-  margin-top: 0.25rem;
-  padding: 0.4rem 0;
-  border: 1px solid rgba(198,40,40,0.25);
+.status-pill { padding: 2px 8px; border-radius: 12px; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; border: 1px solid transparent; font-family: 'Space Mono', monospace; }
+.status-booked { background: rgba(46, 125, 50, 0.1); color: #2e7d32; border-color: rgba(46, 125, 50, 0.2); }
+.status-completed { background: rgba(21, 101, 192, 0.1); color: #1565c0; border-color: rgba(21, 101, 192, 0.2); }
+
+.diff-pill { padding: 2px 8px; border-radius: 4px; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; font-family: 'Space Mono', monospace; }
+.pill-easy { background: rgba(76, 175, 80, 0.1); color: #2e7d32; }
+.pill-moderate { background: rgba(255, 152, 0, 0.1); color: #e65100; }
+.pill-hard { background: rgba(244, 67, 54, 0.1); color: #c62828; }
+
+.btn-cancel { border: 1px solid rgba(198,40,40,0.3); background: transparent; color: #c62828; border-radius: 4px; padding: 0.35rem; font-size: 0.72rem; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+.btn-cancel:hover { background: rgba(198,40,40,0.05); }
+
+/* ── TREK PREMIUM BOOKINGS (tpb-) ── */
+.tpb-container { display: flex; flex-direction: column; gap: 1.5rem; }
+.tpb-card {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(26, 46, 26, 0.08);
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+  display: flex;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+}
+.tpb-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 30px rgba(26, 46, 26, 0.08);
+  border-color: rgba(200, 146, 42, 0.3);
+}
+.tpb-accent-bar { width: 6px; flex-shrink: 0; }
+.tpb-accent-easy { background: linear-gradient(180deg, #2e7d32, #81c784); }
+.tpb-accent-moderate { background: linear-gradient(180deg, #ef6c00, #ffb74d); }
+.tpb-accent-hard { background: linear-gradient(180deg, #c62828, #e57373); }
+
+.tpb-main-info { flex: 1; padding: 1.5rem; display: flex; flex-direction: column; justify-content: center; }
+.tpb-trek-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.3rem; font-weight: 800; color: var(--forest);
+  margin-bottom: 0.4rem; transition: color 0.2s ease;
+}
+.tpb-card:hover .tpb-trek-title { color: var(--gold); }
+.tpb-location { font-size: 0.85rem; color: var(--stone); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 4px; }
+.tpb-dates-badge {
+  font-family: 'Space Mono', monospace; font-size: 0.78rem; color: var(--bark);
+  background: rgba(245, 240, 232, 0.6); padding: 4px 10px; border-radius: 20px;
+  width: fit-content; border: 1px solid rgba(26, 46, 26, 0.04);
+}
+.tpb-guide-box {
+  margin-top: 1rem;
+  background: rgba(38, 64, 38, 0.04);
+  border: 1px dashed rgba(38, 64, 38, 0.15);
+  border-radius: 8px; padding: 0.6rem 0.8rem;
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 0.82rem; color: var(--stone);
+}
+.tpb-guide-link {
+  color: var(--forest); font-weight: 700; text-decoration: none;
+  border-bottom: 1.5px solid var(--gold); cursor: pointer; transition: all 0.2s;
+  font-size: 0.8rem; background: none; border-top: none; border-left: none; border-right: none; padding: 0;
+}
+.tpb-guide-link:hover { color: var(--gold); border-bottom-color: var(--forest); }
+
+.tpb-meta-pane {
+  width: 280px; padding: 1.5rem;
+  background: rgba(245, 240, 232, 0.4);
+  border-left: 1px solid rgba(26, 46, 26, 0.06);
+  display: flex; flex-direction: column; gap: 0.6rem;
+  flex-shrink: 0; justify-content: center;
+}
+.tpb-meta-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.83rem; }
+.tpb-meta-label { color: var(--stone); }
+.tpb-meta-val { font-weight: 600; color: var(--bark); }
+.tpb-meta-price { font-size: 1.15rem; font-weight: 800; color: var(--forest); }
+
+.tpb-status-badge {
+  display: inline-block; padding: 3px 10px; border-radius: 30px;
+  font-family: 'Space Mono', monospace; font-size: 0.65rem; font-weight: 700;
+  text-transform: uppercase; border: 1px solid transparent;
+}
+.tpb-status-booked { background: rgba(46, 125, 50, 0.1); color: #2e7d32; border-color: rgba(46, 125, 50, 0.2); }
+.tpb-status-cancelled { background: rgba(198, 40, 40, 0.1); color: #c62828; border-color: rgba(198, 40, 40, 0.2); }
+.tpb-status-completed { background: rgba(21, 101, 192, 0.1); color: #1565c0; border-color: rgba(21, 101, 192, 0.2); }
+
+.tpb-diff-pill {
+  display: inline-block; padding: 2px 8px; border-radius: 4px;
+  font-family: 'Space Mono', monospace; font-size: 0.6rem; font-weight: 700;
+  text-transform: uppercase;
+}
+.tpb-diff-easy { background: rgba(76, 175, 80, 0.15); color: #2e7d32; }
+.tpb-diff-moderate { background: rgba(255, 152, 0, 0.15); color: #e65100; }
+.tpb-diff-hard { background: rgba(244, 67, 54, 0.15); color: #c62828; }
+
+.tpb-btn-cancel {
+  margin-top: 0.5rem; padding: 0.5rem;
+  border: 1px solid rgba(198, 40, 40, 0.3);
   background: transparent; color: #c62828;
-  border-radius: 4px; font-family: 'DM Sans', sans-serif;
-  font-size: 0.78rem; font-weight: 600;
-  cursor: pointer; transition: var(--transition);
+  border-radius: 6px; font-family: 'DM Sans', sans-serif;
+  font-size: 0.8rem; font-weight: 700;
+  cursor: pointer; transition: all 0.2s ease;
 }
-.btn-cancel:hover { background: #ffebee; }
-
-/* ── STATUS PILLS ───────────────────────────────────── */
-.status-pill {
-  display: inline-block; padding: 2px 8px; border-radius: 2px;
-  font-family: 'Space Mono', monospace;
-  font-size: 0.6rem; font-weight: 700; text-transform: uppercase;
+.tpb-btn-cancel:hover { background: #ffebee; transform: translateY(-1px); }
+.tpb-btn-checklist {
+  margin-top: 0.5rem; padding: 0.5rem;
+  border: 1px solid var(--forest);
+  background: var(--forest); color: #fff;
+  border-radius: 6px; font-family: 'DM Sans', sans-serif;
+  font-size: 0.8rem; font-weight: 700;
+  cursor: pointer; transition: all 0.2s ease;
+  display: flex; align-items: center; justify-content: center; gap: 4px;
 }
-.status-booked { background: #e8f5e9; color: #2e7d32; }
-.status-cancelled { background: #ffebee; color: #c62828; }
-.status-completed { background: #e3f2fd; color: #1565c0; }
+.tpb-btn-checklist:hover { background: var(--forest-mid); border-color: var(--forest-mid); transform: translateY(-1px); }
 
-.diff-pill {
-  display: inline-block; padding: 2px 7px; border-radius: 2px;
-  font-family: 'Space Mono', monospace; font-size: 0.58rem;
-  font-weight: 700; text-transform: uppercase;
-}
-.pill-easy { background: rgba(46,125,50,0.1); color: #2e7d32; }
-.pill-moderate { background: rgba(239,108,0,0.1); color: #ef6c00; }
-.pill-hard { background: rgba(198,40,40,0.1); color: #c62828; }
-
-/* ── HISTORY TABLE ──────────────────────────────────── */
-.ts-table-wrap {
-  background: #fff;
-  border: 1px solid rgba(26,46,26,0.07);
-  border-radius: var(--radius);
-  box-shadow: 0 2px 14px var(--shadow);
+/* ── TREK PREMIUM HISTORY (tph-) ── */
+.tph-panel {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(26, 46, 26, 0.08);
+  border-radius: 14px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.03);
   overflow: hidden;
 }
-.ts-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-.ts-table th {
-  background: var(--cream); color: var(--forest);
-  font-size: 0.7rem; font-weight: 600;
-  letter-spacing: 0.06em; text-transform: uppercase;
-  padding: 0.8rem 1.25rem; text-align: left;
-  border-bottom: 2px solid rgba(26,46,26,0.08);
+.tph-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+.tph-table th {
+  background: rgba(245, 240, 232, 0.7); color: var(--forest);
+  font-size: 0.75rem; font-weight: 700;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 1rem 1.5rem; text-align: left;
+  border-bottom: 2px solid rgba(26, 46, 26, 0.06);
 }
-.ts-table td {
-  padding: 0.9rem 1.25rem;
-  border-bottom: 1px solid rgba(26,46,26,0.05);
+.tph-table td {
+  padding: 1.1rem 1.5rem;
+  border-bottom: 1px solid rgba(26, 46, 26, 0.04);
   color: var(--stone); vertical-align: middle;
+  transition: background-color 0.2s ease;
 }
-.ts-table tr:last-child td { border-bottom: none; }
-.ts-table tr:hover td { background: rgba(245,240,232,0.45); }
-.cell-name { font-weight: 600; color: var(--forest); }
+.tph-table tr:last-child td { border-bottom: none; }
+.tph-table tr:hover td { background: rgba(200, 146, 42, 0.03); }
+.tph-trek-name { font-weight: 700; color: var(--forest); font-family: 'Playfair Display', serif; font-size: 0.95rem; }
 
-/* ── MINI CALENDAR WIDGET ───────────────────────────── */
-.mini-calendar {
-  user-select: none;
+/* ── TREK PREMIUM CALENDAR (tpc-) ── */
+.tpc-split-layout { display: grid; grid-template-columns: 1fr 340px; gap: 2rem; align-items: start; }
+.tpc-calendar-card {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(26, 46, 26, 0.08);
+  border-radius: 14px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.03);
+  padding: 1.5rem;
 }
-.calendar-nav {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 1rem;
-}
-.calendar-month {
-  font-family: 'Playfair Display', serif;
-  font-size: 1rem; font-weight: 700; color: var(--forest);
-}
-.cal-nav-btn {
-  width: 28px; height: 28px;
-  background: var(--cream); border: 1px solid rgba(26,46,26,0.1);
+.tpc-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
+.tpc-month-title { font-family: 'Playfair Display', serif; font-size: 1.25rem; font-weight: 800; color: var(--forest); }
+.tpc-nav-group { display: flex; gap: 0.5rem; }
+.tpc-nav-arrow {
+  width: 32px; height: 32px;
+  background: rgba(245, 240, 232, 0.8); border: 1px solid rgba(26, 46, 26, 0.08);
   border-radius: 50%; display: flex; align-items: center; justify-content: center;
-  cursor: pointer; transition: var(--transition);
+  cursor: pointer; transition: all 0.2s ease;
 }
-.cal-nav-btn:hover { background: var(--forest); }
-.cal-nav-btn:hover svg { stroke: #fff; }
-.cal-nav-btn svg { width: 13px; height: 13px; stroke: var(--stone); fill: none; stroke-width: 2.5; }
+.tpc-nav-arrow:hover { background: var(--forest); border-color: var(--forest); }
+.tpc-nav-arrow:hover svg { stroke: #fff; }
+.tpc-nav-arrow svg { width: 15px; height: 15px; stroke: var(--forest); fill: none; stroke-width: 2.5; }
 
-.calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
-.cal-day-header {
-  font-family: 'Space Mono', monospace; font-size: 0.6rem;
+.tpc-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.tpc-day-name {
+  font-family: 'Space Mono', monospace; font-size: 0.65rem;
   text-transform: uppercase; color: var(--stone);
-  text-align: center; padding: 4px 0;
+  text-align: center; padding: 6px 0; font-weight: 600;
 }
-.cal-day {
+.tpc-day-cell {
   aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
-  font-size: 0.78rem; color: var(--stone); border-radius: 50%;
-  cursor: pointer; transition: var(--transition);
+  font-size: 0.9rem; color: var(--stone); border-radius: 8px;
+  cursor: pointer; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative; border: 1px solid transparent;
 }
-.cal-day:hover { background: var(--cream); color: var(--forest); }
-.cal-day.today { background: var(--gold); color: #fff; font-weight: 700; }
-.cal-day.has-trek { background: rgba(26,46,26,0.1); color: var(--forest); font-weight: 600; }
-.cal-day.has-trek::after {
+.tpc-day-cell:hover { background: rgba(200, 146, 42, 0.1); color: var(--forest); transform: scale(1.05); }
+.tpc-day-cell.today {
+  background: rgba(200, 146, 42, 0.15); color: var(--bark); font-weight: 800;
+  border: 1.5px solid var(--gold);
+}
+.tpc-day-cell.has-trek {
+  background: linear-gradient(135deg, var(--forest), var(--forest-mid));
+  color: #fff; font-weight: 700;
+  box-shadow: 0 4px 10px rgba(26, 46, 26, 0.25);
+}
+.tpc-day-cell.has-trek::after {
   content: '';
-  display: block;
-  width: 4px; height: 4px; background: var(--gold);
-  border-radius: 50%;
-  position: absolute; bottom: 3px;
+  display: block; width: 5px; height: 5px; background: var(--gold-light);
+  border-radius: 50%; position: absolute; bottom: 4px;
 }
-.cal-day { position: relative; }
-.cal-day.other-month { opacity: 0.3; cursor: default; }
-.cal-day.other-month:hover { background: none; }
+.tpc-day-cell.other-month { opacity: 0.25; cursor: default; }
+.tpc-day-cell.other-month:hover { background: none; transform: none; color: var(--stone); }
 
-.calendar-legend {
-  display: flex; gap: 1rem; margin-top: 0.75rem;
-  font-size: 0.72rem; color: var(--stone);
-}
-.legend-dot {
-  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 3px;
-}
-.ld-today { background: var(--gold); }
-.ld-trek { background: var(--forest); }
-.calendar-legend-item { display: flex; align-items: flex-start; gap: 5px; }
+.tpc-legend { display: flex; gap: 1.5rem; margin-top: 1.5rem; font-size: 0.75rem; color: var(--stone); justify-content: center; }
+.tpc-legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.tpc-legend-today { background: var(--gold); border: 1px solid var(--gold); }
+.tpc-legend-trek { background: var(--forest); }
+.tpc-legend-item { display: flex; align-items: center; gap: 6px; }
 
-/* Trek events in calendar */
-.calendar-events {
-  margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 1px solid rgba(26,46,26,0.06);
+.tpc-side-card {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(26, 46, 26, 0.08);
+  border-radius: 14px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.03);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
 }
-.cal-event {
-  display: flex; align-items: center; gap: 8px;
-  padding: 5px 0;
-  font-size: 0.78rem;
+.tpc-side-title {
+  font-family: 'Playfair Display', serif; font-size: 1.1rem; font-weight: 800; color: var(--forest);
+  margin-bottom: 1rem; border-bottom: 1px solid rgba(26, 46, 26, 0.06); padding-bottom: 0.5rem;
 }
-.cal-event-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
-.cal-event-name { color: var(--forest); font-weight: 500; flex: 1; }
-.cal-event-date { font-family: 'Space Mono', monospace; font-size: 0.62rem; color: var(--stone); }
+.tpc-schedule-item {
+  padding: 0.8rem 0; border-bottom: 1px solid rgba(26, 46, 26, 0.04);
+}
+.tpc-schedule-item:last-child { border-bottom: none; }
+.tpc-schedule-title { font-family: 'Playfair Display', serif; font-size: 0.95rem; font-weight: 700; color: var(--forest); margin-bottom: 0.25rem; }
+.tpc-schedule-loc { font-size: 0.75rem; color: var(--stone); margin-bottom: 0.3rem; display: flex; align-items: center; gap: 4px; }
+.tpc-schedule-dates { font-family: 'Space Mono', monospace; font-size: 0.7rem; color: var(--bark); }
+
+.tpc-available-item {
+  padding: 0.75rem 0; border-bottom: 1px solid rgba(26, 46, 26, 0.04); display: flex; align-items: center; gap: 10px;
+}
+.tpc-available-item:last-child { border-bottom: none; }
+.tpc-available-info { flex: 1; }
+.tpc-available-name { font-weight: 700; font-size: 0.85rem; color: var(--forest); }
+.tpc-available-date { font-family: 'Space Mono', monospace; font-size: 0.68rem; color: var(--stone); }
+.tpc-available-slots { font-size: 0.75rem; color: var(--gold); font-weight: 700; }
 
 /* ── UPCOMING TREK PANEL ────────────────────────────── */
 .upcoming-trek {
@@ -1585,82 +1684,7 @@ body {
 .weather-metric { font-size: 0.72rem; color: rgba(255,255,255,0.55); }
 .weather-metric strong { color: rgba(255,255,255,0.85); display: block; font-size: 0.82rem; }
 
-/* ── PROFILE QUICK EDIT ─────────────────────────────── */
-.profile-layout {
-  display: grid;
-  grid-template-columns: 280px 1fr;
-  gap: 1.75rem;
-  align-items: start;
-}
-.profile-card-left {
-  background: #fff;
-  border: 1px solid rgba(26,46,26,0.07);
-  border-radius: var(--radius);
-  box-shadow: 0 2px 14px var(--shadow);
-  padding: 2rem;
-  text-align: center;
-  display: flex; flex-direction: column; align-items: center;
-}
-.profile-avatar-xl {
-  width: 90px; height: 90px;
-  background: linear-gradient(135deg, var(--forest), var(--forest-mid));
-  color: var(--gold-light);
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-family: 'Playfair Display', serif;
-  font-size: 2.4rem; font-weight: 700;
-  margin-bottom: 1.25rem;
-  border: 3px solid var(--gold);
-  box-shadow: 0 0 0 4px rgba(200,146,42,0.12);
-}
-.profile-name-xl { font-family: 'Playfair Display', serif; font-size: 1.3rem; font-weight: 700; color: var(--forest); margin-bottom: 0.25rem; }
-.profile-email-xl { font-size: 0.8rem; color: var(--stone); margin-bottom: 1rem; font-family: 'Space Mono', monospace; }
-.profile-badges { display: flex; flex-direction: column; gap: 0.5rem; width: 100%; }
-.profile-badge-item {
-  display: flex; align-items: center; gap: 8px;
-  background: var(--cream);
-  border: 1px solid rgba(26,46,26,0.07);
-  border-radius: var(--radius);
-  padding: 0.5rem 0.75rem;
-  font-size: 0.78rem; color: var(--forest-mid);
-}
-.profile-badge-item svg { width: 14px; height: 14px; stroke: var(--gold); fill: none; stroke-width: 2; flex-shrink: 0; }
-.profile-badge-item strong { margin-left: auto; color: var(--forest); }
-
-.profile-form-section {
-  background: #fff;
-  border: 1px solid rgba(26,46,26,0.07);
-  border-radius: var(--radius);
-  box-shadow: 0 2px 14px var(--shadow);
-  padding: 1.75rem;
-  margin-bottom: 1.5rem;
-}
-.form-section-title {
-  font-family: 'Playfair Display', serif;
-  font-size: 1.05rem; font-weight: 700; color: var(--forest);
-  margin-bottom: 1.25rem;
-  padding-bottom: 0.6rem;
-  border-bottom: 1px solid rgba(0,0,0,0.05);
-}
-.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
-.form-row.full { grid-template-columns: 1fr; }
-.form-group { display: flex; flex-direction: column; gap: 5px; }
-.form-group label {
-  font-size: 0.72rem; font-weight: 600; color: var(--forest);
-  text-transform: uppercase; letter-spacing: 0.06em;
-}
-.form-group input, .form-group select, .form-group textarea {
-  padding: 0.6rem 0.85rem;
-  border: 1px solid rgba(26,46,26,0.14);
-  border-radius: 4px;
-  font-family: 'DM Sans', sans-serif; font-size: 0.87rem; color: var(--bark);
-  outline: none; transition: var(--transition);
-  background: #fff;
-}
-.form-group input:focus, .form-group select:focus, .form-group textarea:focus {
-  border-color: var(--gold);
-  box-shadow: 0 0 0 3px rgba(200,146,42,0.1);
-}
+/* ── DELETED OLD PROFILE STYLES ── */
 
 /* ── BUTTONS ─────────────────────────────────────────── */
 .btn-primary {
@@ -1874,16 +1898,25 @@ body {
 @media (max-width: 1100px) {
   .dashboard-grid { grid-template-columns: 1fr; }
   .stats-row { grid-template-columns: repeat(2, 1fr); }
-  .profile-layout { grid-template-columns: 1fr; }
   .treks-grid-user { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 900px) {
+  .booking-row { flex-direction: column; }
+  .booking-accent { width: 100%; height: 5px; }
+  .booking-meta { width: 100%; border-left: none; border-top: 1px solid rgba(26,46,26,0.04); flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem; }
+  .bm-row { display: inline-flex; gap: 0.5rem; margin-right: 1rem; }
+
   .ts-sidebar {
+    width: min(260px, 86vw);
     transform: translateX(-100%);
   }
   .ts-sidebar.open {
     transform: translateX(0);
+    pointer-events: auto;
+  }
+  .ts-sidebar.collapsed {
+    transform: translateX(-100%);
   }
   .ts-main-content { margin-left: 0; padding-left: 0; }
   .sidebar-mobile-toggle { display: flex; }
@@ -1893,8 +1926,6 @@ body {
 @media (max-width: 650px) {
   .stats-row { grid-template-columns: 1fr 1fr; }
   .treks-grid-user { grid-template-columns: 1fr; }
-  .booking-row { flex-direction: column; }
-  .booking-meta { width: 100%; border-left: none; border-top: 1px solid rgba(0,0,0,0.05); }
   .dash-hero {
     min-height: auto;
   }
@@ -1917,13 +1948,11 @@ body {
   .dash-hero-stats-grid .hero-stat-icon { width: 44px; height: 44px; }
   .dash-hero-stats-grid .hero-stat-icon svg { width: 20px; height: 20px; }
   .page-content { padding: 1.25rem; }
-  .form-row { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 480px) {
   .stats-row { grid-template-columns: 1fr; }
   .achievements-grid { grid-template-columns: repeat(2, 1fr); }
-  .form-row { grid-template-columns: 1fr; }
 }
 
 /* Spinner for Weather Loader */
@@ -2064,4 +2093,3 @@ body {
 .btn-pin-static-action:hover {
   color: var(--gold-light) !important;
 }
-

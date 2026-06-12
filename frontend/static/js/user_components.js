@@ -258,23 +258,52 @@ const TsUserLayout = {
   methods: {
     // ── NAV ────────────────────────────────────────
     goTab(tab) {
+      const validTabs = ['dashboard', 'explore', 'bookings', 'history', 'calendar', 'profile'];
+      if (!validTabs.includes(tab)) return;
+
+      if (window.location.hash.slice(1) === tab) {
+        this.activateTab(tab);
+        return;
+      }
+
       window.location.hash = tab;
+    },
+    activateTab(tab) {
+      const validTabs = ['dashboard', 'explore', 'bookings', 'history', 'calendar', 'profile'];
+      if (!tab || !validTabs.includes(tab)) return;
+
+      this.activeTab = tab;
+      this.sidebarOpen = false;
+      this.sidebarCollapsed = true;
+      localStorage.setItem('userActiveTab', tab);
+
+      this.resetPageScroll();
     },
     handleHashChange() {
       const hash = window.location.hash.slice(1);
-      const validTabs = ['dashboard', 'explore', 'bookings', 'history', 'calendar', 'profile'];
-      if (hash && validTabs.includes(hash)) {
-        this.activeTab = hash;
-        this.sidebarOpen = false;
-        localStorage.setItem('userActiveTab', hash);
-        
-        // Reset scroll position to top on tab change
-        this.$nextTick(() => {
-          window.scrollTo(0, 0);
-          const el = document.querySelector('.page-content');
-          if (el) el.scrollTop = 0;
-        });
-      }
+      this.activateTab(hash);
+    },
+    resetPageScroll() {
+      this.$nextTick(() => {
+        window.scrollTo(0, 0);
+        const el = this.$el ? this.$el.querySelector('.page-content') : document.querySelector('.page-content');
+        if (el) {
+          el.scrollTop = 0;
+          requestAnimationFrame(() => { el.scrollTop = 0; });
+        }
+      });
+    },
+    openSidebar() {
+      this.sidebarOpen = false;
+      this.sidebarCollapsed = false;
+    },
+    closeSidebar() {
+      this.sidebarOpen = false;
+      this.sidebarCollapsed = true;
+    },
+    toggleMobileSidebar() {
+      this.sidebarOpen = !this.sidebarOpen;
+      this.sidebarCollapsed = !this.sidebarOpen;
     },
     goProfileTab() {
       this.showProfileDropdown = false;
@@ -591,7 +620,7 @@ const TsUserLayout = {
           this.weather.temp = Math.round(current.temperature_2m);
           this.weather.humidity = current.relative_humidity_2m;
           this.weather.windSpeed = current.wind_speed_10m;
-          
+
           const code = current.weather_code;
           let desc = 'Clear sky';
           let icon = '☀️';
@@ -606,7 +635,7 @@ const TsUserLayout = {
           else if ([80, 81, 82].includes(code)) { desc = 'Rain Showers'; icon = '🌦️'; }
           else if ([85, 86].includes(code)) { desc = 'Snow Showers'; icon = '❄️'; }
           else if (code >= 95) { desc = 'Thunderstorm'; icon = '⛈️'; }
-          
+
           this.weather.desc = desc;
           this.weather.icon = icon;
           this.weather.locationName = trek.location;
@@ -624,22 +653,22 @@ const TsUserLayout = {
     updateAchievements() {
       const completedTreks = this.trekHistory.filter(h => h.status === 'Completed');
       const completedCount = completedTreks.length;
-      
+
       const firstSummit = completedCount >= 1;
       const trailBlazer = completedCount >= 5;
-      
+
       const hasWinterTrek = completedTreks.some(t => {
         if (!t.startDate) return false;
         const month = new Date(t.startDate).getMonth(); // 0 = Jan, 11 = Dec
         return month === 11 || month === 0 || month === 1 || month === 10; // Nov, Dec, Jan, Feb
       });
-      
+
       const locations = completedTreks.map(t => t.location);
       const uniqueLocations = [...new Set(locations)];
       const explorer = uniqueLocations.length >= 3;
-      
+
       const hasHardTrek = completedTreks.some(t => t.difficulty === 'Hard');
-      
+
       let totalNights = 0;
       completedTreks.forEach(t => {
         if (t.startDate && t.endDate) {
@@ -711,14 +740,14 @@ const TsUserLayout = {
   mounted() {
     this.fetchUserData();
     this.startCountdown();
-    
+
     // Cache bound event handler references to avoid Vue 3 method proxy reference mismatches
     this.hashListener = this.handleHashChange.bind(this);
     this.clickListener = this.closeDropdowns.bind(this);
-    
+
     window.addEventListener('hashchange', this.hashListener);
     document.addEventListener('click', this.clickListener);
-    
+
     const hash = window.location.hash.slice(1);
     const validTabs = ['dashboard', 'explore', 'bookings', 'history', 'calendar', 'profile'];
     if (hash && validTabs.includes(hash)) {
@@ -745,10 +774,10 @@ const TsUserLayout = {
   <div class="ts-user-layout">
 
     <!-- Mobile sidebar overlay -->
-    <div class="sidebar-overlay" :class="{ visible: sidebarOpen }" @click="sidebarOpen = false"></div>
+    <div class="sidebar-overlay" :class="{ visible: sidebarOpen }" @click="closeSidebar"></div>
 
     <!-- Mobile toggle -->
-    <button class="sidebar-mobile-toggle" @click="sidebarOpen = !sidebarOpen">
+    <button class="sidebar-mobile-toggle" @click="toggleMobileSidebar">
       <svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
     </button>
 
@@ -756,7 +785,7 @@ const TsUserLayout = {
       <!-- Brand -->
       <div class="sidebar-brand">
         <span class="sidebar-brand-name">Trail<span>Sync</span></span>
-        <button class="btn-sidebar-close" @click="sidebarCollapsed = true" title="Close Sidebar">
+        <button class="btn-sidebar-close" @click="closeSidebar" title="Close Sidebar">
           <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
         </button>
       </div>
@@ -817,7 +846,7 @@ const TsUserLayout = {
 
       <!-- Top bar -->
       <div class="ts-topbar" :class="{ 'sidebar-closed': sidebarCollapsed }">
-        <button v-if="sidebarCollapsed" class="btn-sidebar-open" @click="sidebarCollapsed = false" title="Open Sidebar">
+        <button v-if="sidebarCollapsed" class="btn-sidebar-open" @click="openSidebar" title="Open Sidebar">
           <svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
         </button>
         <div class="topbar-brand-group">
@@ -903,7 +932,7 @@ const TsUserLayout = {
                 <div class="dash-hero-greeting">Welcome back, Trekker</div>
                 <div class="dash-hero-name">Hello, <em>{{ profile.name ? profile.name.split(' ')[0] : 'Trekker' }}</em> <i class="bi bi-person-walking" style="color: var(--gold-light); font-size: 2.8rem; margin-left: 2px; vertical-align: middle;"></i></div>
                 <div class="dash-hero-punchline">Scale new heights. Discover your next epic journey.</div>
-                
+
                 <div class="dash-hero-left-cta">
                   <button class="btn-hero-primary" @click="goTab('explore')">Explore Treks</button>
                   <button class="btn-hero-ghost" @click="goTab('bookings')">My Bookings</button>
@@ -1036,7 +1065,7 @@ const TsUserLayout = {
                       <span class="prep-lbl" style="font-family:'Space Mono',monospace; font-size:0.58rem; text-transform:uppercase; color:rgba(255,255,255,0.5); margin-top:2px;">Ready</span>
                     </div>
                   </div>
-                  
+
                   <div style="font-size:0.8rem; color:rgba(255,255,255,0.6); margin-top:0.75rem; text-align:center;">
                     Click the ring to show readiness checklists
                   </div>
@@ -1094,8 +1123,8 @@ const TsUserLayout = {
                         {{ msg.sender === 'user' ? 'You' : (nextTrek && nextTrek.guide ? nextTrek.guide.name : 'Guide') }}
                       </div>
                       <div style="max-width:85%; padding:0.55rem 0.75rem; border-radius:8px; font-size:0.78rem; line-height:1.4;"
-                           :style="msg.sender === 'user' 
-                             ? { background: 'var(--gold)', color: 'var(--forest)', borderTopRightRadius: '0' } 
+                           :style="msg.sender === 'user'
+                             ? { background: 'var(--gold)', color: 'var(--forest)', borderTopRightRadius: '0' }
                              : { background: 'rgba(255,255,255,0.08)', color: '#fff', borderTopLeftRadius: '0' }">
                         {{ msg.text }}
                       </div>
@@ -1112,7 +1141,7 @@ const TsUserLayout = {
                       </div>
                     </div>
                   </div>
-                  
+
                   <!-- Input Row -->
                   <div class="guide-chat-input-row" style="display:flex; gap:8px; border-top:1px solid rgba(255,255,255,0.1); padding-top:0.75rem;">
                     <input v-model="guideMessage" type="text" placeholder="Ask your guide a question..." @keyup.enter="sendGuideMessage" style="flex:1; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12); border-radius:4px; padding:0.45rem 0.75rem; color:#fff; font-size:0.78rem;" />
@@ -1128,7 +1157,7 @@ const TsUserLayout = {
 
           <!-- ── CATEGORIZED TREK ROWS ── -->
           <div class="dashboard-trek-categories" style="margin-top: 3.5rem;">
-            
+
             <!-- Easy Treks Row -->
             <div class="category-row-wrapper" style="margin-bottom: 3rem;">
               <div class="category-row-header" style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:1.25rem; border-bottom:1px solid rgba(26,46,26,0.08); padding-bottom:8px;">
@@ -1263,7 +1292,7 @@ const TsUserLayout = {
                 <span style="font-family:'Space Mono',monospace; font-size:0.7rem; color:var(--gold); text-transform:uppercase; margin-left:10px; letter-spacing:0.05em; font-weight:600;">Stories & Reviews from fellow Trekkers</span>
               </div>
             </div>
-            
+
             <div class="treks-grid-user" style="margin-top: 1rem;">
               <div v-for="p in communityPosts" :key="p.id" class="pin-card" style="background:#fff; border:1px solid rgba(26,46,26,0.07); border-radius:var(--radius); overflow:hidden; box-shadow:0 4px 16px var(--shadow); transition:var(--transition); display:flex; flex-direction:column;">
                 <div class="pin-img-container" style="height:135px; overflow:hidden; position:relative;">
@@ -1276,7 +1305,7 @@ const TsUserLayout = {
                   </div>
                   <h4 class="pin-card-title" style="font-family:'Playfair Display',serif; font-size:1.1rem; font-weight:700; color:var(--forest); margin:0;">{{ p.title }}</h4>
                   <div class="pin-trek-tag" style="font-family:'Space Mono',monospace; font-size:0.65rem; color:var(--gold); font-weight:600;">📍 {{ p.trekName }}</div>
-                  
+
                   <!-- CSS stylized quotes on start and end of story -->
                   <div class="story-text-container" style="position:relative; padding:0.5rem 1rem 0.5rem; margin-top:0.25rem; flex-grow:1;">
                     <span class="quote-mark quote-start" style="font-family:'Playfair Display',serif; font-size:2.5rem; color:var(--gold-light); line-height:1; position:absolute; left:-0.2rem; top:-0.3rem; user-select:none; opacity:0.8;">“</span>
@@ -1390,8 +1419,6 @@ const TsUserLayout = {
               </div>
             </div>
           </div>
-            </div>
-          </div>
 
           <div v-if="filteredTreks.length === 0" class="empty-state" style="margin-top:1rem">
             <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -1404,7 +1431,7 @@ const TsUserLayout = {
         <section v-if="activeTab === 'bookings'" class="tab-section-content">
           <div class="page-header">
             <div class="page-header-left">
-              <div class="page-eyebrow">Trekker</div>
+              <div class="page-eyebrow">Your Adventures</div>
               <div class="page-title">My <em>Bookings</em></div>
             </div>
             <button class="btn-back-home" @click="goTab('dashboard')">
@@ -1412,49 +1439,34 @@ const TsUserLayout = {
               Back to Home
             </button>
           </div>
-
-          <div v-if="myBookings.length === 0" class="empty-state">
-            <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            <p>No bookings yet.</p>
-            <p><a @click="goTab('explore')">Explore open treks →</a></p>
-          </div>
-
-          <div class="bookings-stack">
-            <div v-for="b in myBookings" :key="b.id" class="booking-row">
-              <div class="booking-accent" :class="'ba-' + b.difficulty.toLowerCase()"></div>
-              <div class="booking-main">
-                <div class="booking-trek-name">{{ b.trekName }}</div>
-                <div class="booking-loc"><span class="css-loc-pin"></span>{{ b.location }}</div>
-                <div class="booking-dates mono">{{ formatDate(b.startDate) }} → {{ formatDate(b.endDate) }}</div>
-                <div v-if="b.guide" class="booking-guide-info" style="font-size: 0.78rem; color: var(--stone); margin-top: 6px; display: flex; align-items: center; gap: 8px;">
-                  <span>👤 Guide: <strong>{{ b.guide.name }}</strong> ({{ b.guide.phone }})</span>
-                  <button style="color: var(--forest); font-weight: 600; cursor: pointer; border: none; background: none; padding: 0; font-size: 0.78rem; text-decoration: underline;" @click="openGuideModal(b.guide)">View Profile</button>
-                </div>
+          <div class="ts-card" style="max-width: 900px;">
+            <div class="ts-card-body">
+              <div v-if="myBookings.filter(b=>b.status==='Booked').length === 0" class="empty-state">
+                <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                <p>You have no active bookings.</p>
+                <button class="btn-book" style="margin-top: 1rem" @click="goTab('explore')">Find a Trek</button>
               </div>
-              <div class="booking-meta">
-                <div class="bm-row">
-                  <span class="bm-label">Booking ID</span>
-                  <span class="mono">#{{ b.id }}</span>
-                </div>
-                <div class="bm-row">
-                  <span class="bm-label">Booked On</span>
-                  <span class="mono">{{ b.bookedOn }}</span>
-                </div>
-                <div class="bm-row">
-                  <span class="bm-label">Difficulty</span>
-                  <span :class="'diff-pill pill-' + b.difficulty.toLowerCase()">{{ b.difficulty }}</span>
-                </div>
-                <div class="bm-row">
-                  <span class="bm-label">Amount</span>
-                  <span class="bm-price">₹{{ b.price.toLocaleString() }}</span>
-                </div>
-                <div class="bm-row">
-                  <span class="bm-label">Status</span>
-                  <span :class="'status-pill status-' + b.status.toLowerCase()">{{ b.status }}</span>
-                </div>
-                <div v-if="b.status === 'Booked'" style="display: flex; gap: 0.5rem; margin-top: 0.5rem; width: 100%;">
-                  <button class="btn-cancel" @click="cancelBooking(b)" style="flex: 1;">Cancel</button>
-                  <button class="btn-outline" @click="openChecklistModal(b)" style="flex: 1.5; padding: 0.35rem 0.5rem; font-size: 0.72rem; border-radius: 4px; border: 1px solid var(--forest); color: var(--forest); background: transparent; cursor: pointer; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 2px;">📋 Checklist</button>
+              <div class="bookings-stack">
+                <div v-for="b in myBookings.filter(b=>b.status==='Booked')" :key="b.id" class="booking-row">
+                  <div class="booking-accent" :class="'ba-' + b.difficulty.toLowerCase()"></div>
+                  <div class="booking-main">
+                    <div class="booking-trek-name">{{ b.trekName }}</div>
+                    <div class="booking-loc"><span class="css-loc-pin"></span>{{ b.location }}</div>
+                    <div class="booking-dates mono">{{ formatDate(b.startDate) }} → {{ formatDate(b.endDate) }}</div>
+                    <div v-if="b.guide" class="booking-guide-info" style="font-size: 0.78rem; color: var(--stone); margin-top: 6px; display: flex; align-items: center; gap: 8px;">
+                      <span>👤 Guide: <strong>{{ b.guide.name }}</strong> ({{ b.guide.phone }})</span>
+                      <button style="color: var(--forest); font-weight: 600; cursor: pointer; border: none; background: none; padding: 0; font-size: 0.78rem; text-decoration: underline;" @click="openGuideModal(b.guide)">View Profile</button>
+                    </div>
+                  </div>
+                  <div class="booking-meta">
+                    <div class="bm-row"><span class="bm-label">Status</span><span class="status-pill status-booked">Booked</span></div>
+                    <div class="bm-row"><span class="bm-label">Amount</span><span class="bm-price">₹{{ b.price.toLocaleString() }}</span></div>
+                    <div class="bm-row"><span class="bm-label">Difficulty</span><span :class="'diff-pill pill-'+b.difficulty.toLowerCase()">{{b.difficulty}}</span></div>
+                    <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem; width: 100%;">
+                      <button class="btn-cancel" @click="cancelBooking(b)" style="flex: 1;">Cancel</button>
+                      <button class="btn-outline" @click="openChecklistModal(b)" style="flex: 1.5; padding: 0.35rem 0.5rem; font-size: 0.72rem; border-radius: 4px; border: 1px solid var(--forest); color: var(--forest); background: transparent; cursor: pointer; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 2px;">📋 Checklist</button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1465,55 +1477,56 @@ const TsUserLayout = {
         <section v-if="activeTab === 'history'" class="tab-section-content">
           <div class="page-header">
             <div class="page-header-left">
-              <div class="page-eyebrow">Trekker</div>
+              <div class="page-eyebrow">Past Journeys</div>
               <div class="page-title">Trek <em>History</em></div>
             </div>
-            <div style="display: flex; gap: 0.75rem; align-items: flex-end;">
-              <button class="btn-gold" @click="requestExport" :disabled="exportPending">
-                {{ exportPending ? '⏳ Exporting…' : '⬇ Export CSV' }}
-              </button>
-              <button class="btn-back-home" @click="goTab('dashboard')">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-                Back to Home
-              </button>
+          </div>
+
+          <div class="dashboard-grid">
+            <div class="dashboard-main">
+              <div class="ts-card">
+                <div class="ts-card-header">
+                  <div class="ts-card-title">Completed Treks</div>
+                </div>
+                <div class="ts-card-body">
+                  <div v-if="trekHistory.length === 0" class="empty-state">
+                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    <p>No past treks found.</p>
+                  </div>
+                  <div class="bookings-stack">
+                    <div v-for="h in trekHistory" :key="h.id" class="booking-row" style="opacity: 0.85">
+                      <div class="booking-accent" style="background: var(--stone)"></div>
+                      <div class="booking-main">
+                        <div class="booking-trek-name">{{ h.trekName }}</div>
+                        <div class="booking-loc"><span class="css-loc-pin"></span>{{ h.location }}</div>
+                        <div class="booking-dates mono">{{ formatDate(h.startDate) }} → {{ formatDate(h.endDate) }}</div>
+                      </div>
+                      <div class="booking-meta">
+                        <div class="bm-row"><span class="bm-label">Status</span><span class="status-pill status-completed" style="background: var(--mist); color: var(--forest)">{{ h.status }}</span></div>
+                        <div class="bm-row"><span class="bm-label">Amount</span><span class="bm-price">₹{{ h.price.toLocaleString() }}</span></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
 
-          <div v-if="trekHistory.length === 0" class="empty-state">
-            <svg viewBox="0 0 24 24"><path d="M3 17l4-8 4 4 4-6 4 10"/></svg>
-            <p>No completed treks yet. Your history will appear here.</p>
-          </div>
-
-          <div class="ts-table-wrap">
-            <table class="ts-table">
-              <thead>
-                <tr>
-                  <th>Trek</th>
-                  <th>Location</th>
-                  <th>Dates</th>
-                  <th>Duration</th>
-                  <th>Difficulty</th>
-                  <th>Paid</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="h in trekHistory" :key="h.id">
-                  <td class="cell-name">{{ h.trekName }}</td>
-                  <td>{{ h.location }}</td>
-                  <td class="mono">{{ formatDate(h.startDate) }}<br>→ {{ formatDate(h.endDate) }}</td>
-                  <td>—</td>
-                  <td><span :class="'diff-pill pill-' + h.difficulty.toLowerCase()">{{ h.difficulty }}</span></td>
-                  <td class="mono">{{ h.price > 0 ? '₹' + h.price.toLocaleString() : '—' }}</td>
-                  <td><span :class="'status-pill status-' + h.status.toLowerCase()">{{ h.status }}</span></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <div v-if="exportPending" class="export-notice">
-            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            CSV export triggered — you'll receive an email with your data shortly.
+            <div class="dashboard-sidebar-panel">
+              <div class="ts-card">
+                <div class="ts-card-header">
+                  <div class="ts-card-title">Achievements</div>
+                </div>
+                <div class="ts-card-body" style="display: flex; flex-direction: column; gap: 1rem">
+                  <div v-for="a in achievements" :key="a.name" style="display: flex; align-items: center; gap: 1rem; padding: 0.5rem; border-radius: 8px; background: rgba(26,46,26,0.03);">
+                    <div style="font-size: 2rem; opacity: a.earned ? 1 : 0.3; filter: a.earned ? 'none' : 'grayscale(100%)'">{{ a.icon }}</div>
+                    <div>
+                      <div style="font-weight: 600; color: var(--forest)">{{ a.name }}</div>
+                      <div style="font-size: 0.75rem; color: var(--stone)">{{ a.desc }}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -1524,89 +1537,36 @@ const TsUserLayout = {
               <div class="page-eyebrow">Schedule</div>
               <div class="page-title">Trek <em>Calendar</em></div>
             </div>
-            <button class="btn-back-home" @click="goTab('dashboard')">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-              Back to Home
-            </button>
+            <div style="display: flex; align-items: center; gap: 1rem; background: #fff; padding: 0.5rem; border-radius: 8px; box-shadow: 0 2px 8px var(--shadow)">
+              <button @click="prevMonth" style="border: none; background: none; cursor: pointer; padding: 0.25rem 0.5rem; color: var(--forest)">←</button>
+              <div style="font-family: 'Playfair Display', serif; font-weight: 700; color: var(--forest); min-width: 120px; text-align: center;">{{ calMonthLabel }}</div>
+              <button @click="nextMonth" style="border: none; background: none; cursor: pointer; padding: 0.25rem 0.5rem; color: var(--forest)">→</button>
+            </div>
           </div>
 
-          <div style="display:grid; grid-template-columns:1fr 320px; gap:1.75rem; align-items:start">
-            <!-- Large calendar -->
-            <div class="ts-card">
-              <div class="ts-card-header">
-                <div class="ts-card-title">{{ calMonthLabel }}</div>
-                <div style="display:flex; gap:0.5rem">
-                  <div class="cal-nav-btn" @click="prevMonth">
-                    <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
-                  </div>
-                  <div class="cal-nav-btn" @click="nextMonth">
-                    <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
-                  </div>
-                </div>
-              </div>
-              <div class="ts-card-body">
-                <div class="calendar-grid" style="gap:4px">
-                  <div v-for="d in ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']" :key="d"
-                    class="cal-day-header" style="font-size:0.7rem; padding:8px 0">{{ d }}</div>
-                  <div
-                    v-for="(day, i) in calendarDays"
-                    :key="i"
-                    class="cal-day"
-                    style="font-size:0.88rem; border-radius:8px"
-                    :class="{
-                      today: day.isToday,
-                      'has-trek': day.hasTrek,
-                      'other-month': day.month !== 'current'
-                    }"
-                    :title="day.hasTrek ? 'Trek day!' : ''"
-                  >{{ day.day }}</div>
-                </div>
-                <div class="calendar-legend" style="margin-top:1.25rem; gap:1.5rem">
-                  <div class="calendar-legend-item">
-                    <div class="legend-dot ld-today"></div> Today
-                  </div>
-                  <div class="calendar-legend-item">
-                    <div class="legend-dot ld-trek"></div> Booked Trek Day
-                  </div>
-                </div>
+          <div class="ts-card" style="padding: 1.5rem; max-width: 700px">
+            <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.5rem; text-align: center; margin-bottom: 0.5rem; font-family: 'Space Mono', monospace; font-size: 0.8rem; font-weight: 700; color: var(--stone)">
+              <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.5rem;">
+              <div v-for="(day, i) in calendarDays" :key="i"
+                   style="aspect-ratio: 1; display: flex; align-items: center; justify-content: center; border-radius: 8px; position: relative; font-weight: 500;"
+                   :style="{
+                     background: day.hasTrek ? 'var(--gold-light)' : (day.isToday ? 'var(--forest)' : (day.month === 'current' ? 'rgba(26,46,26,0.03)' : 'transparent')),
+                     color: day.hasTrek ? 'var(--forest)' : (day.isToday ? '#fff' : (day.month === 'current' ? 'var(--bark)' : 'var(--stone)')),
+                     opacity: day.month === 'current' ? 1 : 0.4
+                   }">
+                {{ day.day }}
+                <div v-if="day.hasTrek" style="position: absolute; bottom: 4px; width: 4px; height: 4px; border-radius: 50%; background: var(--forest)"></div>
               </div>
             </div>
 
-            <!-- Side panel: scheduled treks -->
-            <div>
-              <div class="ts-card" style="margin-bottom:1.25rem">
-                <div class="ts-card-header">
-                  <div class="ts-card-title">Scheduled Treks</div>
-                </div>
-                <div class="ts-card-body">
-                  <div v-if="!myBookings.filter(b=>b.status==='Booked').length" class="empty-state" style="padding:2rem">
-                    <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                    <p>No upcoming treks.</p>
-                  </div>
-                  <div v-for="b in myBookings.filter(b=>b.status==='Booked')" :key="b.id"
-                    style="padding:1rem 0; border-bottom:1px solid rgba(26,46,26,0.06)">
-                    <div style="font-family:'Playfair Display',serif; font-size:1rem; font-weight:700; color:var(--forest); margin-bottom:0.25rem">{{ b.trekName }}</div>
-                    <div style="font-size:0.78rem; color:var(--stone); margin-bottom:0.35rem"><span class="css-loc-pin" style="background:var(--gold)"></span>{{ b.location }}</div>
-                    <div style="font-family:'Space Mono',monospace; font-size:0.72rem; color:var(--bark)">{{ formatDate(b.startDate) }} → {{ formatDate(b.endDate) }}</div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- All available trek dates -->
-              <div v-if="upcomingAvailableTreks.length" class="ts-card">
-                <div class="ts-card-header">
-                  <div class="ts-card-title">Available This Month</div>
-                </div>
-                <div class="ts-card-body">
-                  <div v-for="t in upcomingAvailableTreks.slice(0,4)" :key="t.id"
-                    style="padding:0.75rem 0; border-bottom:1px solid rgba(26,46,26,0.05); display:flex; gap:10px; align-items:center">
-                    <div :class="'trek-badge badge-'+t.difficulty.toLowerCase()" style="position:static; font-size:0.55rem; padding:2px 6px">{{ t.difficulty }}</div>
-                    <div style="flex:1">
-                      <div style="font-weight:600; font-size:0.85rem; color:var(--forest)">{{ t.name }}</div>
-                      <div style="font-family:'Space Mono',monospace; font-size:0.65rem; color:var(--stone)">{{ formatDate(t.startDate) }}</div>
-                    </div>
-                    <span style="font-size:0.8rem; color:var(--gold); font-weight:600">{{ t.slotsLeft }} slots</span>
-                  </div>
+            <div v-if="calendarEvents.length" style="margin-top: 2rem; border-top: 1px solid var(--stone-light); padding-top: 1.5rem">
+              <h4 style="font-family: 'Playfair Display', serif; color: var(--forest); margin-bottom: 1rem">Treks this month</h4>
+              <div style="display: flex; flex-direction: column; gap: 0.75rem">
+                <div v-for="(ev, i) in calendarEvents" :key="i" style="display: flex; align-items: center; gap: 1rem; padding: 0.75rem; background: var(--snow); border-left: 3px solid var(--gold); border-radius: 4px">
+                  <div style="font-family: 'Space Mono', monospace; font-size: 0.85rem; color: var(--forest-light); font-weight: 700">{{ formatDate(ev.date) }}</div>
+                  <div style="font-weight: 600; color: var(--forest)">{{ ev.name }}</div>
                 </div>
               </div>
             </div>
@@ -1617,100 +1577,69 @@ const TsUserLayout = {
         <section v-if="activeTab === 'profile'" class="tab-section-content">
           <div class="page-header">
             <div class="page-header-left">
-              <div class="page-eyebrow">Account</div>
+              <div class="page-eyebrow">Account Details</div>
               <div class="page-title">My <em>Profile</em></div>
             </div>
-            <button class="btn-back-home" @click="goTab('dashboard')">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-              Back to Home
-            </button>
           </div>
 
-          <div class="profile-layout">
-            <!-- Left: avatar card -->
-            <div class="profile-card-left">
-              <div class="profile-avatar-xl">{{ userInitial }}</div>
-              <div class="profile-name-xl">{{ profile.name }}</div>
-              <div class="profile-email-xl" style="margin-bottom:0.25rem">{{ profile.email }}</div>
-              <div class="profile-id-xl" style="font-family:'Space Mono',monospace; font-size:0.75rem; color:var(--gold); font-weight:700; margin-bottom:1rem">Trekker ID: {{ profile.memberId }}</div>
-              <div class="profile-badges">
-                <div class="profile-badge-item">
-                  <svg viewBox="0 0 24 24"><path d="M3 17l4-8 4 4 4-6 4 10"/></svg>
-                  Treks Completed <strong>{{ trekHistory.filter(h=>h.status==='Completed').length }}</strong>
+          <div class="dashboard-grid">
+            <div class="dashboard-main">
+              <div class="ts-card">
+                <div class="ts-card-header">
+                  <div class="ts-card-title">Personal Information</div>
                 </div>
-                <div class="profile-badge-item">
-                  <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                  Active Bookings <strong>{{ myBookings.filter(b=>b.status==='Booked').length }}</strong>
-                </div>
-                <div class="profile-badge-item">
-                  <svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                  City <strong>{{ profile.city || '—' }}</strong>
+                <div class="ts-card-body">
+                  <form @submit.prevent="saveProfile" style="display: flex; flex-direction: column; gap: 1.25rem">
+                    <div>
+                      <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--forest); margin-bottom: 0.4rem">Full Name</label>
+                      <input type="text" v-model="profile.name" style="width: 100%; padding: 0.75rem; border: 1px solid rgba(26,46,26,0.15); border-radius: 6px; font-family: 'DM Sans', sans-serif; background: #fff" />
+                    </div>
+                    <div>
+                      <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--forest); margin-bottom: 0.4rem">Email Address</label>
+                      <input type="email" v-model="profile.email" style="width: 100%; padding: 0.75rem; border: 1px solid rgba(26,46,26,0.15); border-radius: 6px; font-family: 'DM Sans', sans-serif; background: #f0f0f0" disabled />
+                    </div>
+                    <div>
+                      <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--forest); margin-bottom: 0.4rem">Phone Number</label>
+                      <input type="tel" v-model="profile.phone" style="width: 100%; padding: 0.75rem; border: 1px solid rgba(26,46,26,0.15); border-radius: 6px; font-family: 'DM Sans', sans-serif; background: #fff" />
+                    </div>
+                    <button type="submit" class="btn-book" style="align-self: flex-start; padding: 0.75rem 1.5rem">Save Changes</button>
+                  </form>
                 </div>
               </div>
             </div>
 
-            <!-- Right: forms -->
-            <div>
-              <div class="profile-form-section">
-                <div class="form-section-title">Edit Profile</div>
-                <div class="form-row">
-                  <div class="form-group">
-                    <label>Full Name</label>
-                    <input v-model="profile.name" type="text" placeholder="Your full name" />
-                  </div>
-                  <div class="form-group">
-                    <label>Phone</label>
-                    <input v-model="profile.phone" type="tel" placeholder="+91 XXXXX XXXXX" />
-                  </div>
+            <div class="dashboard-sidebar-panel">
+              <div class="ts-card">
+                <div class="ts-card-header">
+                  <div class="ts-card-title">Security</div>
                 </div>
-                <div class="form-row full">
-                  <div class="form-group">
-                    <label>Email</label>
-                    <input v-model="profile.email" type="email" placeholder="you@email.com" />
-                  </div>
-                </div>
-                <div class="form-row">
-                  <div class="form-group">
-                    <label>City</label>
-                    <input v-model="profile.city" type="text" placeholder="Your city" />
-                  </div>
-                  <div class="form-group">
-                    <label>Emergency Contact</label>
-                    <input v-model="profile.emergency" type="tel" placeholder="+91 XXXXX XXXXX" />
-                  </div>
-                </div>
-                <div class="form-row full">
-                  <div class="form-group">
-                    <label>About Me</label>
-                    <textarea v-model="profile.bio" rows="3" placeholder="Tell us about your trekking experience…"></textarea>
-                  </div>
-                </div>
-                <div style="display:flex; justify-content:flex-end; margin-top:1rem">
-                  <button class="btn-gold" @click="saveProfile">Save Changes</button>
+                <div class="ts-card-body">
+                  <form @submit.prevent="changePassword" style="display: flex; flex-direction: column; gap: 1rem">
+                    <div>
+                      <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--forest); margin-bottom: 0.4rem">Current Password</label>
+                      <input type="password" v-model="pwForm.current" style="width: 100%; padding: 0.6rem; border: 1px solid rgba(26,46,26,0.15); border-radius: 6px; background: #fff" />
+                    </div>
+                    <div>
+                      <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--forest); margin-bottom: 0.4rem">New Password</label>
+                      <input type="password" v-model="pwForm.new" style="width: 100%; padding: 0.6rem; border: 1px solid rgba(26,46,26,0.15); border-radius: 6px; background: #fff" />
+                    </div>
+                    <div>
+                      <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--forest); margin-bottom: 0.4rem">Confirm New Password</label>
+                      <input type="password" v-model="pwForm.confirm" style="width: 100%; padding: 0.6rem; border: 1px solid rgba(26,46,26,0.15); border-radius: 6px; background: #fff" />
+                    </div>
+                    <button type="submit" class="btn-outline" style="width: 100%; margin-top: 0.5rem">Update Password</button>
+                  </form>
                 </div>
               </div>
 
-              <!-- Password -->
-              <div class="profile-form-section" style="margin-bottom:0">
-                <div class="form-section-title">Change Password</div>
-                <div class="form-row full">
-                  <div class="form-group">
-                    <label>Current Password</label>
-                    <input v-model="pwForm.current" type="password" placeholder="••••••••" />
-                  </div>
-                </div>
-                <div class="form-row">
-                  <div class="form-group">
-                    <label>New Password</label>
-                    <input v-model="pwForm.new" type="password" placeholder="••••••••" />
-                  </div>
-                  <div class="form-group">
-                    <label>Confirm New Password</label>
-                    <input v-model="pwForm.confirm" type="password" placeholder="••••••••" />
-                  </div>
-                </div>
-                <div style="display:flex; justify-content:flex-end; margin-top:1rem">
-                  <button class="btn-primary" @click="changePassword">Update Password</button>
+              <div class="ts-card" style="margin-top: 1.5rem">
+                <div class="ts-card-body">
+                  <h4 style="font-size: 1rem; font-weight: 700; color: var(--forest); margin-bottom: 0.5rem">Export Data</h4>
+                  <p style="font-size: 0.8rem; color: var(--stone); margin-bottom: 1rem">Download a copy of your trekking history and bookings.</p>
+                  <button @click="requestExport" class="btn-outline" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem" :disabled="exportPending">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    {{ exportPending ? 'Exporting...' : 'Export as CSV' }}
+                  </button>
                 </div>
               </div>
             </div>
@@ -1739,37 +1668,37 @@ const TsUserLayout = {
                 </div>
                 <div style="font-size: 1.2rem; font-weight: 700; color: var(--forest); margin-bottom: 4px;">{{ bookingTarget.name }}</div>
                 <div style="font-size: 0.85rem; color: var(--stone); margin-bottom: 0.75rem;"><span class="css-loc-pin" style="background:var(--gold)"></span>{{ bookingTarget.location }}</div>
-                
+
                 <div style="margin-top: 0.5rem; background: var(--snow); padding: 10px; border-radius: 4px; border: 1px solid var(--stone-light); font-size: 0.82rem; display: flex; flex-direction: column; gap: 6px;">
                   <div style="display: flex; justify-content: space-between;"><strong>Difficulty:</strong> <span :class="'diff-pill pill-'+bookingTarget.difficulty.toLowerCase()">{{ bookingTarget.difficulty }}</span></div>
                   <div style="display: flex; justify-content: space-between;"><strong>Duration:</strong> <span>{{ bookingTarget.duration }} days</span></div>
                   <div style="display: flex; justify-content: space-between;"><strong>Distance:</strong> <span>{{ bookingTarget.distance }} km</span></div>
                 </div>
-                
+
                 <div style="font-size: 0.8rem; color: var(--stone); margin-top: 1rem; line-height: 1.5;">
                   {{ bookingTarget.description }}
                 </div>
               </div>
-              
+
               <!-- Right Column: Batches list -->
               <div style="display: flex; flex-direction: column; min-width: 0;">
                 <h4 style="font-weight: 700; color: var(--forest); font-size: 1rem; margin-bottom: 0.75rem;">Available Batches</h4>
-                
+
                 <div v-if="bookingTarget.batches && bookingTarget.batches.length" style="max-height: 340px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-right: 4px;">
                   <div v-for="b in bookingTarget.batches" :key="b.id" style="border: 1px solid rgba(200, 146, 42, 0.25); background: var(--snow); border-radius: 4px; padding: 12px; display: flex; flex-direction: column; gap: 8px;">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                       <span class="mono" style="font-weight: 700; color: var(--gold); font-size: 0.85rem;">{{ b.batchCode }}</span>
                       <span style="font-weight: 700; color: var(--forest); font-size: 1.05rem;">₹{{ b.price.toLocaleString() }}</span>
                     </div>
-                    
+
                     <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--stone);">
                       <span>📅 {{ formatDate(b.startDate) }}</span>
                       <span>👥 {{ b.slots - b.booked }} slots left</span>
                     </div>
-                    
+
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px; border-top: 1px dashed rgba(26,46,26,0.08); padding-top: 8px;">
                       <span style="font-size: 0.78rem; color: var(--stone);">👤 Guide: <strong>{{ b.staff || 'TBD' }}</strong></span>
-                      <button 
+                      <button
                         class="btn-book"
                         :class="{ 'btn-booked': isBooked(b.id), 'btn-full': !isBooked(b.id) && b.booked >= b.slots }"
                         :disabled="isBooked(b.id) || b.booked >= b.slots"
@@ -1780,7 +1709,7 @@ const TsUserLayout = {
                     </div>
                   </div>
                 </div>
-                
+
                 <div v-else style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 2.5rem 1rem; border: 1px dashed rgba(26,46,26,0.18); border-radius: 4px; background: var(--snow);">
                   <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">🎒</div>
                   <div style="font-size: 0.85rem; font-weight: 600; color: var(--forest); margin-bottom: 6px;">No Batches Available</div>
@@ -1810,14 +1739,14 @@ const TsUserLayout = {
             <img :src="guideTarget.photoUrl" :alt="guideTarget.name" style="width:100px; height:100px; border-radius:50%; object-fit:cover; margin-bottom:1rem; border:3px solid var(--gold)" />
             <h3 style="font-family:'Playfair Display',serif; font-size:1.3rem; margin-bottom:0.25rem">{{ guideTarget.name }}</h3>
             <div style="font-size:0.8rem; color:var(--stone); margin-bottom:1rem; font-weight:600; text-transform:uppercase; letter-spacing:0.05em">{{ guideTarget.designation }}</div>
-            
+
             <div style="text-align:left; background:var(--cream); padding:1rem; border-radius:var(--radius); margin-bottom:1rem; font-size:0.85rem">
               <div style="margin-bottom:0.5rem"><strong>Experience:</strong> {{ guideTarget.experienceYears }} years ({{ guideTarget.completedTreksCount }} treks completed)</div>
               <div style="margin-bottom:0.5rem"><strong>Certifications:</strong> {{ guideTarget.certifications }}</div>
               <div style="margin-bottom:0.5rem"><strong>Languages:</strong> {{ guideTarget.languages }}</div>
               <div style="margin-bottom:0.5rem"><strong>Staff ID:</strong> {{ guideTarget.memberId }}</div>
             </div>
-            
+
             <div style="display:flex; flex-direction:column; gap:0.25rem; font-size:0.8rem; color:var(--bark)">
               <div>📞 {{ guideTarget.phone }}</div>
               <div>✉️ {{ guideTarget.email }}</div>
@@ -1843,7 +1772,7 @@ const TsUserLayout = {
             <p style="font-size:0.8rem; color:var(--stone); margin-bottom:1.5rem">
               Carry these items to ensure a safe and comfortable trek. Your checked items will persist automatically.
             </p>
-            
+
             <!-- Section 1: Standard Packing List -->
             <div style="margin-bottom:1.5rem">
               <h4 style="font-size:0.85rem; text-transform:uppercase; color:var(--forest); letter-spacing:0.05em; margin-bottom:0.75rem; border-bottom:1px solid rgba(0,0,0,0.06); padding-bottom:4px">🎒 Standard Packing List</h4>

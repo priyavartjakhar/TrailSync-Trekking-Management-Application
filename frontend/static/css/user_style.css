@@ -264,11 +264,10 @@ body {
   width: 100%;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 0.65rem 1rem;
-  background: rgba(232, 184, 75, 0.08);
-  border: 1px solid rgba(232, 184, 75, 0.2);
-  border-radius: var(--radius);
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  background: transparent;
+  border: none;
   color: var(--gold-light);
   font-family: 'DM Sans', sans-serif;
   font-size: 0.85rem;
@@ -277,8 +276,9 @@ body {
   transition: var(--transition);
 }
 .btn-logout-sidebar:hover {
-  background: rgba(232, 184, 75, 0.18);
-  border-color: var(--gold-light);
+  background: transparent;
+  color: #fff;
+  transform: translateX(2px);
 }
 .btn-logout-sidebar svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 2; }
 

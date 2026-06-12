@@ -841,31 +841,6 @@ const TsUserLayout = {
                   <button class="btn-hero-ghost" @click="goTab('bookings')">My Bookings</button>
                 </div>
               </div>
-                  </div>
-
-                  <!-- Slide 3 Card: Valley of Flowers -->
-                  <div class="hero-trek-card slide-3">
-                    <div class="htc-badge moderate">Moderate</div>
-                    <div class="htc-name">Valley of Flowers</div>
-                    <div class="htc-details">
-                      <span class="htc-detail">
-                        <svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                        Chamoli, UK
-                      </span>
-                      <span class="htc-detail">
-                        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                        6 days
-                      </span>
-                      <span class="htc-detail">
-                        <svg viewBox="0 0 24 24"><path d="M3 17l4-8 4 4 4-6 4 10"/></svg>
-                        38 km
-                      </span>
-                    </div>
-                    <div class="htc-price">₹ 8,200 / person</div>
-                    <button class="btn-card-book" @click.stop="bookFeaturedTrek('Valley of Flowers')">Book Now</button>
-                  </div>
-                </div>
-              </div>
             </div>
 
           </div><!-- /dash-hero -->

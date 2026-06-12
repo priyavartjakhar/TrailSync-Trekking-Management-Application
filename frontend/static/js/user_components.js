@@ -14,6 +14,7 @@ const TsUserLayout = {
       sidebarOpen: false,
       sidebarCollapsed: true,
       toast: { show: false, msg: '', type: 'success' },
+      showProfileDropdown: false,
 
       // ── DATA ──────────────────────────────────────
       userName: USER_INITIAL_NAME,
@@ -267,6 +268,13 @@ const TsUserLayout = {
         this.sidebarOpen = false;
         localStorage.setItem('userActiveTab', hash);
       }
+    },
+    goProfileTab() {
+      this.showProfileDropdown = false;
+      this.goTab('profile');
+    },
+    closeDropdowns() {
+      this.showProfileDropdown = false;
     },
     sendGuideMessage() {
       if (!this.guideMessage.trim()) return;
@@ -699,6 +707,7 @@ const TsUserLayout = {
     
     // Hash routing initialization
     window.addEventListener('hashchange', this.handleHashChange);
+    document.addEventListener('click', this.closeDropdowns);
     
     const hash = window.location.hash.slice(1);
     const validTabs = ['dashboard', 'explore', 'bookings', 'history', 'calendar', 'profile'];
@@ -719,6 +728,7 @@ const TsUserLayout = {
   beforeUnmount() {
     if (this.countdownTimer) clearInterval(this.countdownTimer);
     window.removeEventListener('hashchange', this.handleHashChange);
+    document.removeEventListener('click', this.closeDropdowns);
   },
 
   template: `
@@ -816,10 +826,38 @@ const TsUserLayout = {
           <input v-model="searchQuery" type="text" placeholder="Search treks…" @keyup.enter="goTab('explore')" />
         </div>
         <div class="topbar-actions">
-          <div class="topbar-user-pill" @click="goTab('profile')" title="Profile">
+          <!-- Direct Navbar Logout Button -->
+          <button class="btn-navbar-logout" @click="handleLogout" title="Sign Out">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          </button>
+
+          <!-- User Profile Pill -->
+          <div class="topbar-user-pill" @click.stop="showProfileDropdown = !showProfileDropdown" title="Profile">
             <span class="topbar-pill-name">{{ profile.name ? profile.name.split(' ')[0] : 'Trekker' }}</span>
             <div class="topbar-pill-avatar">
               <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            </div>
+          </div>
+
+          <!-- Floating Profile Dropdown -->
+          <div v-if="showProfileDropdown" class="profile-dropdown-card" @click.stop>
+            <div class="pdd-header">
+              <div class="pdd-name">{{ profile.name }}</div>
+              <div class="pdd-role">Trekker</div>
+            </div>
+            <div class="pdd-body">
+              <div class="pdd-info-row">
+                <span class="pdd-info-lbl">Trekker ID</span>
+                <span class="pdd-info-val mono">{{ profile.email }}</span>
+              </div>
+              <div class="pdd-info-row">
+                <span class="pdd-info-lbl">Contact</span>
+                <span class="pdd-info-val">{{ profile.phone || 'Not provided' }}</span>
+              </div>
+            </div>
+            <div class="pdd-actions">
+              <button class="pdd-btn-edit" @click="goProfileTab">Edit Profile</button>
+              <button class="pdd-btn-logout" @click="handleLogout">Sign Out</button>
             </div>
           </div>
         </div>

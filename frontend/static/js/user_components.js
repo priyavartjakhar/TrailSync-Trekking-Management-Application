@@ -1115,7 +1115,7 @@ const TsUserLayout = {
             <!-- Easy Treks Row -->
             <div class="category-row-wrapper" style="margin-bottom: 3rem;">
               <div class="category-row-header" style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:1.25rem; border-bottom:1px solid rgba(26,46,26,0.08); padding-bottom:8px;">
-                <div class="category-row-title" style="font-family:'Playfair Display',serif; font-size:1.4rem; font-weight:700; color:var(--forest);">🏔️ Easy Trails <span style="font-family:'Space Mono',monospace; font-size:0.7rem; color:var(--gold); text-transform:uppercase; margin-left:10px; letter-spacing:0.05em; font-weight:600;">Beginner Friendly</span></div>
+                <div class="category-row-title" style="font-family:'Playfair Display',serif; font-size:1.4rem; font-weight:700; color:var(--forest);">Easy Trails <span style="font-family:'Space Mono',monospace; font-size:0.7rem; color:var(--gold); text-transform:uppercase; margin-left:10px; letter-spacing:0.05em; font-weight:600;">Beginner Friendly</span></div>
                 <button class="btn-category-view-all" @click="goTab('explore')" style="background:none; border:none; color:var(--forest); font-weight:600; font-size:0.85rem; cursor:pointer; text-decoration:underline;">View All Easy Treks →</button>
               </div>
               <div class="treks-grid-user">

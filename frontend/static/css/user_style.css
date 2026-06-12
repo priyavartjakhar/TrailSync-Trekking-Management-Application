@@ -305,6 +305,41 @@ body {
   transition: padding 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+.topbar-brand-group {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.topbar-logo-text {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.35rem;
+  font-weight: 900;
+  color: var(--forest);
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.topbar-logo-text span {
+  color: var(--gold);
+}
+
+.topbar-logo-text:hover {
+  opacity: 0.85;
+}
+
+.topbar-logo-sub {
+  font-size: 0.68rem;
+  font-family: 'Space Mono', monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--stone);
+  line-height: 1.1;
+  margin-top: 2px;
+}
+
 .topbar-breadcrumb {
   font-family: 'Space Mono', monospace;
   font-size: 0.72rem;

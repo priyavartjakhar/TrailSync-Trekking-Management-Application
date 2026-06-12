@@ -83,8 +83,8 @@ const TsUserLayout = {
         + this.myBookings.filter(b => b.status === 'Booked').reduce((a, b) => a + b.price, 0);
       return [
         { label: 'Active Bookings', value: active, icon: 'calendar', color: 'si-gold', trend: '' },
-        { label: 'Treks Completed', value: completed, icon: 'check', color: 'si-forest', trend: '+2 this year' },
-        { label: 'Available Treks', value: this.availableTreks.length, icon: 'map', color: 'si-green', trend: '3 new this month' },
+        { label: 'Treks Completed', value: completed, icon: 'check', color: 'si-forest', trend: '' },
+        { label: 'Available Treks', value: this.availableTreks.length, icon: 'map', color: 'si-green', trend: '' },
         { label: 'Total Invested', value: '₹' + totalSpent.toLocaleString(), icon: 'rupee', color: 'si-blue', trend: '' },
       ];
     },
@@ -183,6 +183,28 @@ const TsUserLayout = {
       const done = this.trekHistory.filter(h => h.status === 'Completed').length;
       return Math.round((done / Math.max(total, 1)) * 100);
     },
+
+    // Available treks with open batches sorted by start date
+    upcomingAvailableTreks() {
+      if (!this.availableTreks) return [];
+      const list = [];
+      this.availableTreks.forEach(route => {
+        if (route.batches && route.batches.length > 0) {
+          const sorted = [...route.batches].sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+          const primaryBatch = sorted[0];
+          list.push({
+            id: route.id,
+            name: route.name,
+            difficulty: route.difficulty,
+            startDate: primaryBatch.startDate,
+            slotsLeft: primaryBatch.slots - primaryBatch.booked,
+            batch: primaryBatch,
+            route: route
+          });
+        }
+      });
+      return list.sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+    },
   },
 
   methods: {
@@ -209,11 +231,49 @@ const TsUserLayout = {
       const id = t.id || 0;
       return `linear-gradient(135deg, ${grads[id % grads.length]}, rgba(0,0,0,0.5))`;
     },
+    formatDate(dateStr) {
+      if (!dateStr) return '—';
+      const parts = dateStr.split(' ');
+      const datePart = parts[0];
+      const timePart = parts[1] ? ' ' + parts[1] : '';
+      const dParts = datePart.split('-');
+      if (dParts.length !== 3) return dateStr;
+      const year = dParts[0];
+      const monthNum = parseInt(dParts[1], 10);
+      const day = parseInt(dParts[2], 10);
+      const monthNames = [
+        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      ];
+      if (monthNum >= 1 && monthNum <= 12) {
+        return `${day} ${monthNames[monthNum - 1]} ${year}${timePart}`;
+      }
+      return dateStr;
+    },
+    async bookBatch(batch) {
+      try {
+        const res = await fetch('/api/bookings/book', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ trek_id: batch.id })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          this.showToast(data.message || `${batch.name} booked!`, 'success');
+          this.showBookingModal = false;
+          await this.fetchUserData();
+        } else {
+          this.showToast(data.error || 'Booking failed', 'error');
+        }
+      } catch (e) {
+        console.error('Booking error:', e);
+        this.showToast('Failed to contact server. Booking could not be completed.', 'error');
+      }
+    },
 
 
     // ── BOOKING ───────────────────────────────────
     openBookingModal(t) {
-      if (this.isBooked(t.id) || this.isFull(t)) return;
       this.bookingTarget = t;
       this.termsAccepted = false;
       this.showBookingModal = true;
@@ -660,10 +720,14 @@ const TsUserLayout = {
           <div class="stats-row">
             <div v-for="s in userStats" :key="s.label" class="stat-card">
               <div class="stat-icon" :class="s.color">
-                <svg v-if="s.icon==='calendar'" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                <svg v-if="s.icon==='check'" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>
-                <svg v-if="s.icon==='map'" viewBox="0 0 24 24"><path d="M3 17l4-8 4 4 4-6 4 10"/></svg>
-                <svg v-if="s.icon==='rupee'" viewBox="0 0 24 24"><path d="M6 3h12M6 8h12M12 8c3.314 0 6 2.686 6 6s-2.686 6-6 6L6 8"/></svg>
+                <!-- Active Bookings: Calendar with grid details -->
+                <svg v-if="s.icon==='calendar'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01"></path></svg>
+                <!-- Treks Completed: Mountain Summit Checkmark -->
+                <svg v-if="s.icon==='check'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20L12 4l9 16H3z"></path><path d="M9 12l2 2 4-4"></path></svg>
+                <!-- Available Treks: Folded Map routes -->
+                <svg v-if="s.icon==='map'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"></polygon><line x1="9" y1="3" x2="9" y2="18"></line><line x1="15" y1="6" x2="15" y2="21"></line></svg>
+                <!-- Total Invested: Correct, fully visible Indian Rupee Symbol -->
+                <svg v-if="s.icon==='rupee'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 5h12M6 10h12M6 5a5 5 0 0 1 0 10H6M12 10L6 20"/></svg>
               </div>
               <div class="stat-info">
                 <div class="stat-val">{{ s.value }}</div>
@@ -737,46 +801,28 @@ const TsUserLayout = {
                         </div>
                         <span :class="'trek-badge badge-' + t.difficulty.toLowerCase()">{{ t.difficulty }}</span>
                         <span class="trek-open-tag">Open</span>
-                        <div class="trek-slots-bar">
-                          <div class="slots-fill" :class="slotsClass(t)" :style="{ width: slotsPct(t) + '%' }"></div>
-                        </div>
-                        <span class="trek-slots-text">{{ slotsLeft(t) }} slots</span>
                       </div>
-                      <div class="trek-body" style="display: flex; flex-direction: column; min-height: 250px;">
+                      <div class="trek-body" style="display: flex; flex-direction: column; min-height: 220px;">
                         <div class="trek-name-user">{{ t.name }}</div>
                         <div class="trek-loc-user" style="margin-bottom: 0.4rem;">
                           <svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
                           {{ t.location }}
                         </div>
-                        <div style="font-size:0.75rem; color:var(--stone); line-height:1.4; margin-bottom:0.5rem; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; text-overflow:ellipsis; flex-grow:1;">
+                        <div style="font-size:0.75rem; color:var(--stone); line-height:1.4; margin-bottom:0.75rem; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; text-overflow:ellipsis; flex-grow:1;">
                           {{ cleanDescription(t) }}
                         </div>
-                        <div v-if="t.staff" class="trek-guide-strip" style="display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: var(--stone); margin-bottom: 0.5rem;">
-                          <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" fill="none" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                          <span>Guide: {{ t.staff }}</span>
-                        </div>
-                        <div class="trek-date-strip mono" style="margin-bottom:0.5rem;">{{ t.startDate }} → {{ t.endDate }}</div>
-                        <div class="trek-row-meta" style="margin-bottom:0.5rem;">
+                        <div class="trek-row-meta" style="margin-bottom:1rem; border-top: 1px solid var(--stone-light); padding-top: 8px;">
                           <span class="trek-meta-pill">
                             <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                            {{ t.duration }}d (~₹{{ Math.round(t.price / t.duration).toLocaleString() }}/d)
+                            {{ t.duration }} days
                           </span>
                           <span class="trek-meta-pill">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M3 17l4-8 4 4 4-6 4 10"/></svg>
                             {{ t.distance }} km
                           </span>
-                          <span class="trek-meta-pill">
-                            <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-                            {{ t.booked }}/{{ t.slots }}
-                          </span>
-                          <span class="trek-price-line">₹{{ t.price.toLocaleString() }}</span>
                         </div>
-                        <button
-                          class="btn-book"
-                          :class="{ 'btn-booked': isBooked(t.id), 'btn-full': !isBooked(t.id) && isFull(t) }"
-                          :disabled="isBooked(t.id) || isFull(t)"
-                          @click="openBookingModal(t)">
-                          {{ isBooked(t.id) ? '✔ Booked' : isFull(t) ? 'Full' : 'Book Now' }}
+                        <button class="btn-book" @click="openBookingModal(t)">
+                          Book Now
                         </button>
                       </div>
                     </div>
@@ -964,56 +1010,30 @@ const TsUserLayout = {
                 </div>
                 <span :class="'trek-badge badge-' + t.difficulty.toLowerCase()">{{ t.difficulty }}</span>
                 <span class="trek-open-tag">Open</span>
-                <div class="trek-slots-bar">
-                  <div class="slots-fill" :class="slotsClass(t)" :style="{ width: slotsPct(t) + '%' }"></div>
-                </div>
-                <span class="trek-slots-text">{{ slotsLeft(t) }} left</span>
               </div>
-              <div class="trek-body" style="display: flex; flex-direction: column; min-height: 250px;">
+              <div class="trek-body" style="display: flex; flex-direction: column; min-height: 220px;">
                 <div class="trek-name-user">{{ t.name }}</div>
                 <div class="trek-loc-user" style="margin-bottom: 0.4rem;">
                   <svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
                   {{ t.location }}
                 </div>
-                <div style="font-size:0.78rem; color:var(--stone); margin-bottom:0.5rem; line-height:1.5; flex-grow: 1;">{{ cleanDescription(t) }}</div>
-                <div v-if="t.staff" class="trek-guide-strip" style="display: flex; align-items: center; gap: 6px; font-size: 0.78rem; color: var(--stone); margin-bottom: 0.5rem;">
-                  <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" fill="none" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                  <span>Guide: {{ t.staff }}</span>
-                </div>
-                <div class="trek-date-strip mono" style="margin-bottom:0.5rem;">{{ t.startDate }} → {{ t.endDate }}</div>
-                <div class="trek-row-meta" style="margin-bottom:0.75rem;">
+                <div style="font-size:0.78rem; color:var(--stone); margin-bottom:0.75rem; line-height:1.5; flex-grow: 1;">{{ cleanDescription(t) }}</div>
+                <div class="trek-row-meta" style="margin-bottom:1rem; border-top: 1px solid var(--stone-light); padding-top: 8px;">
                   <span class="trek-meta-pill">
                     <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                    {{ t.duration }} days (~₹{{ Math.round(t.price / t.duration).toLocaleString() }}/d)
+                    {{ t.duration }} days
                   </span>
                   <span class="trek-meta-pill">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M3 17l4-8 4 4 4-6 4 10"/></svg>
                     {{ t.distance }} km
                   </span>
-                  <span class="trek-meta-pill">
-                    <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-                    {{ t.booked }}/{{ t.slots }}
-                  </span>
-                  <span class="trek-price-line">₹{{ t.price.toLocaleString() }}</span>
                 </div>
-                <!-- Slots progress -->
-                <div class="trek-progress" style="margin-bottom:0.75rem">
-                  <div class="progress-label">
-                    <span>{{ slotsLeft(t) }} slots remaining</span>
-                    <span>{{ slotsPct(t) }}% full</span>
-                  </div>
-                  <div class="progress-track">
-                    <div class="slots-fill" :class="slotsClass(t)" :style="{ width: slotsPct(t) + '%', height:'100%', borderRadius:'3px' }"></div>
-                  </div>
-                </div>
-                <button
-                  class="btn-book"
-                  :class="{ 'btn-booked': isBooked(t.id), 'btn-full': !isBooked(t.id) && isFull(t) }"
-                  :disabled="isBooked(t.id) || isFull(t)"
-                  @click="openBookingModal(t)">
-                  {{ isBooked(t.id) ? '✔ Already Booked' : isFull(t) ? 'Fully Booked' : 'Book Now' }}
+                <button class="btn-book" @click="openBookingModal(t)">
+                  Book Now
                 </button>
               </div>
+            </div>
+          </div>
             </div>
           </div>
 
@@ -1203,19 +1223,19 @@ const TsUserLayout = {
               </div>
 
               <!-- All available trek dates -->
-              <div class="ts-card">
+              <div v-if="upcomingAvailableTreks.length" class="ts-card">
                 <div class="ts-card-header">
                   <div class="ts-card-title">Available This Month</div>
                 </div>
                 <div class="ts-card-body">
-                  <div v-for="t in availableTreks.slice(0,4)" :key="t.id"
+                  <div v-for="t in upcomingAvailableTreks.slice(0,4)" :key="t.id"
                     style="padding:0.75rem 0; border-bottom:1px solid rgba(26,46,26,0.05); display:flex; gap:10px; align-items:center">
                     <div :class="'trek-badge badge-'+t.difficulty.toLowerCase()" style="position:static; font-size:0.55rem; padding:2px 6px">{{ t.difficulty }}</div>
                     <div style="flex:1">
                       <div style="font-weight:600; font-size:0.85rem; color:var(--forest)">{{ t.name }}</div>
-                      <div style="font-family:'Space Mono',monospace; font-size:0.65rem; color:var(--stone)">{{ t.startDate }}</div>
+                      <div style="font-family:'Space Mono',monospace; font-size:0.65rem; color:var(--stone)">{{ formatDate(t.startDate) }}</div>
                     </div>
-                    <span style="font-size:0.8rem; color:var(--gold); font-weight:600">{{ slotsLeft(t) }} slots</span>
+                    <span style="font-size:0.8rem; color:var(--gold); font-weight:600">{{ t.slotsLeft }} slots</span>
                   </div>
                 </div>
               </div>
@@ -1331,31 +1351,74 @@ const TsUserLayout = {
     <!-- ── BOOKING MODAL ────────────────────────────── -->
     <transition name="toast">
       <div v-if="showBookingModal" class="ts-modal-overlay" @click.self="showBookingModal = false">
-        <div class="ts-modal">
+        <div class="ts-modal" style="max-width: 800px; width: 100%;">
           <div class="ts-modal-header">
-            <span class="ts-modal-title">Confirm Booking</span>
+            <span class="ts-modal-title">Trek Details & Booking</span>
             <button class="modal-close" @click="showBookingModal = false">✕</button>
           </div>
           <div class="ts-modal-body" v-if="bookingTarget">
-            <div class="bct-name">{{ bookingTarget.name }}</div>
-            <div class="bct-loc">📍 {{ bookingTarget.location }}</div>
-            <div class="booking-summary">
-              <div class="bs-row"><span>Dates</span><span class="mono">{{ bookingTarget.startDate }} → {{ bookingTarget.endDate }}</span></div>
-              <div class="bs-row"><span>Duration</span><span>{{ bookingTarget.duration }} days</span></div>
-              <div class="bs-row"><span>Difficulty</span><span :class="'diff-pill pill-'+bookingTarget.difficulty.toLowerCase()">{{ bookingTarget.difficulty }}</span></div>
-              <div class="bs-row"><span>Available Slots</span><span>{{ slotsLeft(bookingTarget) }}</span></div>
-              <div class="bs-row bs-total"><span>Total Amount</span><span>₹{{ bookingTarget.price.toLocaleString() }}</span></div>
+            <div style="display: grid; grid-template-columns: 1.2fr 1.8fr; gap: 1.5rem;">
+              <!-- Left Column: Trek Info -->
+              <div style="border-right: 1px solid var(--stone-light); padding-right: 1.5rem;">
+                <div v-if="bookingTarget.imageUrl" style="width: 100%; height: 160px; border-radius: 4px; overflow: hidden; margin-bottom: 1rem; border: 1px solid var(--stone-light);">
+                  <img :src="bookingTarget.imageUrl" :alt="bookingTarget.name" style="width: 100%; height: 100%; object-fit: cover;" />
+                </div>
+                <div style="font-size: 1.2rem; font-weight: 700; color: var(--forest); margin-bottom: 4px;">{{ bookingTarget.name }}</div>
+                <div style="font-size: 0.85rem; color: var(--stone); margin-bottom: 0.75rem;">📍 {{ bookingTarget.location }}</div>
+                
+                <div style="margin-top: 0.5rem; background: var(--snow); padding: 10px; border-radius: 4px; border: 1px solid var(--stone-light); font-size: 0.82rem; display: flex; flex-direction: column; gap: 6px;">
+                  <div style="display: flex; justify-content: space-between;"><strong>Difficulty:</strong> <span :class="'diff-pill pill-'+bookingTarget.difficulty.toLowerCase()">{{ bookingTarget.difficulty }}</span></div>
+                  <div style="display: flex; justify-content: space-between;"><strong>Duration:</strong> <span>{{ bookingTarget.duration }} days</span></div>
+                  <div style="display: flex; justify-content: space-between;"><strong>Distance:</strong> <span>{{ bookingTarget.distance }} km</span></div>
+                </div>
+                
+                <div style="font-size: 0.8rem; color: var(--stone); margin-top: 1rem; line-height: 1.5;">
+                  {{ bookingTarget.description }}
+                </div>
+              </div>
+              
+              <!-- Right Column: Batches list -->
+              <div style="display: flex; flex-direction: column; min-width: 0;">
+                <h4 style="font-weight: 700; color: var(--forest); font-size: 1rem; margin-bottom: 0.75rem;">Available Batches</h4>
+                
+                <div v-if="bookingTarget.batches && bookingTarget.batches.length" style="max-height: 340px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-right: 4px;">
+                  <div v-for="b in bookingTarget.batches" :key="b.id" style="border: 1px solid rgba(200, 146, 42, 0.25); background: var(--snow); border-radius: 4px; padding: 12px; display: flex; flex-direction: column; gap: 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                      <span class="mono" style="font-weight: 700; color: var(--gold); font-size: 0.85rem;">{{ b.batchCode }}</span>
+                      <span style="font-weight: 700; color: var(--forest); font-size: 1.05rem;">₹{{ b.price.toLocaleString() }}</span>
+                    </div>
+                    
+                    <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--stone);">
+                      <span>📅 {{ formatDate(b.startDate) }}</span>
+                      <span>👥 {{ b.slots - b.booked }} slots left</span>
+                    </div>
+                    
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px; border-top: 1px dashed rgba(26,46,26,0.08); padding-top: 8px;">
+                      <span style="font-size: 0.78rem; color: var(--stone);">👤 Guide: <strong>{{ b.staff || 'TBD' }}</strong></span>
+                      <button 
+                        class="btn-book"
+                        :class="{ 'btn-booked': isBooked(b.id), 'btn-full': !isBooked(b.id) && b.booked >= b.slots }"
+                        :disabled="isBooked(b.id) || b.booked >= b.slots"
+                        style="padding: 4px 12px; font-size: 0.78rem; border-radius: 3px;"
+                        @click="bookBatch(b)">
+                        {{ isBooked(b.id) ? '✔ Booked' : b.booked >= b.slots ? 'Full' : 'Book Batch' }}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                
+                <div v-else style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 2.5rem 1rem; border: 1px dashed rgba(26,46,26,0.18); border-radius: 4px; background: var(--snow);">
+                  <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">🎒</div>
+                  <div style="font-size: 0.85rem; font-weight: 600; color: var(--forest); margin-bottom: 6px;">No Batches Available</div>
+                  <div style="font-size: 0.78rem; color: var(--stone); line-height: 1.5; max-width: 280px;">
+                    No batches are available at this moment. Please wait for batches to open or contact our support team at <a href="mailto:support@trailsync.com" style="color: var(--gold); text-decoration: underline; font-weight: 600;">support@trailsync.com</a> for more details.
+                  </div>
+                </div>
+              </div>
             </div>
-            <label class="terms-check">
-              <input type="checkbox" v-model="termsAccepted" />
-              I agree to the trekking terms &amp; cancellation policy
-            </label>
           </div>
           <div class="ts-modal-footer">
-            <button class="btn-modal-cancel" @click="showBookingModal = false">Cancel</button>
-            <button class="btn-modal-confirm" :disabled="!termsAccepted" @click="confirmBooking">
-              Confirm &amp; Book
-            </button>
+            <button class="btn-modal-cancel" @click="showBookingModal = false">Close</button>
           </div>
         </div>
       </div>

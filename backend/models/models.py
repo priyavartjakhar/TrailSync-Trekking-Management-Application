@@ -45,10 +45,47 @@ class User(db.Model, UserMixin):
             'registered': self.registered_at.strftime('%Y-%m-%d')
         }
 
+class TrekRoute(db.Model):
+    __tablename__ = 'trek_routes'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    trek_code = db.Column(db.String(20), unique=True, nullable=False) # e.g. 'TID001'
+    name = db.Column(db.String(150), nullable=False)
+    location = db.Column(db.String(150), nullable=False)
+    difficulty = db.Column(db.String(20), nullable=False, default='Moderate')
+    duration = db.Column(db.Integer, nullable=False, default=5)
+    distance = db.Column(db.Integer, nullable=True, default=15)
+    image_url = db.Column(db.String(250), nullable=True)
+    description = db.Column(db.Text, nullable=True)
+    latitude = db.Column(db.Float, nullable=True)
+    longitude = db.Column(db.Float, nullable=True)
+    active = db.Column(db.Boolean, default=True)
+
+    # Relationship to scheduled batches (Trek)
+    batches = db.relationship('Trek', backref='route', lazy=True, cascade="all, delete-orphan")
+
+    def to_json(self):
+        return {
+            'id': self.id,
+            'trekCode': self.trek_code,
+            'name': self.name,
+            'location': self.location,
+            'difficulty': self.difficulty,
+            'duration': self.duration,
+            'distance': self.distance,
+            'imageUrl': self.image_url,
+            'description': self.description or '',
+            'latitude': self.latitude,
+            'longitude': self.longitude,
+            'active': self.active
+        }
+
 class Trek(db.Model):
     __tablename__ = 'treks'
     
     id = db.Column(db.Integer, primary_key=True)
+    trek_route_id = db.Column(db.Integer, db.ForeignKey('trek_routes.id', ondelete='CASCADE'), nullable=True)
+    batch_code = db.Column(db.String(50), nullable=True)
     name = db.Column(db.String(150), nullable=False)
     location = db.Column(db.String(150), nullable=False)
     difficulty = db.Column(db.String(20), nullable=False, default='Moderate') # 'Easy', 'Moderate', 'Hard'
@@ -72,6 +109,8 @@ class Trek(db.Model):
         booked_count = db.session.query(Booking).filter_by(trek_id=self.id, status='Booked').count()
         return {
             'id': self.id,
+            'trekRouteId': self.trek_route_id,
+            'batchCode': self.batch_code or f"TID{self.id:03d}B01",
             'name': self.name,
             'location': self.location,
             'difficulty': self.difficulty,
@@ -200,7 +239,6 @@ class TrekGuideItem(db.Model):
     
     # Relationship
     trek = db.relationship('Trek', backref=db.backref('guide_items', lazy=True, cascade="all, delete-orphan"))
-
     def to_json(self):
         return {
             'id': self.id,
@@ -208,3 +246,29 @@ class TrekGuideItem(db.Model):
             'itemName': self.item_name
         }
 
+class SupportTicket(db.Model):
+    __tablename__ = 'support_tickets'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=True)
+    name = db.Column(db.String(100), nullable=False)
+    email = db.Column(db.String(120), nullable=False)
+    subject = db.Column(db.String(150), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    status = db.Column(db.String(20), nullable=False, default='Open') # 'Open', 'Resolved'
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Relationship to user
+    user = db.relationship('User', backref=db.backref('support_tickets', lazy=True, cascade="all, delete-orphan"))
+
+    def to_json(self):
+        return {
+            'id': self.id,
+            'userId': self.user_id,
+            'name': self.name,
+            'email': self.email,
+            'subject': self.subject,
+            'message': self.message,
+            'status': self.status,
+            'createdAt': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else ''
+        }

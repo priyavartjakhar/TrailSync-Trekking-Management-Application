@@ -8,13 +8,16 @@ from datetime import datetime, date, timedelta
 import redis
 import json
 
-from backend.models.models import db, User, Trek, Booking, StaffProfile, BookingChecklistItem, TrekGuideItem, SupportTicket
+from backend.models.models import db, User, Trek, Booking, StaffProfile, BookingChecklistItem, TrekGuideItem, SupportTicket, TrekRoute
 
 app = Flask(__name__, 
             template_folder=os.path.join(os.path.dirname(__file__), '../frontend'),
             static_folder=os.path.join(os.path.dirname(__file__), '../frontend/static'))
 app.config['SECRET_KEY'] = 'trailsync-secret-key-123456'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(os.path.dirname(__file__), 'tma.db')
+if os.environ.get('TESTING') == 'true':
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+else:
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(os.path.dirname(__file__), 'tma.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db.init_app(app)
@@ -106,17 +109,23 @@ def get_open_treks_cached():
         except Exception as e:
             print("Redis get cache error:", e)
             
-    # Fallback to database query
-    open_treks = Trek.query.filter_by(status='Open').all()
-    treks_json = [t.to_json() for t in open_treks]
-    
+    # Fallback to database query: fetch active TrekRoutes
+    active_routes = TrekRoute.query.filter_by(active=True).all()
+    routes_json = []
+    for r in active_routes:
+        r_json = r.to_json()
+        # Find open batches for this route
+        open_batches = Trek.query.filter_by(trek_route_id=r.id, status='Open').all()
+        r_json['batches'] = [b.to_json() for b in open_batches]
+        routes_json.append(r_json)
+        
     if redis_client:
         try:
-            redis_client.setex('open_treks', 300, json.dumps(treks_json))
+            redis_client.setex('open_treks', 300, json.dumps(routes_json))
         except Exception as e:
             print("Redis set cache error:", e)
             
-    return treks_json
+    return routes_json
 
 def invalidate_open_treks_cache():
     if redis_client:
@@ -126,6 +135,7 @@ def invalidate_open_treks_cache():
             print("Redis delete cache error:", e)
 
 def seed_db():
+    db.session.remove()
     db.drop_all()
     db.create_all()
     
@@ -360,8 +370,8 @@ def seed_db():
             "https://images.unsplash.com/photo-1502082553048-f009c37129b9?w=800&q=80"
         ]
 
-    # Seed all 104 treks
-    all_treks = []
+    # Seed all trek routes
+    route_list = []
     i = 0
     for state, treks_list in trek_map_data.items():
         for t in treks_list:
@@ -369,23 +379,6 @@ def seed_db():
             diff = t["diff"]
             dur = t["dur"]
             
-            # Open only 10 treks according to this month (June 2026)
-            if i < 10:
-                start_date = date(2026, 6, 12 + i)
-                status = 'Open'
-            else:
-                start_date = date(2026, 6, 12) + timedelta(days=30 + i)
-                status = 'Closed'
-                
-            end_date = start_date + timedelta(days=dur)
-            
-            if diff == 'Easy':
-                price = 2500 + dur * 800
-            elif diff == 'Moderate':
-                price = 4500 + dur * 1000
-            else:
-                price = 6500 + dur * 1300
-                
             image_url = unsplash_images[i % len(unsplash_images)]
             
             if name in custom_trek_meta:
@@ -402,26 +395,28 @@ def seed_db():
                 dist = max(5, dur * 8 + (i % 7))
                 
             desc = f"Explore the natural trails, panoramic peaks, and wilderness of {name}."
-            trek_obj = Trek(
+            route = TrekRoute(
+                trek_code=f"TID{i+1:03d}",
                 name=name,
                 location=loc,
                 difficulty=diff,
                 duration=dur,
-                start_date=start_date,
-                end_date=end_date,
-                slots=20,
-                price=price,
-                status=status,
+                distance=dist,
                 image_url=image_url,
                 description=desc,
                 latitude=lat,
                 longitude=lon,
-                distance=dist,
-                staff_id=None
+                active=True
             )
-            db.session.add(trek_obj)
-            all_treks.append(trek_obj)
+            db.session.add(route)
+            route_list.append(route)
             i += 1
+            
+    db.session.flush()
+
+    # Now seed batches (Trek objects) for the first 40 routes
+    all_treks = []
+    # Seeding of default mock batches has been disabled as requested
             
     db.session.flush()
 
@@ -462,52 +457,7 @@ def seed_db():
     db.session.commit()
 
     # Seed bookings and packing lists for the 10 open treks
-    for t_idx in range(10):
-        t = all_treks[t_idx]
-        num_bookings = random.randint(5, 12)
-        booked_trekkers = random.sample(trekkers, num_bookings)
-        
-        # Book test_user on trek 0 and trek 3 so Test Trekker has active dashboard content
-        if t_idx in [0, 3]:
-            booked_trekkers.append(test_user)
-            
-        for trekker in booked_trekkers:
-            booking = Booking(
-                user_id=trekker.id,
-                trek_id=t.id,
-                booked_on=date.today() - timedelta(days=random.randint(1, 10)),
-                status='Booked',
-                paid=random.choice([True, True, False])
-            )
-            db.session.add(booking)
-            db.session.flush()
-            
-            # Default checklist items
-            defaults = [
-                'Trekking boots (ankle support)',
-                'Warm jacket & thermals',
-                'Rain poncho / windproof jacket',
-                'Water bottle (2L minimum)',
-                'Head torch with extra batteries',
-                'Government-issued photo ID'
-            ]
-            for item in defaults:
-                db.session.add(BookingChecklistItem(
-                    booking_id=booking.id,
-                    item_name=item,
-                    category='default',
-                    is_completed=random.choice([True, False])
-                ))
-                
-            # Copy guide recommended items if they exist
-            guide_items = TrekGuideItem.query.filter_by(trek_id=t.id).all()
-            for gi in guide_items:
-                db.session.add(BookingChecklistItem(
-                    booking_id=booking.id,
-                    item_name=gi.item_name,
-                    category='guide',
-                    is_completed=random.choice([True, False])
-                ))
+    # Seeding of default mock bookings has been disabled as requested
                 
     db.session.commit()
 
@@ -927,7 +877,8 @@ def admin_dashboard_data():
     if current_user.role != 'admin':
         return jsonify({'error': 'Unauthorized'}), 403
         
-    total_treks = Trek.query.count()
+    total_treks = TrekRoute.query.count()
+    total_batches = Trek.query.count()
     registered_users = User.query.filter_by(role='user').count()
     total_bookings = Booking.query.count()
     open_treks = Trek.query.filter_by(status='Open').count()
@@ -948,10 +899,10 @@ def admin_dashboard_data():
     closed_treks_count = Trek.query.filter_by(status='Closed').count()
     
     trek_status_overview = [
-        {'label': 'Open', 'count': open_treks, 'pct': int((open_treks/total_treks*100) if total_treks else 0), 'color': '#4ade80'},
-        {'label': 'Pending', 'count': pending_treks_count, 'pct': int((pending_treks_count/total_treks*100) if total_treks else 0), 'color': '#fbbf24'},
-        {'label': 'Completed', 'count': completed_treks_count, 'pct': int((completed_treks_count/total_treks*100) if total_treks else 0), 'color': '#a8c5a0'},
-        {'label': 'Closed', 'count': closed_treks_count, 'pct': int((closed_treks_count/total_treks*100) if total_treks else 0), 'color': '#ef4444'}
+        {'label': 'Open', 'count': open_treks, 'pct': int((open_treks/total_batches*100) if total_batches else 0), 'color': '#4ade80'},
+        {'label': 'Pending', 'count': pending_treks_count, 'pct': int((pending_treks_count/total_batches*100) if total_batches else 0), 'color': '#fbbf24'},
+        {'label': 'Completed', 'count': completed_treks_count, 'pct': int((completed_treks_count/total_batches*100) if total_batches else 0), 'color': '#a8c5a0'},
+        {'label': 'Closed', 'count': closed_treks_count, 'pct': int((closed_treks_count/total_batches*100) if total_batches else 0), 'color': '#ef4444'}
     ]
     
     recent_bookings_query = Booking.query.order_by(Booking.booked_on.desc()).limit(10).all()
@@ -988,37 +939,99 @@ def admin_dashboard_data():
     staff_data = []
     for s in staff_list:
         assigned = Trek.query.filter_by(staff_id=s.id).all()
+        treks_done = []
+        for t in assigned:
+            booked_cnt = Booking.query.filter_by(trek_id=t.id, status='Booked').count()
+            treks_done.append({
+                'batchId': t.batch_code or f"TID{t.id:03d}B01",
+                'trekName': t.name,
+                'location': t.location,
+                'trekkersCount': booked_cnt,
+                'startDate': t.start_date.strftime('%Y-%m-%d') if t.start_date else '',
+                'endDate': t.end_date.strftime('%Y-%m-%d') if t.end_date else ''
+            })
+        profile = s.staff_profile
+        skills = profile.skills if profile else 'Wilderness First Aid, Navigation'
+        experience = profile.experience_years if profile else 2
+        designation = profile.designation if profile else 'Lead Guide'
+        certifications = profile.certifications if profile else 'Wilderness First Responder (WFR)'
+        languages = profile.languages if profile else 'English, Hindi'
+        completed_count = profile.completed_treks_count if profile else 10
+        photos = [
+            "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&h=300&fit=crop",
+            "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&h=300&fit=crop",
+            "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300&h=300&fit=crop",
+            "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=300&h=300&fit=crop",
+            "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=300&h=300&fit=crop",
+            "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=300&h=300&fit=crop",
+            "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=300&h=300&fit=crop",
+            "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=300&h=300&fit=crop"
+        ]
+        photo_url = (profile.photo_url if (profile and profile.photo_url) else None) or photos[s.id % len(photos)]
         staff_data.append({
             'id': s.id,
+            'memberId': f"TS26S{s.id:03d}",
             'name': s.name,
             'contact': s.email,
             'phone': s.phone or '',
             'treks': [t.name for t in assigned],
             'active': s.active,
-            'joined': s.registered_at.strftime('%Y-%m-%d') if s.registered_at else '2026-06-09'
+            'blacklisted': s.blacklisted,
+            'joined': s.registered_at.strftime('%Y-%m-%d') if s.registered_at else '2026-06-09',
+            'skills': skills,
+            'experience': experience,
+            'designation': designation,
+            'certifications': certifications,
+            'languages': languages,
+            'completedTreksCount': completed_count + len(assigned),
+            'photoUrl': photo_url,
+            'treksDone': treks_done
         })
         
     users = []
+    user_photos = [
+        "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&h=300&fit=crop",
+        "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&h=300&fit=crop",
+        "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300&h=300&fit=crop",
+        "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=300&h=300&fit=crop",
+        "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=300&h=300&fit=crop",
+        "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=300&h=300&fit=crop",
+        "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=300&h=300&fit=crop",
+        "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=300&h=300&fit=crop"
+    ]
     for u in User.query.filter_by(role='user').all():
         ucnt = Booking.query.filter_by(user_id=u.id).count()
+        photo_url = user_photos[u.id % len(user_photos)]
         users.append({
             'id': u.id,
+            'memberId': f"TS26T{u.id:04d}",
             'name': u.name,
             'email': u.email,
+            'phone': u.phone or '',
+            'city': u.city or '',
+            'emergency': u.emergency or '',
+            'bio': u.bio or '',
             'registered': u.registered_at.strftime('%Y-%m-%d'),
             'bookings': ucnt,
-            'blacklisted': u.blacklisted
+            'blacklisted': u.blacklisted,
+            'photoUrl': photo_url
         })
         
     all_bookings = []
     for b in Booking.query.all():
         all_bookings.append({
             'id': b.id,
+            'userId': b.user_id,
             'user': b.user.name,
+            'trekId': b.trek_id,
             'trek': b.trek.name,
+            'batchCode': b.trek.batch_code or f"TID{b.trek.id:03d}B01",
             'date': b.booked_on.strftime('%Y-%m-%d'),
             'status': b.status,
-            'paid': b.paid
+            'paid': b.paid,
+            'paidAmount': b.trek.price if b.paid else 0,
+            'paidOn': b.booked_on.strftime('%Y-%m-%d') if b.paid else '—',
+            'transactionId': f"TXN{b.booked_on.strftime('%y%m%d')}{b.id:04d}" if b.paid else '—'
         })
         
     popular_treks = []
@@ -1207,8 +1220,121 @@ def admin_dashboard_data():
         'revenueData': revenue_data,
         'blacklistedUsers': blacklisted_users,
         'pendingTreks': pending_treks,
-        'supportTickets': support_tickets
+        'supportTickets': support_tickets,
+        'trekRoutes': [r.to_json() for r in TrekRoute.query.all()]
     })
+
+@app.route('/api/admin/upload_image', methods=['POST'])
+@login_required
+def admin_upload_image():
+    if current_user.role != 'admin':
+        return jsonify({'error': 'Unauthorized'}), 403
+    if 'image' not in request.files:
+        return jsonify({'error': 'No image file provided'}), 400
+    file = request.files['image']
+    if file.filename == '':
+        return jsonify({'error': 'Empty filename'}), 400
+    import uuid
+    from werkzeug.utils import secure_filename
+    filename = secure_filename(file.filename)
+    ext = os.path.splitext(filename)[1]
+    unique_filename = f"{uuid.uuid4().hex}{ext}"
+    uploads_dir = os.path.join(app.root_path, '../frontend/static/uploads')
+    os.makedirs(uploads_dir, exist_ok=True)
+    file.save(os.path.join(uploads_dir, unique_filename))
+    return jsonify({
+        'success': True,
+        'imageUrl': f"/static/uploads/{unique_filename}"
+    })
+
+@app.route('/api/admin/trek_routes', methods=['POST'])
+@login_required
+def admin_save_trek_route():
+    if current_user.role != 'admin':
+        return jsonify({'error': 'Unauthorized'}), 403
+        
+    data = request.get_json() or {}
+    route_id = data.get('id')
+    name = data.get('name')
+    location = data.get('location')
+    difficulty = data.get('difficulty', 'Moderate')
+    duration = data.get('duration', 5)
+    distance = data.get('distance', 15)
+    image_url = data.get('imageUrl')
+    description = data.get('description')
+    latitude = data.get('latitude')
+    longitude = data.get('longitude')
+
+    if not name or not location:
+        return jsonify({'error': 'Name and Location are required.'}), 400
+
+    # Load unique Unsplash images fallback
+    if not image_url:
+        image_url = "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=800&q=80"
+
+    if route_id:
+        route = TrekRoute.query.get(route_id)
+        if not route:
+            return jsonify({'error': 'Trek Route not found'}), 404
+        route.name = name
+        route.location = location
+        route.difficulty = difficulty
+        route.duration = duration
+        route.distance = distance
+        route.image_url = image_url
+        route.description = description
+        route.latitude = latitude
+        route.longitude = longitude
+    else:
+        # Generate TIDxxx
+        max_id = db.session.query(db.func.max(TrekRoute.id)).scalar() or 0
+        trek_code = f"TID{max_id + 1:03d}"
+        route = TrekRoute(
+            trek_code=trek_code,
+            name=name,
+            location=location,
+            difficulty=difficulty,
+            duration=duration,
+            distance=distance,
+            image_url=image_url,
+            description=description,
+            latitude=latitude,
+            longitude=longitude,
+            active=True
+        )
+        db.session.add(route)
+
+    db.session.commit()
+    return jsonify({'success': True, 'route': route.to_json()})
+
+@app.route('/api/admin/trek_routes/<int:route_id>', methods=['DELETE'])
+@login_required
+def admin_delete_trek_route(route_id):
+    if current_user.role != 'admin':
+        return jsonify({'error': 'Unauthorized'}), 403
+        
+    route = TrekRoute.query.get(route_id)
+    if not route:
+        return jsonify({'error': 'Trek Route not found'}), 404
+        
+    db.session.delete(route)
+    db.session.commit()
+    invalidate_open_treks_cache()
+    return jsonify({'success': True, 'message': 'Trek Route removed.'})
+
+@app.route('/api/admin/trek_routes/toggle/<int:route_id>', methods=['POST'])
+@login_required
+def admin_toggle_trek_route(route_id):
+    if current_user.role != 'admin':
+        return jsonify({'error': 'Unauthorized'}), 403
+        
+    route = TrekRoute.query.get(route_id)
+    if not route:
+        return jsonify({'error': 'Trek Route not found'}), 404
+        
+    route.active = not route.active
+    db.session.commit()
+    return jsonify({'success': True, 'active': route.active})
 
 @app.route('/api/admin/treks', methods=['POST'])
 @login_required
@@ -1218,78 +1344,84 @@ def admin_save_trek():
         
     data = request.get_json() or {}
     trek_id = data.get('id')
+    trek_route_id = data.get('trekRouteId')
     
-    name = data.get('name')
-    location = data.get('location')
-    difficulty = data.get('difficulty')
     start_date_str = data.get('startDate')
     end_date_str = data.get('endDate')
     slots = data.get('slots')
-    price = data.get('price', 5000)
+    price = data.get('price')
     status = data.get('status', 'Open')
-    description = data.get('description')
+    staff_id = data.get('staff_id')
     
-    # Load unique Unsplash images for fallback
-    unsplash_images = []
-    json_path = os.path.join(os.path.dirname(__file__), 'unsplash_images.json')
-    if os.path.exists(json_path):
-        try:
-            with open(json_path, 'r') as f:
-                unsplash_images = json.load(f)
-        except Exception as e:
-            print("Error loading unsplash_images.json:", e)
+    # 1. Compulsory fields validation
+    if not trek_id and not trek_route_id:
+        return jsonify({'error': 'Trek Route selection is required.'}), 400
+    if not start_date_str or not end_date_str:
+        return jsonify({'error': 'Start date and End date are required.'}), 400
+    if slots is None or slots <= 0:
+        return jsonify({'error': 'Available slots must be a positive integer.'}), 400
+    if price is None or price < 0:
+        return jsonify({'error': 'Price must be a positive number.'}), 400
+        
+    start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+    end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+    
+    if start_date >= end_date:
+        return jsonify({'error': 'Start date must be before End date.'}), 400
+        
+    # 2. Redundancy check (same route on the same start date)
+    if not trek_id:
+        existing_batch = Trek.query.filter_by(
+            trek_route_id=trek_route_id,
+            start_date=start_date
+        ).first()
+        if existing_batch:
+            return jsonify({'error': f'A batch starting on {start_date_str} is already scheduled (Redundant batch).'}), 400
             
-    if not unsplash_images:
-        unsplash_images = [
-            "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=800&q=80",
-            "https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=800&q=80",
-            "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=800&q=80",
-            "https://images.unsplash.com/photo-1447752875215-b2761acb3c5d?w=800&q=80",
-            "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=800&q=80",
-            "https://images.unsplash.com/photo-1472214222541-d510753a4907?w=800&q=80",
-            "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=800&q=80",
-            "https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=800&q=80",
-            "https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?w=800&q=80",
-            "https://images.unsplash.com/photo-1502082553048-f009c37129b9?w=800&q=80"
-        ]
-        
-    import random
-    image_url = data.get('imageUrl') or random.choice(unsplash_images)
-    
-    start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date() if start_date_str else date.today()
-    end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date() if end_date_str else date.today()
-    
-    dur = (end_date - start_date).days
-    if not description:
-        description = f"An exciting {difficulty.lower()} {dur}-day trek exploring the scenic beauty of {name} in {location}."
-        
     if trek_id:
         trek = Trek.query.get(trek_id)
         if not trek:
             return jsonify({'error': 'Trek not found'}), 404
-        trek.name = name
-        trek.location = location
-        trek.difficulty = difficulty
         trek.start_date = start_date
         trek.end_date = end_date
         trek.slots = slots
         trek.price = price
         trek.status = status
-        trek.image_url = image_url
-        trek.description = description
+        if staff_id:
+            trek.staff_id = staff_id
     else:
+        # Create a new batch from a TrekRoute
+        route = TrekRoute.query.get(trek_route_id)
+        if not route:
+            return jsonify({'error': 'Trek Route not found'}), 404
+            
+        # 3. Only active routes can be made into batches
+        if not route.active:
+            return jsonify({'error': 'Cannot schedule batches for inactive/closed trek routes.'}), 400
+            
+        # Count existing batches for this route to generate code: e.g. TID001B02
+        num_batches = Trek.query.filter_by(trek_route_id=route.id).count()
+        batch_code = f"{route.trek_code}B{num_batches+1:02d}"
+        dur = (end_date - start_date).days
+        
         trek = Trek(
-            name=name,
-            location=location,
-            difficulty=difficulty,
-            duration=dur,
+            trek_route_id=route.id,
+            batch_code=batch_code,
+            name=route.name,
+            location=route.location,
+            difficulty=route.difficulty,
+            duration=route.duration or dur or 5,
             start_date=start_date,
             end_date=end_date,
             slots=slots,
             price=price,
             status=status,
-            image_url=image_url,
-            description=description
+            image_url=route.image_url,
+            description=route.description,
+            latitude=route.latitude,
+            longitude=route.longitude,
+            distance=route.distance,
+            staff_id=staff_id
         )
         db.session.add(trek)
         
@@ -1321,8 +1453,8 @@ def admin_save_staff():
     data = request.get_json() or {}
     email = data.get('email')
     name = data.get('name')
-    phone = data.get('phone')
-    password = data.get('password')
+    phone = data.get('phone') or ''
+    password = data.get('password') or 'Trailsync@123'
     
     existing = User.query.filter_by(email=email).first()
     if existing:
@@ -1346,6 +1478,14 @@ def admin_save_staff():
     )
     db.session.add(profile)
     db.session.commit()
+    
+    # Trigger free registration email via Celery
+    try:
+        from backend.tasks import send_staff_creation_email
+        send_staff_creation_email.delay(staff.id, password)
+    except Exception as e:
+        print("Failed to dispatch Celery staff email:", e)
+        
     return jsonify({'success': True})
 
 @app.route('/api/admin/staff/toggle/<int:staff_id>', methods=['POST'])
@@ -1368,8 +1508,8 @@ def admin_blacklist_user(user_id):
     if current_user.role != 'admin':
         return jsonify({'error': 'Unauthorized'}), 403
         
-    user = User.query.get(user_id)
-    if not user or user.role != 'user':
+    user = db.session.get(User, user_id)
+    if not user or user.role not in ('user', 'staff'):
         return jsonify({'error': 'User not found'}), 404
         
     user.blacklisted = True
@@ -1382,8 +1522,8 @@ def admin_restore_user(user_id):
     if current_user.role != 'admin':
         return jsonify({'error': 'Unauthorized'}), 403
         
-    user = User.query.get(user_id)
-    if not user or user.role != 'user':
+    user = db.session.get(User, user_id)
+    if not user or user.role not in ('user', 'staff'):
         return jsonify({'error': 'User not found'}), 404
         
     user.blacklisted = False
@@ -1508,6 +1648,12 @@ def admin_assign_trek(trek_id):
     trek = Trek.query.get(trek_id)
     if not trek:
         return jsonify({'error': 'Trek not found'}), 404
+        
+    if not email:
+        trek.staff_id = None
+        db.session.commit()
+        invalidate_open_treks_cache()
+        return jsonify({'success': True})
         
     staff = User.query.filter_by(email=email, role='staff').first()
     if not staff:

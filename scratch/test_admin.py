@@ -6,8 +6,10 @@ import os
 # Adjust path to import backend
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
+os.environ['TESTING'] = 'true'
+
 from backend.app import app, db, seed_db
-from backend.models.models import User, Trek, Booking
+from backend.models.models import User, Trek, Booking, SupportTicket
 
 class TestAdminDashboard(unittest.TestCase):
     def setUp(self):
@@ -19,8 +21,8 @@ class TestAdminDashboard(unittest.TestCase):
         self.ctx = app.app_context()
         self.ctx.push()
         
-        db.session.rollback()
-        db.session.close()
+        db.session.remove()
+        db.engine.dispose()
         db.create_all()
         seed_db()
 
@@ -53,7 +55,8 @@ class TestAdminDashboard(unittest.TestCase):
             'treks', 'staffList', 'users', 'allBookings', 'popularTreks',
             'slotUtilization', 'upcomingTreks', 'activityFeed', 'auditLogs',
             'notifications', 'scheduledJobs', 'systemHealth', 'monthlyBookings',
-            'difficultyDist', 'userGrowth', 'revenueData', 'blacklistedUsers', 'pendingTreks'
+            'difficultyDist', 'userGrowth', 'revenueData', 'blacklistedUsers', 'pendingTreks',
+            'supportTickets'
         ]
         for key in expected_keys:
             self.assertIn(key, data, f"Key '{key}' is missing from dashboard data")
@@ -144,6 +147,117 @@ class TestAdminDashboard(unittest.TestCase):
         # Clean up exported files
         for f in export_files:
             os.remove(os.path.join(scratch_dir, f))
+
+    def test_admin_resolve_support_ticket(self):
+        self.login_admin()
+        
+        # Fetch first support ticket
+        ticket = SupportTicket.query.first()
+        self.assertIsNotNone(ticket)
+        self.assertEqual(ticket.status, 'Open')
+        
+        # Resolve ticket
+        res = self.client.post(f'/api/admin/support_tickets/resolve/{ticket.id}')
+        self.assertEqual(res.status_code, 200)
+        
+        # Verify status updated
+        self.assertEqual(SupportTicket.query.get(ticket.id).status, 'Resolved')
+
+    def test_trek_route_crud_and_batch_creation(self):
+        self.login_admin()
+
+        # 1. Fetch dashboard data and check trekRoutes key
+        res = self.client.get('/api/admin/dashboard_data')
+        self.assertEqual(res.status_code, 200)
+        data = json.loads(res.data)
+        self.assertIn('trekRoutes', data)
+
+        # 2. Create a new Trek Route
+        route_payload = {
+            'name': 'Test Paradise Valley Trek',
+            'location': 'Sikkim',
+            'difficulty': 'Moderate',
+            'duration': 6,
+            'distance': 22,
+            'imageUrl': 'https://example.com/paradise.jpg',
+            'description': 'A beautiful valley trek.',
+            'latitude': 27.5,
+            'longitude': 88.5
+        }
+        res_create = self.client.post('/api/admin/trek_routes',
+                                      data=json.dumps(route_payload),
+                                      content_type='application/json')
+        self.assertEqual(res_create.status_code, 200)
+        create_data = json.loads(res_create.data)
+        self.assertTrue(create_data['success'])
+        route_id = create_data['route']['id']
+        trek_code = create_data['route']['trekCode']
+        self.assertTrue(trek_code.startswith('TID'))
+
+        # 3. Toggle Route status (deactivate / close)
+        res_toggle = self.client.post(f'/api/admin/trek_routes/toggle/{route_id}')
+        self.assertEqual(res_toggle.status_code, 200)
+        toggle_data = json.loads(res_toggle.data)
+        self.assertFalse(toggle_data['active'])
+
+        # Test: Scheduling on deactivated route should fail
+        batch_payload = {
+            'trekRouteId': route_id,
+            'startDate': '2026-07-01',
+            'endDate': '2026-07-07',
+            'slots': 15,
+            'price': 6500,
+            'status': 'Open'
+        }
+        res_fail_deactivated = self.client.post('/api/admin/treks',
+                                                 data=json.dumps(batch_payload),
+                                                 content_type='application/json')
+        self.assertEqual(res_fail_deactivated.status_code, 400)
+
+        # Reactivate it
+        self.client.post(f'/api/admin/trek_routes/toggle/{route_id}')
+
+        # Test: Scheduling with missing fields should fail
+        bad_payload = {
+            'trekRouteId': route_id,
+            'startDate': '2026-07-01',
+            'endDate': '2026-07-07'
+        }
+        res_fail_missing = self.client.post('/api/admin/treks',
+                                             data=json.dumps(bad_payload),
+                                             content_type='application/json')
+        self.assertEqual(res_fail_missing.status_code, 400)
+
+        # 4. Schedule a batch for this route (should succeed now)
+        res_batch = self.client.post('/api/admin/treks',
+                                     data=json.dumps(batch_payload),
+                                     content_type='application/json')
+        self.assertEqual(res_batch.status_code, 200)
+        batch_data = json.loads(res_batch.data)
+        self.assertTrue(batch_data['success'])
+
+        # Test: Scheduling duplicate batch on same route & start date should fail (Redundancy check)
+        res_fail_redundant = self.client.post('/api/admin/treks',
+                                               data=json.dumps(batch_payload),
+                                               content_type='application/json')
+        self.assertEqual(res_fail_redundant.status_code, 400)
+        
+        # Verify batch inherited route properties and auto-generated batchCode format
+        trek_batch = Trek.query.filter_by(trek_route_id=route_id).first()
+        self.assertIsNotNone(trek_batch)
+        self.assertEqual(trek_batch.name, 'Test Paradise Valley Trek')
+        self.assertEqual(trek_batch.location, 'Sikkim')
+        self.assertEqual(trek_batch.price, 6500)
+        self.assertEqual(trek_batch.batch_code, f"{trek_code}B01")
+
+        # 5. Delete Trek Route and verify cascading deletion of batches
+        res_delete = self.client.delete(f'/api/admin/trek_routes/{route_id}')
+        self.assertEqual(res_delete.status_code, 200)
+        
+        # Verify both route and batch are deleted
+        from backend.models.models import TrekRoute
+        self.assertIsNone(TrekRoute.query.get(route_id))
+        self.assertIsNone(Trek.query.filter_by(trek_route_id=route_id).first())
 
 if __name__ == '__main__':
     unittest.main()

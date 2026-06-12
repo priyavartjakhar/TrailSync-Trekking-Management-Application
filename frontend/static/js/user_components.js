@@ -843,7 +843,11 @@ const TsUserLayout = {
             <div class="pdd-body">
               <div class="pdd-info-row">
                 <span class="pdd-info-lbl">Trekker ID</span>
-                <span class="pdd-info-val mono">{{ profile.email }}</span>
+                <span class="pdd-info-val mono" style="color: var(--gold); font-weight: 700;">{{ profile.memberId || 'N/A' }}</span>
+              </div>
+              <div class="pdd-info-row">
+                <span class="pdd-info-lbl">Email Address</span>
+                <span class="pdd-info-val">{{ profile.email }}</span>
               </div>
               <div class="pdd-info-row">
                 <span class="pdd-info-lbl">Contact</span>

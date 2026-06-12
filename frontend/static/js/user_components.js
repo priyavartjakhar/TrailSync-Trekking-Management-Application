@@ -825,12 +825,8 @@ const TsUserLayout = {
           <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <input v-model="searchQuery" type="text" placeholder="Search treks…" @keyup.enter="goTab('explore')" />
         </div>
+        <div class="topbar-spacer"></div>
         <div class="topbar-actions">
-          <!-- Direct Navbar Logout Button -->
-          <button class="btn-navbar-logout" @click="handleLogout" title="Sign Out">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-          </button>
-
           <!-- User Profile Pill -->
           <div class="topbar-user-pill" @click.stop="showProfileDropdown = !showProfileDropdown" title="Profile">
             <span class="topbar-pill-name">{{ profile.name ? profile.name.split(' ')[0] : 'Trekker' }}</span>

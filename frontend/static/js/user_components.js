@@ -705,9 +705,12 @@ const TsUserLayout = {
     this.fetchUserData();
     this.startCountdown();
     
-    // Hash routing initialization
-    window.addEventListener('hashchange', this.handleHashChange);
-    document.addEventListener('click', this.closeDropdowns);
+    // Cache bound event handler references to avoid Vue 3 method proxy reference mismatches
+    this.hashListener = this.handleHashChange.bind(this);
+    this.clickListener = this.closeDropdowns.bind(this);
+    
+    window.addEventListener('hashchange', this.hashListener);
+    document.addEventListener('click', this.clickListener);
     
     const hash = window.location.hash.slice(1);
     const validTabs = ['dashboard', 'explore', 'bookings', 'history', 'calendar', 'profile'];
@@ -727,8 +730,8 @@ const TsUserLayout = {
 
   beforeUnmount() {
     if (this.countdownTimer) clearInterval(this.countdownTimer);
-    window.removeEventListener('hashchange', this.handleHashChange);
-    document.removeEventListener('click', this.closeDropdowns);
+    window.removeEventListener('hashchange', this.hashListener);
+    document.removeEventListener('click', this.clickListener);
   },
 
   template: `

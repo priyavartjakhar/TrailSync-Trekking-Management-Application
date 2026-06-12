@@ -841,52 +841,6 @@ const TsUserLayout = {
                   <button class="btn-hero-ghost" @click="goTab('bookings')">My Bookings</button>
                 </div>
               </div>
-
-              <!-- Right: Recommended Trek -->
-              <div class="dash-hero-right">
-                <div class="hero-trek-card-container">
-                  <!-- Slide 1 Card: Hampta Pass -->
-                  <div class="hero-trek-card slide-1">
-                    <div class="htc-badge moderate">Moderate</div>
-                    <div class="htc-name">Hampta Pass</div>
-                    <div class="htc-details">
-                      <span class="htc-detail">
-                        <svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                        Himachal Pradesh
-                      </span>
-                      <span class="htc-detail">
-                        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                        5 days
-                      </span>
-                      <span class="htc-detail">
-                        <svg viewBox="0 0 24 24"><path d="M3 17l4-8 4 4 4-6 4 10"/></svg>
-                        35 km
-                      </span>
-                    </div>
-                    <div class="htc-price">₹ 8,200 / person</div>
-                    <button class="btn-card-book" @click.stop="bookFeaturedTrek('Hampta Pass')">Book Now</button>
-                  </div>
-
-                  <!-- Slide 2 Card: Kedarkantha Trek -->
-                  <div class="hero-trek-card slide-2">
-                    <div class="htc-badge easy">Easy</div>
-                    <div class="htc-name">Kedarkantha Trek</div>
-                    <div class="htc-details">
-                      <span class="htc-detail">
-                        <svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                        Uttarakhand
-                      </span>
-                      <span class="htc-detail">
-                        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                        6 days
-                      </span>
-                      <span class="htc-detail">
-                        <svg viewBox="0 0 24 24"><path d="M3 17l4-8 4 4 4-6 4 10"/></svg>
-                        20 km
-                      </span>
-                    </div>
-                    <div class="htc-price">₹ 6,500 / person</div>
-                    <button class="btn-card-book" @click.stop="bookFeaturedTrek('Kedarkantha Trek')">Book Now</button>
                   </div>
 
                   <!-- Slide 3 Card: Valley of Flowers -->

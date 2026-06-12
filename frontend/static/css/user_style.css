@@ -522,7 +522,7 @@ body {
 
 .dash-hero-greeting {
   font-family: 'Space Mono', monospace;
-  font-size: 0.7rem;
+  font-size: 0.85rem;
   color: var(--gold-light);
   text-transform: uppercase;
   letter-spacing: 0.22em;
@@ -533,7 +533,7 @@ body {
 
 .dash-hero-name {
   font-family: 'Playfair Display', serif;
-  font-size: 2.2rem;
+  font-size: 2.8rem;
   font-weight: 900;
   color: #fff;
   margin-bottom: 0.4rem;
@@ -549,9 +549,9 @@ body {
 }
 
 .dash-hero-punchline {
-  font-size: 0.95rem;
+  font-size: 1.15rem;
   color: rgba(255,255,255,0.72);
-  max-width: 480px;
+  max-width: 580px;
   line-height: 1.6;
   margin-bottom: 1rem;
   font-family: 'Playfair Display', serif;
@@ -563,8 +563,9 @@ body {
 .dash-hero-stats-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 0.75rem;
-  max-width: 480px;
+  gap: 1.1rem;
+  max-width: 520px;
+  width: 100%;
   animation: heroFadeUp 0.7s ease both 0.4s;
 }
 
@@ -573,10 +574,10 @@ body {
   backdrop-filter: blur(12px);
   border: 1px solid rgba(200, 146, 42, 0.16);
   border-radius: 12px;
-  padding: 0.7rem 1rem;
+  padding: 1.1rem 1.4rem;
   display: flex;
   align-items: center;
-  gap: 0.8rem;
+  gap: 1.1rem;
   transition: all 0.3s ease;
   animation: statCountUp 0.6s ease both;
 }
@@ -600,14 +601,14 @@ body {
 }
 
 .hero-stat-icon {
-  width: 40px; height: 40px;
-  border-radius: 10px;
+  width: 48px; height: 48px;
+  border-radius: 12px;
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
 }
 
 .hero-stat-icon svg {
-  width: 19px; height: 19px;
+  width: 22px; height: 22px;
   stroke: currentColor;
   fill: none;
   stroke-width: 2;
@@ -620,14 +621,14 @@ body {
 
 .hero-stat-val {
   font-family: 'Playfair Display', serif;
-  font-size: 1.5rem; font-weight: 700;
+  font-size: 1.85rem; font-weight: 700;
   color: #fff; line-height: 1.1;
   margin-bottom: 0.18rem;
 }
 
 .hero-stat-lbl {
   font-family: 'Space Mono', monospace;
-  font-size: 0.56rem;
+  font-size: 0.65rem;
   text-transform: uppercase;
   letter-spacing: 0.12em;
   color: rgba(255,255,255,0.42);

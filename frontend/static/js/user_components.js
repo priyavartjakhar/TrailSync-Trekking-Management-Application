@@ -815,12 +815,20 @@ const TsUserLayout = {
 
             <!-- Two-column content layout inside hero -->
             <div class="dash-hero-inner">
-              <!-- Left: Greeting + Stats + CTA Buttons -->
+              <!-- Left: Greeting + CTA Buttons -->
               <div class="dash-hero-left">
                 <div class="dash-hero-greeting">Welcome back, Trekker</div>
                 <div class="dash-hero-name">Hello, <em>{{ profile.name ? profile.name.split(' ')[0] : 'Trekker' }}</em> <i class="bi bi-person-walking" style="color: var(--gold-light); font-size: 2.2rem; margin-left: 2px; vertical-align: middle;"></i></div>
                 <div class="dash-hero-punchline">Scale new heights. Discover your next epic journey.</div>
                 
+                <div class="dash-hero-left-cta">
+                  <button class="btn-hero-primary" @click="goTab('explore')">Explore Treks</button>
+                  <button class="btn-hero-ghost" @click="goTab('bookings')">My Bookings</button>
+                </div>
+              </div>
+
+              <!-- Right: Stats Grid -->
+              <div class="dash-hero-right" style="display:flex; align-items:center; justify-content:center;">
                 <div class="dash-hero-stats-grid">
                   <div v-for="s in userStats" :key="s.label" class="hero-stat-item">
                     <div class="hero-stat-icon" :class="s.color">
@@ -834,11 +842,6 @@ const TsUserLayout = {
                       <div class="hero-stat-lbl">{{ s.label }}</div>
                     </div>
                   </div>
-                </div>
-
-                <div class="dash-hero-left-cta">
-                  <button class="btn-hero-primary" @click="goTab('explore')">Explore Treks</button>
-                  <button class="btn-hero-ghost" @click="goTab('bookings')">My Bookings</button>
                 </div>
               </div>
             </div>

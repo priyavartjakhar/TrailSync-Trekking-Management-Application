@@ -74,10 +74,12 @@ const TsUserLayout = {
       ],
       guideIsTyping: false,
       communityPosts: [
-        { id: 1, author: 'Aarav Mehta', avatar: 'AM', title: 'Tada Falls Wonder', trekName: 'Tada Falls Trek', text: 'Beautiful cascades! A bit slippery on the rocks but the pools are worth it.', likes: 24, comments: 5, img: 'https://images.unsplash.com/photo-1544644181-1484b3fdfc62?w=600&fit=crop' },
-        { id: 2, author: 'Nisha Sharma', avatar: 'NS', title: 'Kedarkantha Summit!', trekName: 'Kedarkantha Trek', text: 'Summit day was freezing (-6°C) but watching the sunrise over the Himalayas was spiritual.', likes: 142, comments: 18, img: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=600&fit=crop' },
-        { id: 3, author: 'Kabir Dev', avatar: 'KD', title: 'Valley of Flowers Bloom', trekName: 'Valley of Flowers', text: 'Perfect timing in late July. Miles of flowers, mist, and absolute silence.', likes: 89, comments: 12, img: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=600&fit=crop' },
-        { id: 4, author: 'Priya Verma', avatar: 'PV', title: 'Crossing Hampta Pass', trekName: 'Hampta Pass', text: 'The contrast between the lush green Kullu valley and the barren Spiti valley is mindblowing.', likes: 76, comments: 9, img: 'https://images.unsplash.com/photo-1454496522488-7a8e488e8606?w=600&fit=crop' }
+        { id: 1, author: 'Aarav Mehta', avatar: 'AM', title: 'Tada Falls Wonder', trekName: 'Tada Falls Trek', text: 'Navigating the rocky stream beds and slippery boulders of Tada Falls was challenging but incredibly rewarding. The final pool of crystal-clear water cascading down the red cliffs was the perfect reward. We spent hours swimming and enjoying the absolute tranquility of the deep forest.', likes: 24, comments: 5, img: 'https://images.unsplash.com/photo-1544644181-1484b3fdfc62?w=600&fit=crop' },
+        { id: 2, author: 'Nisha Sharma', avatar: 'NS', title: 'Kedarkantha Summit!', trekName: 'Kedarkantha Trek', text: 'The summit climb started at 3 AM under a canopy of brilliant stars. The temperature dropped to -6°C, freezing our water bottles, but the final push to the top was magical. Watching the golden sun rise over the snow-capped Himalayan peaks was a deeply spiritual experience I will cherish forever.', likes: 142, comments: 18, img: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=600&fit=crop' },
+        { id: 3, author: 'Kabir Dev', avatar: 'KD', title: 'Valley of Flowers Bloom', trekName: 'Valley of Flowers', text: 'Trekking through the valley in late July was like walking into a painting. Hundreds of varieties of wild alpine flowers carpeted the landscape as far as the eye could see. The gentle mist rolling over the mountains and the absolute silence made the journey feel like a dream.', likes: 89, comments: 12, img: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=600&fit=crop' },
+        { id: 4, author: 'Priya Verma', avatar: 'PV', title: 'Crossing Hampta Pass', trekName: 'Hampta Pass', text: 'The dramatic transition of scenery on this trek is mind-blowing. One day you are walking through the lush green forests of Kullu, and the next you cross the pass into the cold, barren, rock-strewn desert of Spiti. Camping next to the turquoise waters of Chandratal lake was the highlight of our trip.', likes: 76, comments: 9, img: 'https://images.unsplash.com/photo-1454496522488-7a8e488e8606?w=600&fit=crop' },
+        { id: 5, author: 'Rohan Sen', avatar: 'RS', title: 'Nagalapuram Ridge Climb', trekName: 'Nagalapuram Falls Trek', text: 'The trail started with dry deciduous scrubs but soon transitioned into a lush gorge filled with deep water pools. Climbing the steep ridges gave us panoramic views of the Andhra plains below. Jumping into the cool, deep freshwater pools at the end of the day made all the sweat worthwhile.', likes: 53, comments: 7, img: 'https://images.unsplash.com/photo-1596831167051-11c67bd1fc73?w=600&fit=crop' },
+        { id: 6, author: 'Meera Joshi', avatar: 'MJ', title: 'Mystical Talle Valley', trekName: 'Talle Valley Trek', text: "Arunachal's dense bamboo and pine forests are unlike anything else in India. The trail was covered in rich moss and giant ferns, with occasional rains adding to the mystical atmosphere. Spotting a rare cloud leopard track in the soft mud made us realize how wild and untouched this sanctuary is.", likes: 110, comments: 14, img: 'https://images.unsplash.com/photo-1626621422471-eb1fa6fc1816?w=600&fit=crop' }
       ],
     };
   },
@@ -1240,29 +1242,42 @@ const TsUserLayout = {
           <!-- ── Tales from the Trail (Community Feed) ── -->
           <div class="dashboard-community-feed" style="margin-top: 3.5rem;">
             <div class="feed-header" style="border-bottom:1px solid rgba(26,46,26,0.08); padding-bottom:8px; margin-bottom:1.5rem;">
-              <div class="feed-title" style="font-family:'Playfair Display',serif; font-size:1.45rem; font-weight:700; color:var(--forest);">🎒 Tales from the Trail <span style="font-family:'Space Mono',monospace; font-size:0.7rem; color:var(--gold); text-transform:uppercase; margin-left:10px; letter-spacing:0.05em; font-weight:600;">Stories & Reviews from fellow Trekkers</span></div>
+              <div class="feed-title" style="font-family:'Playfair Display',serif; font-size:1.45rem; font-weight:700; color:var(--forest); display:flex; align-items:center;">
+                <i class="bi bi-book" style="color:var(--gold); margin-right:10px; font-size:1.25rem;"></i>
+                Tales from the Trail
+                <span style="font-family:'Space Mono',monospace; font-size:0.7rem; color:var(--gold); text-transform:uppercase; margin-left:10px; letter-spacing:0.05em; font-weight:600;">Stories & Reviews from fellow Trekkers</span>
+              </div>
             </div>
             
-            <div class="pinterest-grid" style="column-count:2; column-gap:1.5rem; width:100%;">
-              <div v-for="p in communityPosts" :key="p.id" class="pin-card" style="break-inside:avoid; background:#fff; border:1px solid rgba(26,46,26,0.07); border-radius:var(--radius); overflow:hidden; box-shadow:0 2px 12px var(--shadow); margin-bottom:1.5rem; transition:var(--transition); display:inline-block; width:100%;">
-                <div class="pin-img-container" style="position:relative; overflow:hidden; cursor:pointer;">
-                  <img :src="p.img" :alt="p.title" style="width:100%; object-fit:cover; display:block; transition:transform 0.5s ease;" />
-                  <div class="pin-glass-overlay" style="position:absolute; inset:0; background:rgba(26,46,26,0.45); backdrop-filter:blur(6px); opacity:0; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:0.75rem; transition:opacity 0.3s ease;">
-                    <div class="pin-overlay-stats" style="color:#fff; font-size:0.9rem; font-weight:600; display:flex; gap:1.25rem;">
-                      <span>❤️ {{ p.likes }}</span>
-                      <span>💬 {{ p.comments }}</span>
-                    </div>
-                    <button class="btn-pin-action" @click.stop="navigateToTrek(p.trekName)" style="border:none; background:var(--gold); color:var(--forest); font-weight:700; font-size:0.72rem; padding:0.45rem 1rem; border-radius:4px; text-transform:uppercase; letter-spacing:0.05em; cursor:pointer;">Go to Trek</button>
-                  </div>
+            <div class="treks-grid-user" style="margin-top: 1rem;">
+              <div v-for="p in communityPosts" :key="p.id" class="pin-card" style="background:#fff; border:1px solid rgba(26,46,26,0.07); border-radius:var(--radius); overflow:hidden; box-shadow:0 4px 16px var(--shadow); transition:var(--transition); display:flex; flex-direction:column;">
+                <div class="pin-img-container" style="height:135px; overflow:hidden; position:relative;">
+                  <img :src="p.img" :alt="p.title" style="width:100%; height:100%; object-fit:cover; display:block;" />
                 </div>
-                <div class="pin-content" style="padding:1.1rem;">
-                  <div class="pin-author" style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+                <div class="pin-content" style="padding:1.1rem; flex-grow:1; display:flex; flex-direction:column; gap:0.5rem;">
+                  <div class="pin-author" style="display:flex; align-items:center; gap:8px;">
                     <span class="pin-avatar" style="width:24px; height:24px; border-radius:50%; background:var(--gold); color:var(--forest); font-size:0.65rem; font-weight:700; display:flex; align-items:center; justify-content:center; font-family:'Playfair Display',serif;">{{ p.avatar }}</span>
                     <span class="pin-author-name" style="font-size:0.8rem; font-weight:600; color:var(--forest);">{{ p.author }}</span>
                   </div>
-                  <h4 class="pin-card-title" style="font-family:'Playfair Display',serif; font-size:1.15rem; font-weight:700; color:var(--forest); margin-bottom:6px;">{{ p.title }}</h4>
-                  <div class="pin-trek-tag" style="font-family:'Space Mono',monospace; font-size:0.65rem; color:var(--gold); font-weight:600; margin-bottom:8px;">📍 {{ p.trekName }}</div>
-                  <p class="pin-text" style="font-size:0.82rem; color:var(--stone); line-height:1.45; margin:0;">{{ p.text }}</p>
+                  <h4 class="pin-card-title" style="font-family:'Playfair Display',serif; font-size:1.1rem; font-weight:700; color:var(--forest); margin:0;">{{ p.title }}</h4>
+                  <div class="pin-trek-tag" style="font-family:'Space Mono',monospace; font-size:0.65rem; color:var(--gold); font-weight:600;">📍 {{ p.trekName }}</div>
+                  
+                  <!-- CSS stylized quotes on start and end of story -->
+                  <div class="story-text-container" style="position:relative; padding:0.5rem 1rem 0.5rem; margin-top:0.25rem; flex-grow:1;">
+                    <span class="quote-mark quote-start" style="font-family:'Playfair Display',serif; font-size:2.5rem; color:var(--gold-light); line-height:1; position:absolute; left:-0.2rem; top:-0.3rem; user-select:none; opacity:0.8;">“</span>
+                    <p class="pin-text" style="font-size:0.8rem; color:var(--stone); line-height:1.45; margin:0; font-style:italic;">{{ p.text }}</p>
+                    <span class="quote-mark quote-end" style="font-family:'Playfair Display',serif; font-size:2.5rem; color:var(--gold-light); line-height:1; position:absolute; right:-0.2rem; bottom:-1.2rem; user-select:none; opacity:0.8;">”</span>
+                  </div>
+                </div>
+                <!-- Card footer with likes and action button -->
+                <div class="pin-footer" style="padding:0.75rem 1.1rem; border-top:1px solid var(--stone-light); display:flex; justify-content:space-between; align-items:center;">
+                  <div class="pin-footer-stats" style="font-size:0.78rem; color:var(--stone); display:flex; gap:0.85rem; font-weight:600;">
+                    <span>❤️ {{ p.likes }}</span>
+                    <span>💬 {{ p.comments }}</span>
+                  </div>
+                  <button class="btn-pin-static-action" @click="navigateToTrek(p.trekName)" style="border:none; background:none; color:var(--gold); font-weight:700; font-size:0.75rem; cursor:pointer; padding:0; display:flex; align-items:center; gap:4px; transition:color 0.2s ease;">
+                    Go to Trek →
+                  </button>
                 </div>
               </div>
             </div>

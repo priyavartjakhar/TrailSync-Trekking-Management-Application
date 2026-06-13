@@ -19,6 +19,9 @@ const TsAdminLayout = {
       showStaffModal: false,
       showTrekkerModal: false,
       showConfirmModal: false,
+      showBlacklistModal: false,
+      blacklistTargetUser: null,
+      blacklistReasonText: '',
       confirmTitle: '',
       confirmMessage: '',
       confirmBtnLabel: 'Confirm',
@@ -129,6 +132,8 @@ const TsAdminLayout = {
       blacklistedUsers:   [],
       alertsAndTasks:     [],
       supportTickets:     [],
+      showBookingDetailsModal: false,
+      selectedBookingDetails: null,
     };
   },
 
@@ -261,12 +266,7 @@ const TsAdminLayout = {
           a.actor.toLowerCase().includes(this.searchQuery.toLowerCase()));
       return list;
     },
-    alertsOnly() {
-      return this.alertsAndTasks.filter(item => item.type !== 'starting_this_week');
-    },
-    updatesOnly() {
-      return this.alertsAndTasks.filter(item => item.type === 'starting_this_week');
-    },
+
 
     maxBookings() {
       const vals = this.popularTreks.map(t => t.bookings);
@@ -498,18 +498,57 @@ const TsAdminLayout = {
       this.showUserDetailsModal = false;
       this.selectedUserDetails = null;
     },
-    async toggleStaffBlacklist(s) {
-      const action = s.blacklisted ? 'restore' : 'blacklist';
+    closeBlacklistModal() {
+      this.showBlacklistModal = false;
+      this.blacklistTargetUser = null;
+      this.blacklistReasonText = '';
+    },
+    async submitBlacklist() {
+      if (!this.blacklistTargetUser) return;
+      const u = this.blacklistTargetUser;
+      const reason = this.blacklistReasonText.trim() || 'Policy violation';
       try {
-        const res = await fetch(`/api/admin/users/${action}/${s.id}`, { method: 'POST' });
+        const res = await fetch(`/api/admin/users/blacklist/${u.id}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reason: reason })
+        });
         if (res.ok) {
-          this.showToast(`Staff ${s.name} ${s.blacklisted ? 'restored' : 'blacklisted'}`);
+          this.showToast(`${u.name} blacklisted`);
+          this.closeBlacklistModal();
           this.loadData();
-        } else {
-          this.showToast(`Failed to ${action} staff`);
+          return;
         }
-      } catch (_) {
-        this.showToast('Network error');
+      } catch (_) {}
+      u.blacklisted = true;
+      const idx = this.blacklistedUsers.findIndex(b => b.id === u.id);
+      if (idx === -1) {
+        this.blacklistedUsers.push({
+          id: u.id,
+          name: u.name,
+          reason: reason,
+          date: new Date().toISOString().slice(0, 10)
+        });
+      }
+      this.showToast(`${u.name} blacklisted (mock)`);
+      this.closeBlacklistModal();
+    },
+    async toggleStaffBlacklist(s) {
+      if (s.blacklisted) {
+        try {
+          const res = await fetch(`/api/admin/users/restore/${s.id}`, { method: 'POST' });
+          if (res.ok) {
+            this.showToast(`Staff ${s.name} restored`);
+            this.loadData();
+            return;
+          }
+        } catch (_) {}
+        s.blacklisted = false;
+        this.showToast(`Staff ${s.name} restored (mock)`);
+      } else {
+        this.blacklistTargetUser = s;
+        this.blacklistReasonText = '';
+        this.showBlacklistModal = true;
       }
     },
     handleTaskAction(type) {
@@ -526,6 +565,9 @@ const TsAdminLayout = {
         this.trekFilter = 'All';
       } else if (type === 'pending_tickets') {
         this.activeTab = 'support_tickets';
+      } else if (type === 'unpaid_bookings') {
+        this.activeTab = 'bookings';
+        this.bookingFilter = 'All';
       }
     },
     async loadData() {
@@ -1154,18 +1196,19 @@ const TsAdminLayout = {
 
     // ── User Management ────────────────────────────────────
     async toggleBlacklist(u) {
-      const action = u.blacklisted ? 'restore' : 'blacklist';
-      try {
-        const res = await fetch(`/api/admin/users/${action}/${u.id}`, { method:'POST' });
-        if (res.ok) { this.showToast(`${u.name} status updated`); this.loadData(); return; }
-      } catch (_) {}
-      u.blacklisted = !u.blacklisted;
       if (u.blacklisted) {
-        this.blacklistedUsers.push({ id: u.id, name: u.name, reason: 'Manually blacklisted by admin', date: new Date().toISOString().slice(0,10) });
-      } else {
+        try {
+          const res = await fetch(`/api/admin/users/restore/${u.id}`, { method:'POST' });
+          if (res.ok) { this.showToast(`${u.name} restored`); this.loadData(); return; }
+        } catch (_) {}
+        u.blacklisted = false;
         this.blacklistedUsers = this.blacklistedUsers.filter(b => b.id !== u.id);
+        this.showToast(`${u.name} restored (mock)`);
+      } else {
+        this.blacklistTargetUser = u;
+        this.blacklistReasonText = '';
+        this.showBlacklistModal = true;
       }
-      this.showToast(`${u.name} ${u.blacklisted ? 'blacklisted' : 'restored'} (mock)`);
     },
 
     async restoreBlacklist(u) {
@@ -1180,10 +1223,30 @@ const TsAdminLayout = {
     },
 
     // ── Booking Actions ────────────────────────────────────
+    viewBookingDetails(b) {
+      const userObj = this.users.find(usr => usr.id === b.userId);
+      this.selectedBookingDetails = {
+        booking: b,
+        user: userObj || {
+          memberId: b.trekkerId || ('TS26T' + b.userId),
+          name: b.user,
+          email: '—',
+          phone: '—',
+          city: '—',
+          emergency: '—',
+          bio: '—'
+        }
+      };
+      this.showBookingDetailsModal = true;
+    },
+    closeBookingDetails() {
+      this.showBookingDetailsModal = false;
+      this.selectedBookingDetails = null;
+    },
     cancelBooking(b) {
       this.triggerConfirm(
         'Cancel Booking',
-        `Are you sure you want to cancel booking #${b.id} for ${b.user}?`,
+        `Are you sure you want to cancel booking ${b.bookingId || ('#' + b.id)} for ${b.user}?`,
         'Cancel Booking',
         async () => {
           try {
@@ -1465,34 +1528,15 @@ const TsAdminLayout = {
               <span class="dash-card-title">Alerts & Pending Tasks</span>
             </div>
             <div class="alerts-tasks-dashboard-grid">
-              <div class="task-alert-card" v-for="item in alertsOnly" :key="item.label" :class="{ warning: item.count > 0 && item.count <= 5, danger: item.count > 5 }">
-                <div class="task-card-icon-col">⚠</div>
+              <div class="task-alert-card" v-for="item in alertsAndTasks" :key="item.label" :class="{ warning: item.count > 0 && item.count <= 5, danger: item.count > 5 }">
+                <div class="task-card-icon-col">{{ item.type === 'starting_this_week' ? 'ℹ' : '⚠' }}</div>
                 <div class="task-card-body-col">
                   <div class="task-card-num">{{ item.count }}</div>
                   <div class="task-card-label">{{ item.label }}</div>
                 </div>
                 <button class="btn-ghost task-resolve-btn" style="padding: 4px 10px; font-size: 0.72rem; border-radius: 3px;" @click="handleTaskAction(item.type)">
-                  Resolve →
+                  {{ item.type === 'starting_this_week' ? 'Manage' : 'Resolve' }} →
                 </button>
-              </div>
-            </div>
-
-            <!-- Sub-section: Updates -->
-            <div style="margin-top: 1.5rem; border-top: 1px solid var(--stone-light); padding-top: 1.25rem;">
-              <div class="dash-card-header" style="padding: 0 0 0.75rem 0; margin-bottom: 0.75rem; border-bottom: none;">
-                <span class="dash-card-title" style="font-size: 0.95rem; font-weight: 700;">Updates</span>
-              </div>
-              <div class="alerts-tasks-dashboard-grid">
-                <div class="task-alert-card" v-for="item in updatesOnly" :key="item.label" :class="{ warning: item.count > 0 && item.count <= 5, danger: item.count > 5 }">
-                  <div class="task-card-icon-col">ℹ</div>
-                  <div class="task-card-body-col">
-                    <div class="task-card-num">{{ item.count }}</div>
-                    <div class="task-card-label">{{ item.label }}</div>
-                  </div>
-                  <button class="btn-ghost task-resolve-btn" style="padding: 4px 10px; font-size: 0.72rem; border-radius: 3px;" @click="handleTaskAction(item.type)">
-                    Manage →
-                  </button>
-                </div>
               </div>
             </div>
           </div>
@@ -2143,25 +2187,47 @@ const TsAdminLayout = {
         <div class="ts-table-wrap">
           <table class="ts-table">
             <thead>
-              <tr><th>Booking ID</th><th>User</th><th>Trek</th><th>Booked On</th><th>Status</th><th>Payment</th><th>Actions</th></tr>
+              <tr>
+                <th>Booking ID</th>
+                <th>Trekker ID</th>
+                <th>User</th>
+                <th>Batch ID</th>
+                <th>Trek</th>
+                <th>Booked On</th>
+                <th>Status</th>
+                <th>Payment</th>
+                <th>Actions</th>
+              </tr>
             </thead>
             <tbody>
               <tr v-for="b in filteredBookings" :key="b.id">
-                <td class="mono">#{{ b.id }}</td>
-                <td>{{ b.user }}</td>
-                <td>{{ b.trek }}</td>
+                <td class="mono" style="font-size: 0.8rem;">{{ b.bookingId || ('#' + b.id) }}</td>
+                <td class="mono" style="font-size: 0.8rem;">{{ b.trekkerId }}</td>
+                <td><span style="font-weight:600; color:var(--forest)">{{ b.user }}</span></td>
+                <td class="mono" style="font-size: 0.8rem;">{{ b.batchCode }}</td>
+                <td style="font-weight:500;">{{ b.trek }}</td>
                 <td class="mono">{{ formatDate(b.date) }}</td>
                 <td><span :class="'status-pill status-'+b.status.toLowerCase()">{{ b.status }}</span></td>
                 <td><span :class="['status-pill', b.paid ? 'status-open' : 'status-pending']">{{ b.paid ? 'Paid' : 'Pending' }}</span></td>
                 <td>
-                  <div class="action-btns">
-                    <button v-if="b.status==='Booked'" class="act-btn act-del" @click="cancelBooking(b)">Cancel</button>
-                    <button class="act-btn act-assign" @click="exportCSV('booking-'+b.id)">Export</button>
+                  <div class="action-btns" style="display:flex; gap:6px;">
+                    <button class="act-btn act-view" @click="viewBookingDetails(b)">
+                      <svg viewBox="0 0 24 24" class="act-btn-icon"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                      View
+                    </button>
+                    <button class="act-btn act-assign" @click="exportCSV('booking-'+b.id)">
+                      <svg viewBox="0 0 24 24" class="act-btn-icon" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                      Export
+                    </button>
+                    <button v-if="b.status==='Booked'" class="act-btn act-delete-btn" @click="cancelBooking(b)">
+                      <svg viewBox="0 0 24 24" class="act-btn-icon" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+                      Cancel
+                    </button>
                   </div>
                 </td>
               </tr>
               <tr v-if="!filteredBookings.length">
-                <td colspan="7" style="text-align:center; padding:2rem; color:var(--stone)">No bookings match this filter.</td>
+                <td colspan="9" style="text-align:center; padding:2rem; color:var(--stone)">No bookings match this filter.</td>
               </tr>
             </tbody>
           </table>
@@ -3090,6 +3156,37 @@ const TsAdminLayout = {
       </div>
     </div>
 
+    <!-- ════════ BLACKLIST REASON MODAL ════════ -->
+    <div v-if="showBlacklistModal" class="ts-modal-overlay" @click.self="closeBlacklistModal" style="z-index: 3000;">
+      <div class="ts-modal" style="max-width: 450px;">
+        <div class="ts-modal-header" style="border-bottom: none; padding-bottom: 0;">
+          <h3 class="ts-modal-title" style="color: var(--red); display: flex; align-items: center; gap: 8px;">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>
+            <span>Blacklist Account</span>
+          </h3>
+          <button class="modal-close" @click="closeBlacklistModal">✕</button>
+        </div>
+        <div class="ts-modal-body" style="padding-top: 1rem; padding-bottom: 1.5rem; font-size: 0.9rem;">
+          <p style="margin-bottom: 0.75rem; color: var(--forest-mid);">
+            Are you sure you want to blacklist <strong>{{ blacklistTargetUser ? blacklistTargetUser.name : '' }}</strong>? This will prevent them from logging in and accessing their dashboard.
+          </p>
+          <div class="form-group" style="margin-top: 1rem;">
+            <label style="font-weight: 600; color: var(--forest); display: block; margin-bottom: 0.5rem;">Reason for Blacklisting:</label>
+            <textarea 
+              v-model="blacklistReasonText" 
+              placeholder="Enter reason for blacklisting (e.g. Code of conduct violation, payment fraud)..." 
+              rows="4" 
+              style="width: 100%; padding: 0.5rem; border: 1px solid var(--stone); border-radius: var(--radius); font-size: 0.85rem; font-family: inherit; resize: vertical;"
+            ></textarea>
+          </div>
+        </div>
+        <div class="ts-modal-footer" style="background: var(--snow); border-top: 1px solid var(--stone-light);">
+          <button class="btn-ghost" @click="closeBlacklistModal">Cancel</button>
+          <button class="btn-primary-ts" style="background: var(--red); border-color: var(--red);" @click="submitBlacklist">Blacklist Account</button>
+        </div>
+      </div>
+    </div>
+
     <!-- ════════ STAFF DETAILS MODAL ════════ -->
     <div v-if="showStaffDetailsModal" class="ts-modal-overlay" @click.self="closeStaffDetails">
       <div class="ts-modal extra-large">
@@ -3226,6 +3323,64 @@ const TsAdminLayout = {
         </div>
         <div class="ts-modal-footer">
           <button class="btn-primary-ts" @click="closeUserDetails">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════ BOOKING DETAILS MODAL ════════ -->
+    <div v-if="showBookingDetailsModal" class="ts-modal-overlay" @click.self="closeBookingDetails">
+      <div class="ts-modal large">
+        <div class="ts-modal-header">
+          <h3 class="ts-modal-title">Booking Details — {{ selectedBookingDetails.booking.bookingId || ('#' + selectedBookingDetails.booking.id) }}</h3>
+          <button class="modal-close" @click="closeBookingDetails">✕</button>
+        </div>
+        <div class="ts-modal-body" style="max-height: 480px; overflow-y: auto;">
+          <div class="details-modal-grid">
+            <!-- Left Side: Trekker Profile Info -->
+            <div>
+              <div class="timeline-section-title" style="margin-bottom: 0.75rem;">Trekker Profile</div>
+              <div class="route-detail-info-block" style="margin-bottom: 1.5rem;">
+                <div><strong>Member ID:</strong> <span class="mono">{{ selectedBookingDetails.user.memberId }}</span></div>
+                <div><strong>Full Name:</strong> <span>{{ selectedBookingDetails.user.name }}</span></div>
+                <div><strong>Email:</strong> <span>{{ selectedBookingDetails.user.email }}</span></div>
+                <div><strong>Phone Number:</strong> <span class="mono">{{ selectedBookingDetails.user.phone || '—' }}</span></div>
+                <div><strong>City / Base:</strong> <span>{{ selectedBookingDetails.user.city || '—' }}</span></div>
+                <div><strong>Emergency Contact:</strong> <span class="mono">{{ selectedBookingDetails.user.emergency || '—' }}</span></div>
+                <div style="grid-column: 1 / -1; margin-top: 5px;">
+                  <strong>Medical Bio / Info:</strong>
+                  <div style="font-size:0.8rem; background:var(--cream); padding:0.5rem; border-radius:4px; margin-top:4px; color:var(--bark);">
+                    {{ selectedBookingDetails.user.bio || 'No medical bio provided.' }}
+                  </div>
+                </div>
+              </div>
+
+              <div class="timeline-section-title" style="margin-bottom: 0.75rem;">Transaction & Payment</div>
+              <div class="route-detail-info-block">
+                <div><strong>Payment Status:</strong> 
+                  <span :class="['status-pill', selectedBookingDetails.booking.paid ? 'status-open' : 'status-pending']">
+                    {{ selectedBookingDetails.booking.paid ? 'Paid' : 'Pending' }}
+                  </span>
+                </div>
+                <div><strong>Amount Paid:</strong> <span class="mono">₹{{ selectedBookingDetails.booking.paidAmount ? selectedBookingDetails.booking.paidAmount.toLocaleString() : '0' }}</span></div>
+                <div><strong>Transaction ID:</strong> <span class="mono">{{ selectedBookingDetails.booking.transactionId || '—' }}</span></div>
+                <div><strong>Paid On Date:</strong> <span class="mono">{{ selectedBookingDetails.booking.paidOn || '—' }}</span></div>
+              </div>
+            </div>
+
+            <!-- Right Side: Batch Details -->
+            <div>
+              <div class="timeline-section-title" style="margin-bottom: 0.75rem;">Trek Batch Details</div>
+              <div class="route-detail-info-block">
+                <div><strong>Batch Code:</strong> <span class="mono">{{ selectedBookingDetails.booking.batchCode }}</span></div>
+                <div><strong>Trek Name:</strong> <span>{{ selectedBookingDetails.booking.trek }}</span></div>
+                <div><strong>Booked On:</strong> <span class="mono">{{ formatDate(selectedBookingDetails.booking.date) }}</span></div>
+                <div><strong>Booking Status:</strong> <span :class="'status-pill status-'+selectedBookingDetails.booking.status.toLowerCase()">{{ selectedBookingDetails.booking.status }}</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="ts-modal-footer">
+          <button class="btn-primary-ts" @click="closeBookingDetails">Close</button>
         </div>
       </div>
     </div>

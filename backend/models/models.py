@@ -27,6 +27,7 @@ class User(db.Model, UserMixin):
     preferred_regions = db.Column(db.Text)
     active = db.Column(db.Boolean, default=True)
     blacklisted = db.Column(db.Boolean, default=False)
+    blacklist_reason = db.Column(db.Text, nullable=True)
     registered_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # Relationships
@@ -60,6 +61,7 @@ class User(db.Model, UserMixin):
             'preferred_regions': self.preferred_regions,
             'active': self.active,
             'blacklisted': self.blacklisted,
+            'blacklistReason': self.blacklist_reason or '',
             'registered': self.registered_at.strftime('%Y-%m-%d') if self.registered_at else ''
         }
 
@@ -158,6 +160,21 @@ class Booking(db.Model):
     status = db.Column(db.String(20), nullable=False, default='Booked') # 'Booked', 'Cancelled', 'Completed'
     paid = db.Column(db.Boolean, default=True)
 
+    @property
+    def unique_booking_id(self):
+        route_code = self.trek.route.trek_code if (self.trek and self.trek.route) else 'TID000'
+        batch_year = self.trek.start_date.strftime('%y') if (self.trek and self.trek.start_date) else '26'
+        batch_full_code = self.trek.batch_code if self.trek else 'B01'
+        batch_code_part = 'B01'
+        if batch_full_code and 'B' in batch_full_code:
+            idx = batch_full_code.index('B')
+            batch_code_part = batch_full_code[idx:]
+        elif batch_full_code:
+            batch_code_part = batch_full_code[-3:] if len(batch_full_code) >= 3 else 'B01'
+        booking_year = self.booked_on.strftime('%y') if self.booked_on else '26'
+        seq_digits = f"{self.id:03d}"
+        return f"{route_code}{batch_year}{batch_code_part}{booking_year}{seq_digits}"
+
     def to_json(self):
         guide_info = None
         if self.trek.staff:
@@ -177,9 +194,14 @@ class Booking(db.Model):
                 'completedTreksCount': profile.completed_treks_count if profile else 10,
                 'photoUrl': profile.photo_url if profile else 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&h=300&fit=crop'
             }
+        u = self.user
+        year_str = u.registered_at.strftime('%y') if u.registered_at else '26'
+        member_id = f"TS{year_str}T{u.id:04d}" if u.role == 'user' else f"TS{year_str}S{u.id:03d}"
         return {
             'id': self.id,
+            'bookingId': self.unique_booking_id,
             'userId': self.user_id,
+            'trekkerId': member_id,
             'trekId': self.trek_id,
             'trekName': self.trek.name,
             'location': self.trek.location,

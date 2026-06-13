@@ -1111,9 +1111,14 @@ def admin_dashboard_data():
         
     all_bookings = []
     for b in Booking.query.all():
+        u = b.user
+        year_str = u.registered_at.strftime('%y') if u.registered_at else '26'
+        member_id = f"TS{year_str}T{u.id:04d}" if u.role == 'user' else f"TS{year_str}S{u.id:03d}"
         all_bookings.append({
             'id': b.id,
+            'bookingId': b.unique_booking_id,
             'userId': b.user_id,
+            'trekkerId': member_id,
             'user': b.user.name,
             'trekId': b.trek_id,
             'trek': b.trek.name,
@@ -1250,7 +1255,7 @@ def admin_dashboard_data():
         blacklisted_users.append({
             'id': u.id,
             'name': u.name,
-            'reason': u.bio or 'Policy violation',
+            'reason': u.blacklist_reason or 'Policy violation',
             'date': u.registered_at.strftime('%Y-%m-%d') if u.registered_at else '2026-06-09'
         })
         
@@ -1281,12 +1286,15 @@ def admin_dashboard_data():
         util_pct = (booked / t.slots) if t.slots else 0.0
         if util_pct < 0.50:
             low_occupancy_count += 1
+            
+    unpaid_bookings_count = Booking.query.filter_by(status='Booked', paid=False).count()
     
     alerts_and_tasks = [
         {'label': 'Staff Accounts Inactive', 'count': inactive_staff_count, 'type': 'inactive_staff'},
         {'label': 'Trek Has No Assigned Staff', 'count': unassigned_treks_count, 'type': 'unassigned_staff'},
         {'label': 'Low Occupancy (<50%) Starting Soon', 'count': low_occupancy_count, 'type': 'low_occupancy'},
         {'label': 'Treks Starting This Week', 'count': treks_starting_week_count, 'type': 'starting_this_week'},
+        {'label': 'Unpaid Bookings', 'count': unpaid_bookings_count, 'type': 'unpaid_bookings'},
         {'label': 'Pending Support Tickets', 'count': pending_tickets_count, 'type': 'pending_tickets'}
     ]
 
@@ -1710,7 +1718,15 @@ def admin_blacklist_user(user_id):
     if not user or user.role not in ('user', 'staff'):
         return jsonify({'error': 'User not found'}), 404
         
+    reason = 'Policy violation'
+    if request.is_json:
+        data = request.get_json() or {}
+        reason = data.get('reason', 'Policy violation')
+    elif request.form:
+        reason = request.form.get('reason', 'Policy violation')
+        
     user.blacklisted = True
+    user.blacklist_reason = reason
     db.session.commit()
     return jsonify({'success': True, 'blacklisted': True})
 

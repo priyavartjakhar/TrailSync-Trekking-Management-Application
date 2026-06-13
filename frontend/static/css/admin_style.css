@@ -1399,8 +1399,22 @@ body { font-family:'DM Sans',sans-serif; background:var(--snow); color:var(--bar
   pointer-events: none;
   text-align: left;
 }
-.calendar-tooltip::after {
-  content: "";
+.global-calendar-tooltip {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  background: #2d3748;
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 0.74rem;
+  line-height: 1.35;
+  z-index: 9999;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  pointer-events: none;
+  text-align: left;
+  white-space: nowrap;
+}
+.global-calendar-tooltip .tooltip-arrow {
   position: absolute;
   top: 100%;
   left: 50%;
@@ -1409,23 +1423,26 @@ body { font-family:'DM Sans',sans-serif; background:var(--snow); color:var(--bar
   border-style: solid;
   border-color: #2d3748 transparent transparent transparent;
 }
-.calendar-table td.day-cell.busy-day:hover .calendar-tooltip {
-  display: block;
-}
-.calendar-table td.day-cell.custom-blocked-day {
-  background: #fff5f5 !important;
-  border-color: #fed7d7 !important;
-  color: #c53030 !important;
-}
-.calendar-table td.day-cell.custom-blocked-day:hover {
-  background: #fed7d7 !important;
-}
 .calendar-table td.day-cell.free-day {
-  background: #fff;
-  transition: background 0.15s;
+  background: #e6fffa !important;
+  border-color: #e6fffa !important;
 }
 .calendar-table td.day-cell.free-day:hover {
-  background: #f7fafc;
+  background: #b2f5ea !important;
+}
+.calendar-table td.day-cell.busy-day {
+  background: #fef3c7 !important;
+  border-color: #fef3c7 !important;
+}
+.calendar-table td.day-cell.busy-day:hover {
+  background: #fde68a !important;
+}
+.calendar-table td.day-cell.custom-blocked-day {
+  background: #fee2e2 !important;
+  border-color: #fee2e2 !important;
+}
+.calendar-table td.day-cell.custom-blocked-day:hover {
+  background: #fca5a5 !important;
 }
 
 

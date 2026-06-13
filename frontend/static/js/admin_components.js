@@ -92,6 +92,7 @@ const TsAdminLayout = {
       hasCheckedRange: false,
       checkedStart: '',
       checkedEnd: '',
+      calendarTooltip: { show: false, x: 0, y: 0, content: '' },
 
       tabTitles: {
         dashboard:    'Overview',
@@ -864,12 +865,39 @@ const TsAdminLayout = {
           const data = await res.json();
           staff.customBlockedDates = data.customBlockedDates;
           this.showToast(`Guide availability updated: marked as ${data.action === 'busy' ? 'Unavailable' : 'Available'}.`);
+          if (this.calendarTooltip.show) {
+            this.showTooltip(null, staff, day);
+          }
         } else {
           this.showToast('Failed to toggle date availability.');
         }
       } catch (err) {
         this.showToast('Network error toggling date availability.');
       }
+    },
+    showTooltip(e, staff, day) {
+      const trek = this.getConflictTrekForDay(staff, day);
+      let content = '';
+      if (trek) {
+        content = `<strong>Trek:</strong> ${trek.trekName}<br>
+                   <strong>Batch:</strong> ${trek.batchId}<br>
+                   <strong>Dates:</strong> ${trek.startDate} to ${trek.endDate}<br>
+                   <strong>Trekkers:</strong> ${trek.trekkersCount} registered`;
+      } else if (this.isStaffBusyOnDay(staff, day)) {
+        content = `<strong>Custom Block:</strong> Unavailable.<br>Click to toggle Available.`;
+      } else {
+        content = `<strong>Available</strong><br>Click to toggle Unavailable/Leave.`;
+      }
+      if (e) {
+        const rect = e.currentTarget.getBoundingClientRect();
+        this.calendarTooltip.x = rect.left + window.scrollX + (rect.width / 2);
+        this.calendarTooltip.y = rect.top + window.scrollY - 10;
+      }
+      this.calendarTooltip.content = content;
+      this.calendarTooltip.show = true;
+    },
+    hideTooltip() {
+      this.calendarTooltip.show = false;
     },
     changeCalendarMonth(delta) {
       let m = this.calendarMonth + delta;
@@ -2751,28 +2779,10 @@ const TsAdminLayout = {
                         'free-day': !isStaffBusyOnDay(s, d)
                       }"
                       class="day-cell"
-                      style="height: 38px; min-width: 80px; font-size: 0.72rem; vertical-align: middle; cursor: pointer; user-select: none;"
-                      @click="toggleDayAvailability(s, d)">
-                    <template v-if="isStaffBusyOnDay(s, d)">
-                      <span class="status-pill status-inactive" style="font-size: 0.65rem; padding: 2px 6px; font-weight: bold;">Busy</span>
-                      <div class="calendar-tooltip">
-                        <div style="font-weight: bold; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 3px; margin-bottom: 3px;">
-                          Busy Schedule
-                        </div>
-                        <div v-if="getConflictTrekForDay(s, d)">
-                          <strong>Trek:</strong> {{ getConflictTrekForDay(s, d).trekName }}<br>
-                          <strong>Batch:</strong> {{ getConflictTrekForDay(s, d).batchId }}<br>
-                          <strong>Dates:</strong> {{ getConflictTrekForDay(s, d).startDate }} to {{ getConflictTrekForDay(s, d).endDate }}<br>
-                          <strong>Trekkers:</strong> {{ getConflictTrekForDay(s, d).trekkersCount }} registered
-                        </div>
-                        <div v-else>
-                          <strong>Custom Block:</strong> Unavailable.<br>Click to toggle Free/Available.
-                        </div>
-                      </div>
-                    </template>
-                    <template v-else>
-                      <span class="status-pill status-active" style="font-size: 0.65rem; padding: 2px 6px; font-weight: 500; background: #e6fffa; color: #319795; border: 1px solid #b2f5ea;">Available</span>
-                    </template>
+                      style="height: 36px; min-width: 32px; cursor: pointer; user-select: none;"
+                      @click="toggleDayAvailability(s, d)"
+                      @mouseenter="showTooltip($event, s, d)"
+                      @mouseleave="hideTooltip">
                   </td>
                 </tr>
               </tbody>
@@ -2816,7 +2826,6 @@ const TsAdminLayout = {
                     <th>Languages</th>
                     <th>Certifications</th>
                     <th>Specialty Skills</th>
-                    <th style="text-align: center;">Status</th>
                     <th style="text-align: center;">Actions</th>
                   </tr>
                 </thead>
@@ -2837,11 +2846,6 @@ const TsAdminLayout = {
                     <td style="font-size: 0.82rem; color: var(--bark);">{{ s.certifications }}</td>
                     <td style="font-size: 0.82rem; color: var(--bark);">{{ s.skills }}</td>
                     <td style="text-align: center;">
-                      <span class="status-pill status-active" style="font-size: 0.72rem; padding: 2px 8px; background: #e6fffa; color: #319795; border: 1px solid #b2f5ea;">
-                        ✓ Available
-                      </span>
-                    </td>
-                    <td style="text-align: center;">
                       <div class="action-btns" style="display: flex; justify-content: center; gap: 6px;">
                         <button class="act-btn act-view" style="padding: 4px 10px;" @click="viewStaffDetails(s)">
                           <svg viewBox="0 0 24 24" class="act-btn-icon"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -2860,6 +2864,14 @@ const TsAdminLayout = {
           <div v-else style="text-align: center; padding: 3rem 1rem; background: #fafafa; border: 1px dashed #e2e8f0; border-radius: 6px; color: var(--stone); font-size: 0.88rem; font-style: italic;">
             Select a start and end date and click "Check Availability" to search for free guides.
           </div>
+        </div>
+
+        <!-- Global Floating Tooltip -->
+        <div v-if="calendarTooltip.show" 
+             :style="{ left: calendarTooltip.x + 'px', top: calendarTooltip.y + 'px' }" 
+             class="global-calendar-tooltip">
+          <div v-html="calendarTooltip.content"></div>
+          <div class="tooltip-arrow"></div>
         </div>
       </section>
 

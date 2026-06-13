@@ -22,6 +22,9 @@ yarn-error.log*
 
 # Database & temporary/scratch files
 *.db
+*.db-journal
+*.db-wal
+*.db-shm
 backend/tma.db
 scratch/
 git-autocommit.log

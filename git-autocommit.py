@@ -25,7 +25,7 @@ def get_git_status():
 def generate_commit_message():
     diff = run_cmd(["git", "diff", "--cached"])
     if not diff:
-        return "chore: auto-commit updates"
+        return "Auto-commit updates"
     
     current_file = None
     file_diffs = {}
@@ -40,7 +40,6 @@ def generate_commit_message():
             file_diffs[current_file].append(line)
             
     file_summaries = []
-    main_type = "chore"
     scopes = []
     
     for filepath, lines in file_diffs.items():
@@ -48,30 +47,16 @@ def generate_commit_message():
         ext = os.path.splitext(filename)[1]
         
         scope = ""
-        ftype = "chore"
-        
         if "backend" in filepath:
             scope = "backend"
-            ftype = "feat" if any(k in filepath for k in ["models", "views", "routes", "app.py"]) else "refactor"
         elif "frontend" in filepath:
             scope = "frontend"
-            ftype = "style" if ext == ".css" else "feat"
         elif filename == ".gitignore":
             scope = "gitignore"
-            ftype = "chore"
         elif filename == "run.sh":
             scope = "run-script"
-            ftype = "chore"
         else:
             scope = filename
-            ftype = "chore"
-            
-        if ftype == "feat" and main_type == "chore":
-            main_type = "feat"
-        elif ftype == "refactor" and main_type in ("chore", "style"):
-            main_type = "refactor"
-        elif ftype == "style" and main_type == "chore":
-            main_type = "style"
             
         scopes.append(scope)
         
@@ -120,15 +105,14 @@ def generate_commit_message():
     selected_scope = unique_scopes[0] if len(unique_scopes) == 1 else ""
     
     if selected_scope:
-        header = f"{main_type}({selected_scope}): update {selected_scope} files"
+        header = f"Update {selected_scope} files"
     else:
-        header = f"{main_type}: auto-commit project changes"
+        header = "Auto-commit project changes"
         
     body = "\n".join(file_summaries)
     return f"{header}\n\n{body}"
 
 def main():
-    # Go to script's directory
     script_dir = os.path.dirname(os.path.abspath(__file__))
     os.chdir(script_dir)
     
@@ -139,13 +123,8 @@ def main():
         status = get_git_status()
         if status:
             print("Changes detected. Generating commit message and committing...", flush=True)
-            # Stage all changes
             run_cmd(["git", "add", "-A"])
-            
-            # Generate smart commit message
             commit_msg = generate_commit_message()
-            
-            # Commit
             res = subprocess.run(["git", "commit", "-m", commit_msg], capture_output=True, text=True)
             if res.returncode == 0:
                 print(f"✅ Successfully committed:\n---\n{commit_msg}\n---", flush=True)

@@ -1368,20 +1368,10 @@ body { font-family:'DM Sans',sans-serif; background:var(--snow); color:var(--bar
 }
 .calendar-table td.day-cell {
   position: relative;
-  cursor: default;
-}
-.calendar-table td.day-cell.weekend, .calendar-table th.weekend {
-  background: #fcfdfd;
-}
-.calendar-table td.day-cell.busy-day {
-  background: #fcf8e3; /* Soft warm amber for busy days */
-  border-color: #faebcc;
-  color: #8a6d3b;
   cursor: pointer;
-  transition: background 0.15s;
 }
-.calendar-table td.day-cell.busy-day:hover {
-  background: #fae7b5;
+.calendar-table td.day-cell.weekend {
+  background: #fcfdfd;
 }
 .calendar-tooltip {
   display: none;
@@ -1436,9 +1426,9 @@ body { font-family:'DM Sans',sans-serif; background:var(--snow); color:var(--bar
   background: #f7fafc !important;
 }
 .availability-indicator {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
   margin: 0 auto;
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.15);
 }

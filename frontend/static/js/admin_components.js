@@ -34,6 +34,7 @@ const TsAdminLayout = {
       trekRoutes: [],
       routeViewMode: 'cards',
       showRouteModal: false,
+      showFormDiffDropdown: false,
       editingRoute: null,
       routeForm: { name:'', location:'', difficulty:'Moderate', duration:5, distance:15, imageUrl:'', description:'', latitude:null, longitude:null },
       selectedRouteDetails: null,
@@ -340,6 +341,7 @@ const TsAdminLayout = {
       this.showActiveFilterDropdown = false;
       this.showStateFilterDropdown = false;
       this.showDistFilterDropdown = false;
+      this.showFormDiffDropdown = false;
     },
     calculateEndDate() {
       const duration = this.selectedRouteDuration;
@@ -520,6 +522,7 @@ const TsAdminLayout = {
     },
     closeRouteModal() {
       this.showRouteModal = false;
+      this.showFormDiffDropdown = false;
       this.editingRoute = null;
     },
     async saveRoute() {
@@ -2364,9 +2367,19 @@ const TsAdminLayout = {
             </div>
             <div class="form-group">
               <label>Difficulty <span style="color: var(--red); font-weight: bold;">*</span></label>
-              <select v-model="routeForm.difficulty">
-                <option>Easy</option><option>Moderate</option><option>Hard</option>
-              </select>
+              <div class="custom-select-wrapper" :class="{ 'is-open': showFormDiffDropdown }">
+                <div class="custom-select-trigger" @click.stop="showFormDiffDropdown = !showFormDiffDropdown">
+                  <span>{{ routeForm.difficulty || 'Moderate' }}</span>
+                  <svg viewBox="0 0 24 24" class="custom-select-arrow" :class="{ open: showFormDiffDropdown }"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+                <div v-if="showFormDiffDropdown" class="custom-select-dropdown" style="top: 100%; margin-top: 4px; z-index: 1050;">
+                  <div class="custom-select-options">
+                    <div v-for="opt in ['Easy', 'Moderate', 'Hard']" :key="opt" class="custom-select-option" :class="{ selected: routeForm.difficulty === opt }" @click="routeForm.difficulty = opt; showFormDiffDropdown = false;">
+                      <span class="option-name">{{ opt }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
             <div class="form-group">
               <label>Duration (Days) <span style="color: var(--red); font-weight: bold;">*</span></label>

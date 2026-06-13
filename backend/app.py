@@ -983,7 +983,7 @@ def admin_dashboard_data():
         {'label': 'Total Trekkers', 'value': registered_users, 'icon': 'users', 'category': 'people'},
         {'label': 'Total Staff', 'value': staff_count, 'icon': 'staff', 'category': 'people'},
         {'label': 'Total Treks', 'value': total_treks, 'icon': 'mountain', 'category': 'treks'},
-        {'label': 'Active Treks', 'value': open_treks, 'icon': 'active', 'category': 'treks'},
+        {'label': 'Active Batches', 'value': open_treks, 'icon': 'active', 'category': 'treks'},
         {'label': 'Total Bookings', 'value': total_bookings, 'icon': 'book', 'category': 'bookings'},
         {'label': 'Cancelled Bookings', 'value': cancelled_bookings_count, 'icon': 'cancel', 'category': 'bookings'}
     ]

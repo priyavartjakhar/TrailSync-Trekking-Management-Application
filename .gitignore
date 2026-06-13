@@ -2,6 +2,7 @@
 .DS_Store
 Thumbs.db
 .ipynb_checkpoints/
+.gemini/
 
 # Python cache and environments
 __pycache__/

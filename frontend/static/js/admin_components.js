@@ -89,6 +89,9 @@ const TsAdminLayout = {
       availabilityEnd: '2026-06-18',
       calendarYear: 2026,
       calendarMonth: 5,
+      hasCheckedRange: false,
+      checkedStart: '',
+      checkedEnd: '',
 
       tabTitles: {
         dashboard:    'Overview',
@@ -490,6 +493,21 @@ const TsAdminLayout = {
     daysInActiveMonth() {
       return new Date(this.calendarYear, this.calendarMonth + 1, 0).getDate();
     },
+    availableStaff() {
+      if (!this.hasCheckedRange || !this.checkedStart || !this.checkedEnd) return [];
+      const start = new Date(this.checkedStart);
+      const end = new Date(this.checkedEnd);
+      return this.staffList.filter(s => {
+        if (!s.active || s.blacklisted) return false;
+        if (!s.treksDone || !s.treksDone.length) return true;
+        const isBusy = s.treksDone.some(t => {
+          const tStart = new Date(t.startDate);
+          const tEnd = new Date(t.endDate);
+          return tStart <= end && tEnd >= start;
+        });
+        return !isBusy;
+      });
+    },
     revenueKPIs() {
       const livePaidSum = this.allBookings.reduce((sum, b) => {
         return sum + (b.status !== 'Cancelled' && b.paymentStatus === 'Paid' ? (Number(b.amountPaid) || 0) : 0);
@@ -817,6 +835,19 @@ const TsAdminLayout = {
         'July', 'August', 'September', 'October', 'November', 'December'
       ];
       return months[monthIdx];
+    },
+    triggerCheckRange() {
+      if (!this.availabilityStart || !this.availabilityEnd) {
+        this.showToast('Please enter both Start Date and End Date.');
+        return;
+      }
+      if (new Date(this.availabilityStart) > new Date(this.availabilityEnd)) {
+        this.showToast('Start Date must be on or before End Date.');
+        return;
+      }
+      this.checkedStart = this.availabilityStart;
+      this.checkedEnd = this.availabilityEnd;
+      this.hasCheckedRange = true;
     },
     handleGlobalClick(e) {
       this.showRouteDropdown = false;
@@ -2618,55 +2649,8 @@ const TsAdminLayout = {
 
       <!-- ══ STAFF AVAILABILITY CALENDAR ═══════════════════ -->
       <section v-if="activeTab==='staff_availability'" class="tab-content">
-        <div style="background: #fff; border-radius: 6px; border: 1px solid rgba(26,46,26,.09); padding: 1.5rem; margin-bottom: 1.5rem;">
-          <h4 style="color: var(--forest); margin: 0 0 1rem 0; font-size: 1.1rem; font-weight: 600;">
-            🔍 Quick Date Range Availability Checker
-          </h4>
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; align-items: end;">
-            <div class="form-group" style="margin-bottom: 0;">
-              <label style="font-weight: 600; font-size: 0.82rem; color: var(--bark);">Start Date</label>
-              <input v-model="availabilityStart" type="date" style="width: 100%;" />
-            </div>
-            <div class="form-group" style="margin-bottom: 0;">
-              <label style="font-weight: 600; font-size: 0.82rem; color: var(--bark);">End Date</label>
-              <input v-model="availabilityEnd" type="date" style="width: 100%;" />
-            </div>
-            <div style="font-size: 0.82rem; color: var(--stone); padding-bottom: 8px;">
-              Checking availability between <strong>{{ availabilityStart }}</strong> and <strong>{{ availabilityEnd }}</strong>
-            </div>
-          </div>
-
-          <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; margin-top: 1.5rem;">
-            <div v-for="s in staffList" :key="s.id" 
-                 class="availability-card"
-                 :style="checkRangeStatus(s).status === 'Available' ? 'border: 1px solid #c6f6d5; background: #f0fff4;' : 'border: 1px solid #fed7d7; background: #fff5f5;'">
-              <div style="display: flex; gap: 10px; align-items: center;">
-                <img :src="s.photoUrl" style="width: 42px; height: 42px; border-radius: 50%; object-fit: cover; border: 2px solid #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" />
-                <div style="flex-grow: 1;">
-                  <div style="font-weight: 600; font-size: 0.9rem; color: var(--forest);">{{ s.name }}</div>
-                  <div style="font-size: 0.76rem; color: var(--stone);">{{ s.designation }}</div>
-                </div>
-                <div>
-                  <span v-if="checkRangeStatus(s).status === 'Available'" 
-                        class="status-pill status-open" style="font-size: 0.72rem; padding: 2px 8px;">Available</span>
-                  <span v-else 
-                        class="status-pill status-inactive" style="font-size: 0.72rem; padding: 2px 8px; background: #feb2b2; color: #9b2c2c;">Busy</span>
-                </div>
-              </div>
-              <div style="margin-top: 10px; font-size: 0.8rem; color: var(--bark);">
-                <div v-if="checkRangeStatus(s).status === 'Available'" style="color: #22543d; display: flex; align-items: center; gap: 4px;">
-                  ✓ Free to be assigned to batches.
-                </div>
-                <div v-else style="color: #742a2a;">
-                  ⚠️ Busy on <strong>{{ checkRangeStatus(s).batchId }}</strong> ({{ checkRangeStatus(s).trekName }}) from {{ checkRangeStatus(s).range }}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Visual Timeline Monthly Calendar -->
-        <div class="calendar-timeline-container">
+        <!-- Visual Timeline Monthly Calendar (TOP) -->
+        <div class="calendar-timeline-container" style="margin-top: 0; margin-bottom: 1.5rem;">
           <div class="calendar-timeline-header">
             <h4 style="color: var(--forest); margin: 0; font-size: 1.1rem; font-weight: 600;">
               📅 Monthly Guide Schedule Overview
@@ -2726,6 +2710,79 @@ const TsAdminLayout = {
                 </tr>
               </tbody>
             </table>
+          </div>
+        </div>
+
+        <!-- Quick Date Checker (BOTTOM) -->
+        <div style="background: #fff; border-radius: 6px; border: 1px solid rgba(26,46,26,.09); padding: 1.5rem;">
+          <h4 style="color: var(--forest); margin: 0 0 1rem 0; font-size: 1.1rem; font-weight: 600;">
+            🔍 Quick Date Range Availability Checker
+          </h4>
+          <div style="display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end; margin-bottom: 1.5rem; background: #fcfdfd; border: 1px solid #edf2f7; padding: 15px; border-radius: 6px;">
+            <div class="form-group" style="margin-bottom: 0; min-width: 180px; flex: 1;">
+              <label style="font-weight: 600; font-size: 0.82rem; color: var(--bark);">Start Date</label>
+              <input v-model="availabilityStart" type="date" style="width: 100%;" />
+            </div>
+            <div class="form-group" style="margin-bottom: 0; min-width: 180px; flex: 1;">
+              <label style="font-weight: 600; font-size: 0.82rem; color: var(--bark);">End Date</label>
+              <input v-model="availabilityEnd" type="date" style="width: 100%;" />
+            </div>
+            <button class="btn-primary-ts" style="height: 38px; padding: 0 24px; font-weight: 600;" @click="triggerCheckRange">
+              Check Availability
+            </button>
+          </div>
+
+          <!-- Availability Results list -->
+          <div v-if="hasCheckedRange">
+            <h5 style="color: var(--forest-mid); font-size: 1rem; margin: 1.5rem 0 0.75rem 0; font-weight: 600; display: flex; justify-content: space-between; align-items: center;">
+              <span>Available Guides ({{ checkedStart }} to {{ checkedEnd }})</span>
+              <span class="status-pill status-open" style="font-size: 0.76rem; padding: 4px 10px;">{{ availableStaff.length }} Free Guide{{ availableStaff.length !== 1 ? 's' : '' }}</span>
+            </h5>
+
+            <div v-if="availableStaff.length" class="ts-table-wrap">
+              <table class="ts-table">
+                <thead>
+                  <tr>
+                    <th>Guide Info</th>
+                    <th>Designation</th>
+                    <th>Experience</th>
+                    <th>Languages</th>
+                    <th>Certifications</th>
+                    <th>Specialty Skills</th>
+                    <th style="text-align: center;">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="s in availableStaff" :key="s.id">
+                    <td>
+                      <div style="display: flex; gap: 10px; align-items: center;">
+                        <img :src="s.photoUrl" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover;" />
+                        <div>
+                          <div style="font-weight: 600; color: var(--forest);">{{ s.name }}</div>
+                          <div style="font-size: 0.72rem; color: var(--stone);">{{ s.memberId }}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td>{{ s.designation }}</td>
+                    <td class="mono font-bold">{{ s.experience }} Years</td>
+                    <td>{{ s.languages }}</td>
+                    <td style="font-size: 0.82rem; color: var(--bark);">{{ s.certifications }}</td>
+                    <td style="font-size: 0.82rem; color: var(--bark);">{{ s.skills }}</td>
+                    <td style="text-align: center;">
+                      <span class="status-pill status-active" style="font-size: 0.72rem; padding: 2px 8px; background: #e6fffa; color: #319795; border: 1px solid #b2f5ea;">
+                        ✓ Available
+                      </span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div v-else style="text-align: center; padding: 3rem 1rem; background: #fff5f5; border: 1px dashed #feb2b2; border-radius: 6px; color: #c53030; font-size: 0.9rem;">
+              ⚠️ No staff guides are free between these dates. Try checking a different date range or adjusting existing assignments.
+            </div>
+          </div>
+          <div v-else style="text-align: center; padding: 3rem 1rem; background: #fafafa; border: 1px dashed #e2e8f0; border-radius: 6px; color: var(--stone); font-size: 0.88rem; font-style: italic;">
+            Select a start and end date and click "Check Availability" to search for free guides.
           </div>
         </div>
       </section>

@@ -39,6 +39,9 @@ const TsUserLayout = {
       locationFilter: '',
       durationFilter: '',
       quickFilter: 'All',
+      showDiffFilterDropdown: false,
+      showLocFilterDropdown: false,
+      showDurFilterDropdown: false,
 
       // ── CALENDAR ─────────────────────────────────
       calYear: new Date().getFullYear(),
@@ -126,7 +129,12 @@ const TsUserLayout = {
 
     // Unique locations for filter dropdown
     uniqueLocations() {
-      return [...new Set(this.availableTreks.map(t => t.location))].sort();
+      const states = this.availableTreks.map(t => {
+        if (!t.location) return '';
+        const parts = t.location.split(',');
+        return parts.length > 1 ? parts[parts.length - 1].trim() : t.location.trim();
+      }).filter(s => s);
+      return [...new Set(states)].sort();
     },
 
     // Filtered treks list
@@ -135,7 +143,12 @@ const TsUserLayout = {
         const q = this.searchQuery.toLowerCase();
         const matchSearch = !q || t.name.toLowerCase().includes(q) || t.location.toLowerCase().includes(q);
         const matchDiff = !this.difficultyFilter || t.difficulty === this.difficultyFilter;
-        const matchLoc = !this.locationFilter || t.location === this.locationFilter;
+        const matchLoc = !this.locationFilter || (
+          t.location && (
+            t.location.trim() === this.locationFilter ||
+            t.location.split(',').map(s => s.trim()).includes(this.locationFilter)
+          )
+        );
         const matchDur = !this.durationFilter || (
           this.durationFilter === '1-5' ? t.duration <= 5 :
           this.durationFilter === '6-9' ? t.duration >= 6 && t.duration <= 9 :
@@ -324,8 +337,18 @@ const TsUserLayout = {
       this.showProfileDropdown = false;
       this.goTab('profile');
     },
+    toggleFilterDropdown(type) {
+      const current = this[type];
+      this.showDiffFilterDropdown = false;
+      this.showLocFilterDropdown = false;
+      this.showDurFilterDropdown = false;
+      this[type] = !current;
+    },
     closeDropdowns() {
       this.showProfileDropdown = false;
+      this.showDiffFilterDropdown = false;
+      this.showLocFilterDropdown = false;
+      this.showDurFilterDropdown = false;
     },
     sendGuideMessage() {
       if (!this.guideMessage.trim()) return;
@@ -1433,26 +1456,50 @@ const TsUserLayout = {
               </div>
               <div style="min-width:160px">
                 <label style="font-size:0.72rem; font-weight:600; color:var(--forest); text-transform:uppercase; letter-spacing:0.06em; display:block; margin-bottom:5px">Difficulty</label>
-                <select v-model="difficultyFilter" style="padding:0.5rem 0.75rem; border:1px solid rgba(26,46,26,0.14); border-radius:var(--radius); font-family:'DM Sans',sans-serif; font-size:0.87rem; color:var(--bark); width:100%; outline:none; background:#fff">
-                  <option value="">All Levels</option>
-                  <option>Easy</option><option>Moderate</option><option>Hard</option>
-                </select>
+                <div class="custom-select-wrapper" :class="{ 'is-open': showDiffFilterDropdown }">
+                  <div class="custom-select-trigger" @click.stop="toggleFilterDropdown('showDiffFilterDropdown')">
+                    <span>{{ difficultyFilter || 'All Levels' }}</span>
+                    <svg viewBox="0 0 24 24" class="custom-select-arrow" :class="{ open: showDiffFilterDropdown }"><polyline points="6 9 12 15 18 9"/></svg>
+                  </div>
+                  <div v-if="showDiffFilterDropdown" class="custom-select-dropdown">
+                    <div class="custom-select-options">
+                      <div class="custom-select-option" :class="{ selected: difficultyFilter === '' }" @click="difficultyFilter = ''; showDiffFilterDropdown = false;">All Levels</div>
+                      <div v-for="opt in ['Easy', 'Moderate', 'Hard']" :key="opt" class="custom-select-option" :class="{ selected: difficultyFilter === opt }" @click="difficultyFilter = opt; showDiffFilterDropdown = false;">{{ opt }}</div>
+                    </div>
+                  </div>
+                </div>
               </div>
               <div style="min-width:160px">
                 <label style="font-size:0.72rem; font-weight:600; color:var(--forest); text-transform:uppercase; letter-spacing:0.06em; display:block; margin-bottom:5px">Location</label>
-                <select v-model="locationFilter" style="padding:0.5rem 0.75rem; border:1px solid rgba(26,46,26,0.14); border-radius:var(--radius); font-family:'DM Sans',sans-serif; font-size:0.87rem; color:var(--bark); width:100%; outline:none; background:#fff">
-                  <option value="">All Locations</option>
-                  <option v-for="loc in uniqueLocations" :key="loc">{{ loc }}</option>
-                </select>
+                <div class="custom-select-wrapper" :class="{ 'is-open': showLocFilterDropdown }">
+                  <div class="custom-select-trigger" @click.stop="toggleFilterDropdown('showLocFilterDropdown')">
+                    <span>{{ locationFilter || 'All Locations' }}</span>
+                    <svg viewBox="0 0 24 24" class="custom-select-arrow" :class="{ open: showLocFilterDropdown }"><polyline points="6 9 12 15 18 9"/></svg>
+                  </div>
+                  <div v-if="showLocFilterDropdown" class="custom-select-dropdown">
+                    <div class="custom-select-options">
+                      <div class="custom-select-option" :class="{ selected: locationFilter === '' }" @click="locationFilter = ''; showLocFilterDropdown = false;">All Locations</div>
+                      <div v-for="loc in uniqueLocations" :key="loc" class="custom-select-option" :class="{ selected: locationFilter === loc }" @click="locationFilter = loc; showLocFilterDropdown = false;">{{ loc }}</div>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div style="min-width:140px">
+              <div style="min-width:160px">
                 <label style="font-size:0.72rem; font-weight:600; color:var(--forest); text-transform:uppercase; letter-spacing:0.06em; display:block; margin-bottom:5px">Duration</label>
-                <select v-model="durationFilter" style="padding:0.5rem 0.75rem; border:1px solid rgba(26,46,26,0.14); border-radius:var(--radius); font-family:'DM Sans',sans-serif; font-size:0.87rem; color:var(--bark); width:100%; outline:none; background:#fff">
-                  <option value="">Any Duration</option>
-                  <option value="1-5">1–5 days</option>
-                  <option value="6-9">6–9 days</option>
-                  <option value="10+">10+ days</option>
-                </select>
+                <div class="custom-select-wrapper" :class="{ 'is-open': showDurFilterDropdown }">
+                  <div class="custom-select-trigger" @click.stop="toggleFilterDropdown('showDurFilterDropdown')">
+                    <span>{{ durationFilter === '1-5' ? '1–5 days' : durationFilter === '6-9' ? '6–9 days' : durationFilter === '10+' ? '10+ days' : 'Any Duration' }}</span>
+                    <svg viewBox="0 0 24 24" class="custom-select-arrow" :class="{ open: showDurFilterDropdown }"><polyline points="6 9 12 15 18 9"/></svg>
+                  </div>
+                  <div v-if="showDurFilterDropdown" class="custom-select-dropdown">
+                    <div class="custom-select-options">
+                      <div class="custom-select-option" :class="{ selected: durationFilter === '' }" @click="durationFilter = ''; showDurFilterDropdown = false;">Any Duration</div>
+                      <div class="custom-select-option" :class="{ selected: durationFilter === '1-5' }" @click="durationFilter = '1-5'; showDurFilterDropdown = false;">1–5 days</div>
+                      <div class="custom-select-option" :class="{ selected: durationFilter === '6-9' }" @click="durationFilter = '6-9'; showDurFilterDropdown = false;">6–9 days</div>
+                      <div class="custom-select-option" :class="{ selected: durationFilter === '10+' }" @click="durationFilter = '10+'; showDurFilterDropdown = false;">10+ days</div>
+                    </div>
+                  </div>
+                </div>
               </div>
               <button class="btn-outline" style="white-space:nowrap; align-self:flex-end" @click="searchQuery=''; difficultyFilter=''; locationFilter=''; durationFilter=''; quickFilter='All'">Reset</button>
             </div>

@@ -2093,3 +2093,79 @@ body {
 .btn-pin-static-action:hover {
   color: var(--gold-light) !important;
 }
+
+/* ── Custom CSS Dropdown in Trekker Dashboard ───────────── */
+.custom-select-wrapper {
+  position: relative;
+  width: 100%;
+}
+.custom-select-wrapper.is-open {
+  z-index: 1100;
+}
+.custom-select-trigger {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #fff;
+  border: 1px solid rgba(26,46,26,.15);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.87rem;
+  color: var(--bark);
+  cursor: pointer;
+  transition: all 0.2s;
+  user-select: none;
+  min-height: 38px;
+}
+.custom-select-trigger:hover {
+  border-color: var(--forest-mid);
+  box-shadow: 0 2px 8px rgba(26,46,26,.05);
+}
+.custom-select-arrow {
+  width: 14px;
+  height: 14px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2.2;
+  transition: transform 0.2s;
+  margin-left: 8px;
+}
+.custom-select-arrow.open {
+  transform: rotate(180deg);
+}
+.custom-select-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  width: 100%;
+  background: #fff;
+  border: 1px solid rgba(26,46,26,.12);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(26,46,26,.12);
+  z-index: 1050;
+  display: flex;
+  flex-direction: column;
+  max-height: 250px;
+  overflow: hidden;
+}
+.custom-select-options {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+.custom-select-option {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+  color: var(--bark);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  text-align: left;
+}
+.custom-select-option:hover {
+  background: rgba(26, 46, 26, 0.05);
+  color: var(--forest);
+}
+.custom-select-option.selected {
+  background: var(--forest);
+  color: #fff;
+}

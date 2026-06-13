@@ -5,3 +5,6 @@
 - [x] Add editing staff profile functionality (form inputs, data mapping, and backend POST updates)
 - [x] Add "Edit" buttons to card view and list table view inside Staff section in `admin_components.js`
 - [x] Create a well-maintained structured table for batches inside the Trek Route details pop-up modal
+- [x] Replaced browser native `prompt()` for assigning treks in the staff tab with a custom CSS-made modal including inbuilt search and dropdown options
+- [x] Restricted staff profile editing: made staff profile details view-only in frontend, removed the Save Changes profile button, and blocked the backend POST endpoint (with 403 Forbidden error) for staff members
+- [x] Removed password field requirement while creating/editing staff in admin dashboard (defaults to 'Trailsync@123' on creation, remains unchanged during edit, and only updates if staff updates it directly)

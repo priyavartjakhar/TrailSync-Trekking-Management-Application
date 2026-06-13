@@ -44,6 +44,13 @@ const TsAdminLayout = {
       showFormDiffDropdown: false,
       editingRoute: null,
       editingStaff: null,
+      editingTrekker: null,
+      showAssignTrekModal: false,
+      assignStaffObj: null,
+      showAssignTrekDropdown: false,
+      selectedAssignTrekCode: '',
+      tempTrekId: null,
+      trekSearchQuery: '',
       routeForm: { name:'', location:'', difficulty:'Moderate', duration:5, distance:15, imageUrl:'', description:'', latitude:null, longitude:null },
       selectedRouteDetails: null,
       showRouteDetailsModal: false,
@@ -67,6 +74,7 @@ const TsAdminLayout = {
       showStateFilterDropdown: false,
       showDistFilterDropdown: false,
       imageMode: 'link',
+      staffImageMode: 'link',
       showStaffDetailsModal: false,
       selectedStaffDetails: null,
       showUserDetailsModal: false,
@@ -206,18 +214,31 @@ const TsAdminLayout = {
     },
     filteredStaff() {
       if (!this.searchQuery) return this.staffList;
-      return this.staffList.filter(s =>
-        s.name.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
-        s.contact.toLowerCase().includes(this.searchQuery.toLowerCase()));
+      const q = this.searchQuery.toLowerCase();
+      return this.staffList.filter(s => {
+        const memberIdStr = s.memberId ? s.memberId.toLowerCase() : '';
+        const idStr = String(s.id);
+        return s.name.toLowerCase().includes(q) ||
+          s.contact.toLowerCase().includes(q) ||
+          memberIdStr.includes(q) ||
+          idStr.includes(q);
+      });
     },
     filteredUsers() {
       let list = this.users;
       if (this.userFilter === 'Active')      list = list.filter(u => !u.blacklisted);
       if (this.userFilter === 'Blacklisted') list = list.filter(u => u.blacklisted);
-      if (this.searchQuery)
-        list = list.filter(u =>
-          u.name.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
-          u.email.toLowerCase().includes(this.searchQuery.toLowerCase()));
+      if (this.searchQuery) {
+        const q = this.searchQuery.toLowerCase();
+        list = list.filter(u => {
+          const memberIdStr = u.memberId ? u.memberId.toLowerCase() : ('ts26t' + u.id);
+          const idStr = String(u.id);
+          return u.name.toLowerCase().includes(q) ||
+            u.email.toLowerCase().includes(q) ||
+            memberIdStr.includes(q) ||
+            idStr.includes(q);
+        });
+      }
       return list;
     },
     filteredBookings() {
@@ -306,6 +327,12 @@ const TsAdminLayout = {
         s.name.toLowerCase().includes(this.staffSearchQuery.toLowerCase()) ||
         s.contact.toLowerCase().includes(this.staffSearchQuery.toLowerCase())
       );
+    },
+    matchingActiveTreks() {
+      return this.treks.filter(t =>
+        t.name.toLowerCase().includes(this.trekSearchQuery.toLowerCase()) ||
+        (t.batchCode && t.batchCode.toLowerCase().includes(this.trekSearchQuery.toLowerCase()))
+      );
     }
   },
 
@@ -344,6 +371,7 @@ const TsAdminLayout = {
       this.showRouteDropdown = false;
       this.showStaffDropdown = false;
       this.showAssignStaffDropdown = false;
+      this.showAssignTrekDropdown = false;
       this.showDiffFilterDropdown = false;
       this.showDaysFilterDropdown = false;
       this.showActiveFilterDropdown = false;
@@ -409,6 +437,32 @@ const TsAdminLayout = {
           if (data.success) {
             this.routeForm.imageUrl = data.imageUrl;
             this.showToast('Image uploaded successfully!');
+          } else {
+            this.showToast('Upload failed: ' + (data.error || 'unknown error'));
+          }
+        } else {
+          this.showToast('Upload failed');
+        }
+      } catch (err) {
+        this.showToast('Upload failed (connection error)');
+      }
+    },
+    async handleStaffPhotoUpload(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const formData = new FormData();
+      formData.append('image', file);
+      try {
+        this.showToast('Uploading photo...');
+        const res = await fetch('/api/admin/upload_image', {
+          method: 'POST',
+          body: formData
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success) {
+            this.staffForm.photoUrl = data.imageUrl;
+            this.showToast('Photo uploaded successfully!');
           } else {
             this.showToast('Upload failed: ' + (data.error || 'unknown error'));
           }
@@ -770,6 +824,7 @@ const TsAdminLayout = {
           completedTreksCount: staff.completedTreksCount || 10,
           photoUrl: staff.photoUrl || ''
         };
+        this.staffImageMode = staff.photoUrl ? 'link' : 'upload';
       } else {
         this.staffForm = {
           name: '',
@@ -784,6 +839,7 @@ const TsAdminLayout = {
           completedTreksCount: 10,
           photoUrl: ''
         };
+        this.staffImageMode = 'upload';
       }
       this.showStaffModal = true;
     },
@@ -844,12 +900,27 @@ const TsAdminLayout = {
       this.closeStaffModal();
     },
 
-    openTrekkerModal() {
-      this.trekkerForm = { name: '', email: '', phone: '', password: '', city: '', emergency: '', bio: '' };
+    openTrekkerModal(user = null) {
+      this.editingTrekker = user;
+      if (user) {
+        this.trekkerForm = {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          phone: user.phone || '',
+          password: '',
+          city: user.city || '',
+          emergency: user.emergency || '',
+          bio: user.bio || ''
+        };
+      } else {
+        this.trekkerForm = { name: '', email: '', phone: '', password: '', city: '', emergency: '', bio: '' };
+      }
       this.showTrekkerModal = true;
     },
     closeTrekkerModal() {
       this.showTrekkerModal = false;
+      this.editingTrekker = null;
     },
     async saveTrekker() {
       if (!this.trekkerForm.name || !this.trekkerForm.name.trim()) {
@@ -867,15 +938,35 @@ const TsAdminLayout = {
           body: JSON.stringify(this.trekkerForm)
         });
         if (res.ok) {
-          this.showToast('Trekker added successfully');
+          this.showToast(this.editingTrekker ? 'Trekker profile updated' : 'Trekker added successfully');
           this.closeTrekkerModal();
           this.loadData();
         } else {
           const err = await res.json();
-          this.showToast(err.error || 'Failed to add trekker');
+          this.showToast(err.error || 'Failed to save trekker');
         }
       } catch (_) {
-        this.showToast('Trekker added (mock)');
+        if (this.editingTrekker) {
+          const idx = this.users.findIndex(u => u.id === this.editingTrekker.id);
+          if (idx !== -1) {
+            this.users[idx] = { ...this.editingTrekker, ...this.trekkerForm };
+          }
+        } else {
+          this.users.push({
+            id: Date.now(),
+            name: this.trekkerForm.name,
+            email: this.trekkerForm.email,
+            phone: this.trekkerForm.phone,
+            city: this.trekkerForm.city,
+            emergency: this.trekkerForm.emergency,
+            bio: this.trekkerForm.bio,
+            bookings: 0,
+            blacklisted: false,
+            registered: new Date().toISOString().slice(0, 10),
+            memberId: 'TS26T' + Date.now().toString().slice(-4)
+          });
+        }
+        this.showToast(this.editingTrekker ? 'Trekker profile updated (mock)' : 'Trekker added (mock)');
         this.closeTrekkerModal();
       }
     },
@@ -910,20 +1001,54 @@ const TsAdminLayout = {
       this.showToast(`${s.name} ${s.active ? 'activated' : 'deactivated'} (mock)`);
     },
 
-    async assignTrekToStaff(s) {
-      const trekName = prompt(`Enter Trek Name to assign to ${s.name}:`);
-      if (!trekName) return;
-      const trek = this.treks.find(t => t.name.toLowerCase() === trekName.toLowerCase());
-      if (!trek) { this.showToast('Trek not found'); return; }
+    assignTrekToStaff(s) {
+      this.assignStaffObj = s;
+      this.trekSearchQuery = '';
+      this.showAssignTrekDropdown = false;
+      this.tempTrekId = null;
+      this.selectedAssignTrekCode = '';
+      this.showAssignTrekModal = true;
+    },
+    closeAssignTrekModal() {
+      this.showAssignTrekModal = false;
+      this.assignStaffObj = null;
+      this.tempTrekId = null;
+      this.selectedAssignTrekCode = '';
+    },
+    selectTrekForAssign(trek) {
+      this.tempTrekId = trek ? trek.id : null;
+      this.selectedAssignTrekCode = trek ? `[${trek.batchCode}] ${trek.name} (${this.formatDate(trek.startDate)})` : '';
+      this.showAssignTrekDropdown = false;
+    },
+    async submitAssignTrek() {
+      if (!this.tempTrekId) {
+        this.showToast('Please select a trek batch.');
+        return;
+      }
       try {
-        const res = await fetch(`/api/admin/treks/assign/${trek.id}`, {
-          method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ email: s.contact })
+        const res = await fetch(`/api/admin/treks/assign/${this.tempTrekId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: this.assignStaffObj.contact })
         });
-        if (res.ok) { this.showToast(`${trek.name} assigned to ${s.name}`); this.loadData(); return; }
-      } catch (_) {}
-      if (!s.treks.includes(trek.name)) s.treks.push(trek.name);
-      trek.staff = s.name;
-      this.showToast(`${trek.name} assigned to ${s.name} (mock)`);
+        if (res.ok) {
+          this.showToast(`Trek successfully assigned to ${this.assignStaffObj.name}`);
+          this.loadData();
+        } else {
+          const d = await res.json();
+          this.showToast(d.error || 'Failed to assign trek');
+        }
+      } catch (_) {
+        const trek = this.treks.find(t => t.id === this.tempTrekId);
+        if (trek) {
+          if (!this.assignStaffObj.treks.includes(trek.name)) {
+            this.assignStaffObj.treks.push(trek.name);
+          }
+          trek.staff = this.assignStaffObj.name;
+        }
+        this.showToast(`Trek assigned (mock)`);
+      }
+      this.closeAssignTrekModal();
     },
 
     assignStaffToTrek(trek) {
@@ -985,11 +1110,21 @@ const TsAdminLayout = {
       const bookings = this.allBookings.filter(bk => bk.trekId === batch.id && bk.status === 'Booked');
       this.selectedBatchDetails = {
         batch: batch,
-        bookings: bookings.map(bk => ({
-          userName: bk.user,
-          userEmail: bk.userEmail || bk.userId,
-          bookedOn: bk.bookedOn
-        }))
+        bookings: bookings.map(bk => {
+          const userObj = this.users.find(usr => usr.id === bk.userId);
+          return {
+            id: bk.id,
+            userId: bk.userId,
+            memberId: userObj ? userObj.memberId : ('TS26T' + bk.userId),
+            userName: bk.user,
+            userEmail: userObj ? userObj.email : '—',
+            userPhone: userObj ? userObj.phone : '—',
+            userCity: userObj ? userObj.city : '—',
+            bookedOn: bk.date,
+            paid: bk.paid,
+            transactionId: bk.transactionId
+          };
+        })
       };
       this.showBatchDetailsModal = true;
     },
@@ -1019,8 +1154,9 @@ const TsAdminLayout = {
 
     // ── User Management ────────────────────────────────────
     async toggleBlacklist(u) {
+      const action = u.blacklisted ? 'restore' : 'blacklist';
       try {
-        const res = await fetch(`/api/admin/users/blacklist/${u.id}`, { method:'POST' });
+        const res = await fetch(`/api/admin/users/${action}/${u.id}`, { method:'POST' });
         if (res.ok) { this.showToast(`${u.name} status updated`); this.loadData(); return; }
       } catch (_) {}
       u.blacklisted = !u.blacklisted;
@@ -1258,6 +1394,7 @@ const TsAdminLayout = {
           <button v-if="activeTab==='treks'" class="btn-primary-ts" @click="openRouteModal()">+ New Route</button>
           <button v-if="activeTab==='batches'" class="btn-primary-ts" @click="openTrekModal()">+ New Batch</button>
           <button v-if="activeTab==='staff'" class="btn-primary-ts" @click="openStaffModal()">+ Add Staff</button>
+          <button v-if="activeTab==='users'" class="btn-primary-ts" @click="openTrekkerModal()">+ Add Trekker</button>
           <button v-if="activeTab==='bookings'" class="btn-ghost" @click="exportCSV('bookings')">↓ Export CSV</button>
           <button v-if="activeTab==='audit'" class="btn-ghost" @click="exportCSV('audit')">↓ Export Logs</button>
         </div>
@@ -1978,6 +2115,10 @@ const TsAdminLayout = {
                       <svg viewBox="0 0 24 24" class="act-btn-icon"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                       View Details
                     </button>
+                    <button class="act-btn act-edit" @click="openTrekkerModal(u)">
+                      <svg viewBox="0 0 24 24" class="act-btn-icon"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                      Edit
+                    </button>
                     <button class="act-btn" :class="u.blacklisted ? 'act-open' : 'act-blacklist-btn'" @click="toggleBlacklist(u)">
                       <svg viewBox="0 0 24 24" class="act-btn-icon" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>
                       {{ u.blacklisted ? 'Restore' : 'Blacklist' }}
@@ -2688,6 +2829,44 @@ const TsAdminLayout = {
       </div>
     </div>
 
+    <!-- ════════ ASSIGN TREK TO STAFF MODAL ════════ -->
+    <div v-if="showAssignTrekModal" class="ts-modal-overlay" @click.self="closeAssignTrekModal">
+      <div class="ts-modal">
+        <div class="ts-modal-header">
+          <h3 class="ts-modal-title">Assign Trek to {{ assignStaffObj ? assignStaffObj.name : '' }}</h3>
+          <button class="modal-close" @click="closeAssignTrekModal">✕</button>
+        </div>
+        <div class="ts-modal-body" style="overflow: visible;">
+          <div class="form-group form-full">
+            <div class="custom-select-wrapper" :class="{ 'is-open': showAssignTrekDropdown }">
+              <label>Select Trek Batch <span style="color: var(--red); font-weight: bold;">*</span></label>
+              <div class="custom-select-trigger" @click.stop="showAssignTrekDropdown = !showAssignTrekDropdown">
+                <span>{{ selectedAssignTrekCode || 'Choose a trek batch...' }}</span>
+                <svg viewBox="0 0 24 24" class="custom-select-arrow" :class="{ open: showAssignTrekDropdown }"><polyline points="6 9 12 15 18 9"/></svg>
+              </div>
+              <div v-if="showAssignTrekDropdown" class="custom-select-dropdown">
+                <input v-model="trekSearchQuery" type="text" class="custom-select-search" placeholder="Search batch by code or name..." @click.stop />
+                <div class="custom-select-options">
+                  <div v-for="t in matchingActiveTreks" :key="t.id" class="custom-select-option" :class="{ selected: tempTrekId === t.id }" @click="selectTrekForAssign(t)">
+                    <span class="option-code">[{{ t.batchCode }}]</span>
+                    <span class="option-name">{{ t.name }}</span>
+                    <span class="option-loc">({{ formatDate(t.startDate) }})</span>
+                  </div>
+                  <div v-if="!matchingActiveTreks.length" class="custom-select-no-results">
+                    No trek batches found.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="ts-modal-footer">
+          <button class="btn-ghost" @click="closeAssignTrekModal">Cancel</button>
+          <button class="btn-primary-ts" @click="submitAssignTrek">Assign Trek</button>
+        </div>
+      </div>
+    </div>
+
     <!-- ════════ BATCH DETAILS MODAL ════════ -->
     <div v-if="showBatchDetailsModal" class="ts-modal-overlay" @click.self="closeBatchDetails">
       <div class="ts-modal large">
@@ -2717,16 +2896,43 @@ const TsAdminLayout = {
             <!-- Right Side: Booked Trekkers -->
             <div>
               <div class="timeline-section-title">Registered Trekkers ({{ selectedBatchDetails.bookings.length }})</div>
-              <div class="booked-trekkers-list" v-if="selectedBatchDetails.bookings.length" style="max-height: 380px;">
-                <div class="trekker-list-item" v-for="user in selectedBatchDetails.bookings" :key="user.userName">
-                  <div>
-                    <span class="trekker-name">{{ user.userName }}</span>
-                    <span class="trekker-email">({{ user.userEmail }})</span>
-                  </div>
-                  <div>
-                    <span class="trekker-date">Booked on {{ formatDate(user.bookedOn) }}</span>
-                  </div>
-                </div>
+              <div class="ts-table-wrap" v-if="selectedBatchDetails.bookings.length" style="max-height: 380px;">
+                <table class="ts-table">
+                  <thead>
+                    <tr>
+                      <th>Member ID</th>
+                      <th>Trekker Name</th>
+                      <th>Contact Details</th>
+                      <th>Location</th>
+                      <th>Booked On</th>
+                      <th>Payment</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="user in selectedBatchDetails.bookings" :key="user.id">
+                      <td class="mono" style="font-size: 0.8rem;">{{ user.memberId }}</td>
+                      <td>
+                        <span style="font-weight:600; color:var(--forest)">{{ user.userName }}</span>
+                      </td>
+                      <td>
+                        <div style="font-size:0.8rem; line-height:1.2;">
+                          <div>{{ user.userEmail }}</div>
+                          <div class="mono" style="color:var(--stone)">{{ user.userPhone }}</div>
+                        </div>
+                      </td>
+                      <td style="font-size:0.8rem;">{{ user.userCity || '—' }}</td>
+                      <td class="mono" style="font-size:0.8rem;">{{ formatDate(user.bookedOn) }}</td>
+                      <td>
+                        <span :class="['status-pill', user.paid ? 'status-open' : 'status-pending']" style="font-size:0.75rem;">
+                          {{ user.paid ? 'Paid' : 'Unpaid' }}
+                        </span>
+                        <div v-if="user.paid && user.transactionId" class="mono" style="font-size:0.65rem; color:var(--stone); margin-top:2px;">
+                          {{ user.transactionId }}
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
               <div v-else style="font-size:0.8rem; color:var(--stone); font-style:italic; text-align:center; padding:2rem;">
                 No trekkers have booked this batch yet.
@@ -2762,8 +2968,8 @@ const TsAdminLayout = {
               <input v-model="staffForm.phone" type="text" placeholder="e.g. +91 9876543210" />
             </div>
             <div class="form-group">
-              <label>Password {{ editingStaff ? '(Leave blank to keep unchanged)' : '(Default: Trailsync@123)' }}</label>
-              <input v-model="staffForm.password" type="password" placeholder="••••••••" />
+              <label>{{ editingStaff ? 'New Password (optional)' : 'Password (Default: Trailsync@123)' }}</label>
+              <input v-model="staffForm.password" type="text" :placeholder="editingStaff ? 'Leave blank to keep unchanged' : 'Trailsync@123'" />
             </div>
             <div class="form-group">
               <label>Designation</label>
@@ -2790,8 +2996,24 @@ const TsAdminLayout = {
               <input v-model.number="staffForm.completedTreksCount" type="number" min="0" />
             </div>
             <div class="form-group form-full">
-              <label>Photo URL</label>
-              <input v-model="staffForm.photoUrl" type="text" placeholder="https://images.unsplash.com/photo-..." />
+              <label>Staff Photograph</label>
+              <div style="display: flex; gap: 1rem; margin-bottom: 0.5rem;">
+                <label style="display: flex; align-items: center; gap: 4px; font-weight: normal; cursor: pointer; font-size: 0.82rem;">
+                  <input type="radio" value="link" v-model="staffImageMode" /> Use Image Link
+                </label>
+                <label style="display: flex; align-items: center; gap: 4px; font-weight: normal; cursor: pointer; font-size: 0.82rem;">
+                  <input type="radio" value="upload" v-model="staffImageMode" /> Upload Image
+                </label>
+              </div>
+              <div v-if="staffImageMode === 'link'">
+                <input v-model="staffForm.photoUrl" type="text" placeholder="https://images.unsplash.com/photo-..." />
+              </div>
+              <div v-else style="display: flex; gap: 10px; align-items: center;">
+                <input type="file" @change="handleStaffPhotoUpload" accept="image/*" class="form-control" style="font-size: 0.82rem; padding: 4px 8px;" />
+              </div>
+              <div v-if="staffForm.photoUrl" style="margin-top: 8px;">
+                <img :src="staffForm.photoUrl" alt="Preview" style="max-height: 80px; border-radius: 4px; border: 1px solid var(--stone);" />
+              </div>
             </div>
           </div>
         </div>
@@ -2806,7 +3028,7 @@ const TsAdminLayout = {
     <div v-if="showTrekkerModal" class="ts-modal-overlay" @click.self="closeTrekkerModal">
       <div class="ts-modal">
         <div class="ts-modal-header">
-          <h3 class="ts-modal-title">Add New Trekker</h3>
+          <h3 class="ts-modal-title">{{ editingTrekker ? 'Edit User Profile' : 'Add New Trekker' }}</h3>
           <button class="modal-close" @click="closeTrekkerModal">✕</button>
         </div>
         <div class="ts-modal-body">
@@ -2824,8 +3046,8 @@ const TsAdminLayout = {
               <input v-model="trekkerForm.phone" type="text" placeholder="e.g. +91 9876543210" />
             </div>
             <div class="form-group">
-              <label>Password (Default: Trekker@123)</label>
-              <input v-model="trekkerForm.password" type="text" placeholder="Trekker@123" />
+              <label>{{ editingTrekker ? 'New Password (optional)' : 'Password (Default: Trekker@123)' }}</label>
+              <input v-model="trekkerForm.password" type="text" :placeholder="editingTrekker ? 'Leave blank to keep unchanged' : 'Trekker@123'" />
             </div>
             <div class="form-group">
               <label>City</label>
@@ -2843,7 +3065,7 @@ const TsAdminLayout = {
         </div>
         <div class="ts-modal-footer">
           <button class="btn-ghost" @click="closeTrekkerModal">Cancel</button>
-          <button class="btn-primary-ts" @click="saveTrekker">Add Trekker</button>
+          <button class="btn-primary-ts" @click="saveTrekker">{{ editingTrekker ? 'Save Changes' : 'Add Trekker' }}</button>
         </div>
       </div>
     </div>

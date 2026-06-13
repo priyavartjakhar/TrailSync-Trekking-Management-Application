@@ -433,18 +433,7 @@ const TsStaffLayout = {
 
     // ── PROFILE SAVE ─────────────────────────────
     async saveProfile() {
-      try {
-        const res = await fetch('/api/staff/profile', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(this.staffProfile)
-        });
-        const data = await res.json();
-        if (res.ok) { this.staffName = this.staffProfile.name; this.showToast(data.message || 'Profile saved'); }
-        else this.showToast(data.error || 'Save failed', 'error');
-      } catch {
-        this.staffName = this.staffProfile.name;
-        this.showToast('Profile updated successfully');
-      }
+      this.showToast('Staff profiles can only be edited by administrators.', 'error');
     },
 
     async changePassword() {
@@ -1543,23 +1532,20 @@ const TsStaffLayout = {
           </div>
           <div>
             <div class="profile-form-section">
-              <div class="form-section-title">Edit Profile</div>
+              <div class="form-section-title">Profile Details</div>
               <div class="form-row">
-                <div class="form-group"><label>Full Name</label><input v-model="staffProfile.name" type="text" /></div>
-                <div class="form-group"><label>Phone</label><input v-model="staffProfile.phone" type="tel" /></div>
+                <div class="form-group"><label>Full Name</label><input v-model="staffProfile.name" type="text" disabled style="background: var(--snow); color: var(--stone); cursor: not-allowed;" /></div>
+                <div class="form-group"><label>Phone</label><input v-model="staffProfile.phone" type="tel" disabled style="background: var(--snow); color: var(--stone); cursor: not-allowed;" /></div>
               </div>
               <div class="form-row full">
-                <div class="form-group"><label>Email</label><input v-model="staffProfile.email" type="email" /></div>
+                <div class="form-group"><label>Email</label><input v-model="staffProfile.email" type="email" disabled style="background: var(--snow); color: var(--stone); cursor: not-allowed;" /></div>
               </div>
               <div class="form-row">
-                <div class="form-group"><label>City / Base</label><input v-model="staffProfile.city" type="text" /></div>
-                <div class="form-group"><label>Certifications</label><input v-model="staffProfile.certifications" type="text" /></div>
+                <div class="form-group"><label>City / Base</label><input v-model="staffProfile.city" type="text" disabled style="background: var(--snow); color: var(--stone); cursor: not-allowed;" /></div>
+                <div class="form-group"><label>Certifications</label><input v-model="staffProfile.certifications" type="text" disabled style="background: var(--snow); color: var(--stone); cursor: not-allowed;" /></div>
               </div>
               <div class="form-row full">
-                <div class="form-group"><label>Bio</label><textarea v-model="staffProfile.bio" rows="3"></textarea></div>
-              </div>
-              <div style="display:flex; justify-content:flex-end; margin-top:0.85rem">
-                <button class="btn-primary-ts" @click="saveProfile">Save Changes</button>
+                <div class="form-group"><label>Bio</label><textarea v-model="staffProfile.bio" rows="3" disabled style="background: var(--snow); color: var(--stone); cursor: not-allowed; resize: none;"></textarea></div>
               </div>
             </div>
             <div class="profile-form-section" style="margin-bottom:0">

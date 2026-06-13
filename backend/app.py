@@ -1637,34 +1637,53 @@ def admin_save_trekker():
         return jsonify({'error': 'Unauthorized'}), 403
         
     data = request.get_json() or {}
+    trekker_id = data.get('id')
     email = data.get('email')
     name = data.get('name')
     phone = data.get('phone') or ''
-    password = data.get('password') or 'Trekker@123'
+    password = data.get('password')
     city = data.get('city') or ''
     emergency = data.get('emergency') or ''
     bio = data.get('bio') or ''
     
     if not email or not name:
         return jsonify({'error': 'Email and Name are required.'}), 400
+
+    if trekker_id:
+        trekker = User.query.get(trekker_id)
+        if not trekker or trekker.role != 'user':
+            return jsonify({'error': 'Trekker not found.'}), 404
+            
+        existing = User.query.filter(User.email == email, User.id != trekker_id).first()
+        if existing:
+            return jsonify({'error': 'Email already registered by another user.'}), 400
+            
+        trekker.email = email
+        trekker.name = name
+        trekker.phone = phone
+        trekker.city = city
+        trekker.emergency = emergency
+        trekker.bio = bio
+        if password:
+            trekker.password_hash = generate_password_hash(password)
+    else:
+        existing = User.query.filter_by(email=email).first()
+        if existing:
+            return jsonify({'error': 'Email already registered.'}), 400
+            
+        trekker = User(
+            email=email,
+            name=name,
+            phone=phone,
+            password_hash=generate_password_hash(password or 'Trekker@123'),
+            role='user',
+            city=city,
+            emergency=emergency,
+            bio=bio
+        )
+        db.session.add(trekker)
         
-    existing = User.query.filter_by(email=email).first()
-    if existing:
-        return jsonify({'error': 'Email already registered.'}), 400
-        
-    trekker = User(
-        email=email,
-        name=name,
-        phone=phone,
-        password_hash=generate_password_hash(password),
-        role='user',
-        city=city,
-        emergency=emergency,
-        bio=bio
-    )
-    db.session.add(trekker)
     db.session.commit()
-    
     return jsonify({'success': True})
 
 @app.route('/api/admin/staff/toggle/<int:staff_id>', methods=['POST'])
@@ -1898,32 +1917,7 @@ def staff_dashboard_data():
 @app.route('/api/staff/profile', methods=['POST'])
 @login_required
 def staff_profile():
-    if current_user.role != 'staff':
-        return jsonify({'error': 'Unauthorized'}), 403
-        
-    data = request.get_json() or {}
-    current_user.name = data.get('name', current_user.name)
-    current_user.phone = data.get('phone', current_user.phone)
-    current_user.city = data.get('city', current_user.city)
-    current_user.bio = data.get('bio', current_user.bio)
-    
-    profile = current_user.staff_profile
-    if not profile:
-        profile = StaffProfile(user_id=current_user.id)
-        db.session.add(profile)
-        
-    if 'certifications' in data:
-        profile.certifications = data.get('certifications')
-    if 'skills' in data:
-        profile.skills = data.get('skills')
-    if 'experienceYears' in data:
-        try:
-            profile.experience_years = int(data.get('experienceYears'))
-        except (ValueError, TypeError):
-            pass
-            
-    db.session.commit()
-    return jsonify({'message': 'Profile updated successfully.'})
+    return jsonify({'error': 'Staff profiles can only be edited by administrators.'}), 403
 
 @app.route('/api/staff/password', methods=['POST'])
 @login_required

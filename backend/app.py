@@ -721,6 +721,12 @@ def api_register():
     db.session.add(user)
     db.session.commit()
     
+    try:
+        from backend.tasks import send_welcome_email
+        send_welcome_email.delay(user.id)
+    except Exception as e:
+        app.logger.error(f"Error dispatching welcome email task: {e}")
+        
     token = generate_token(user.id, user.role)
     response = make_response(jsonify({
         'success': True,
@@ -1323,11 +1329,15 @@ def admin_dashboard_data():
         {'id': 2, 'msg': 'Welcome to TrailSync Admin', 'time': '1 hr ago', 'read': True, 'type': 'admin'}
     ]
     
-    scheduled_jobs = [
-        {'name': 'Daily Reminder Emails', 'schedule': 'Every day at 08:00', 'lastRun': '2026-06-10 08:00', 'status': 'Success'},
-        {'name': 'Monthly Activity Report', 'schedule': '1st of every month', 'lastRun': '2026-06-01 08:00', 'status': 'Success'},
-        {'name': 'Cache Refresh Job', 'schedule': 'Every 15 min', 'lastRun': '2026-06-10 09:45', 'status': 'Success'}
-    ]
+    try:
+        from backend.tasks import get_job_runs
+        scheduled_jobs = get_job_runs()
+    except Exception:
+        scheduled_jobs = [
+            {'name': 'Daily Reminder Emails', 'schedule': 'Every day at 09:00', 'lastRun': '2026-06-10 09:00:00', 'status': 'Success'},
+            {'name': 'Monthly Activity Report', 'schedule': '1st of every month at 09:00', 'lastRun': '2026-06-01 09:00:00', 'status': 'Success'},
+            {'name': 'Cache Refresh Job', 'schedule': 'Every 15 min', 'lastRun': '2026-06-13 14:45:00', 'status': 'Success'}
+        ]
     
     system_health = {
         'database': {'label': 'SQLite Database', 'status': 'Online', 'ok': True},
@@ -1905,13 +1915,15 @@ def admin_trigger_job():
     job_name = data.get('name')
     
     if 'Reminder' in job_name:
-        from backend.tasks import send_daily_reminders
-        send_daily_reminders.delay()
+        from backend.tasks import send_daily_reminders, update_job_run
+        update_job_run('Daily Reminder Emails', 'Running')
+        send_daily_reminders.delay(is_manual=True)
     elif 'Report' in job_name:
-        from backend.tasks import generate_monthly_report
-        generate_monthly_report.delay()
+        from backend.tasks import generate_monthly_report, update_job_run
+        update_job_run('Monthly Activity Report', 'Running')
+        generate_monthly_report.delay(is_manual=True)
         
-    return jsonify({'success': True, 'message': f'Job {job_name} triggered successfully.'})
+    return jsonify({'success': True, 'message': f'Job "{job_name}" triggered successfully.'})
 
 @app.route('/api/admin/export', methods=['POST'])
 @login_required

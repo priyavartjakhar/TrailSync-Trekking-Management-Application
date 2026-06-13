@@ -92,14 +92,53 @@ const TsStaffLayout = {
       const priorities = [];
       this.assignedTreks.forEach(t => {
         const daysUntil = Math.ceil((new Date(t.startDate) - new Date()) / 86400000);
-        if (daysUntil >= 0 && daysUntil <= 7) priorities.push({ type: 'warning', text: `<strong>${t.name}</strong> starts in ${daysUntil} day${daysUntil !== 1 ? 's' : ''}`, time: t.startDate });
+        if (daysUntil >= 0 && daysUntil <= 7) {
+          priorities.push({
+            type: 'warning',
+            text: `<strong>${t.name}</strong> starts in ${daysUntil} day${daysUntil !== 1 ? 's' : ''}`,
+            time: t.startDate,
+            actionType: 'attendance',
+            trekId: t.id
+          });
+        }
         const slotsLeft = t.slots - t.registered;
-        if (slotsLeft === 0) priorities.push({ type: 'critical', text: `<strong>${t.name}</strong> is fully booked — consider adding slots`, time: 'Action needed' });
-        else if (slotsLeft <= 2) priorities.push({ type: 'warning', text: `Only <strong>${slotsLeft} slot${slotsLeft !== 1 ? 's' : ''} left</strong> for ${t.name}`, time: 'Monitor closely' });
-        if (t.status === 'Pending') priorities.push({ type: 'info', text: `<strong>${t.name}</strong> awaiting status update from admin`, time: 'Pending' });
+        if (slotsLeft === 0) {
+          priorities.push({
+            type: 'critical',
+            text: `<strong>${t.name}</strong> is fully booked — consider adding slots`,
+            time: 'Action needed',
+            actionType: 'slots',
+            trekId: t.id
+          });
+        } else if (slotsLeft <= 2) {
+          priorities.push({
+            type: 'warning',
+            text: `Only <strong>${slotsLeft} slot${slotsLeft !== 1 ? 's' : ''} left</strong> for ${t.name}`,
+            time: 'Monitor closely',
+            actionType: 'slots',
+            trekId: t.id
+          });
+        }
+        if (t.status === 'Pending') {
+          priorities.push({
+            type: 'info',
+            text: `<strong>${t.name}</strong> awaiting status update from admin`,
+            time: 'Pending',
+            actionType: 'status',
+            trekId: t.id
+          });
+        }
       });
       const pendingParticipants = this.participants.filter(p => p.status === 'Booked' && !p.attendance).length;
-      if (pendingParticipants > 0) priorities.push({ type: 'info', text: `<strong>${pendingParticipants} participant${pendingParticipants !== 1 ? 's' : ''}</strong> without confirmed attendance`, time: 'Mark attendance' });
+      if (pendingParticipants > 0) {
+        priorities.push({
+          type: 'info',
+          text: `<strong>${pendingParticipants} participant${pendingParticipants !== 1 ? 's' : ''}</strong> without confirmed attendance`,
+          time: 'Mark attendance',
+          actionType: 'attendance',
+          trekId: this.assignedTreks[0]?.id || null
+        });
+      }
       return priorities.slice(0, 6);
     },
 
@@ -156,6 +195,44 @@ const TsStaffLayout = {
         : 0;
       return { treksManaged: this.assignedTreks.length + 12, participantsManaged: this.participants.length + 380, occupancy, completionRate };
     },
+
+    monthlyRegistrations() {
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const now = new Date();
+      const last6 = [];
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const yLabel = d.getFullYear();
+        const mIdx = d.getMonth();
+        const mKey = `${yLabel}-${String(mIdx + 1).padStart(2, '0')}`;
+        const mLabel = months[mIdx];
+        
+        let count = 0;
+        this.participants.forEach(p => {
+          if (p.bookedOn && p.bookedOn.startsWith(mKey)) {
+            count++;
+          }
+        });
+        
+        last6.push({ month: mLabel, count: count });
+      }
+      return last6;
+    },
+
+    maxMonthlyRegistrations() {
+      const vals = this.monthlyRegistrations.map(m => m.count);
+      return vals.length ? Math.max(...vals, 1) : 1;
+    },
+
+    occupancyBreakdown() {
+      return this.assignedTreks.map(t => ({
+        id: t.id,
+        name: t.name,
+        pct: t.slots > 0 ? Math.min(100, Math.round((t.registered / t.slots) * 100)) : 0,
+        booked: t.registered,
+        total: t.slots
+      }));
+    }
   },
 
   methods: {
@@ -498,6 +575,47 @@ const TsStaffLayout = {
       this.toast = { show: true, msg, type };
       setTimeout(() => { this.toast.show = false; }, 3500);
     },
+
+    buildLinePath(data, key, w, h, pad) {
+      if (!data || !data.length) return '';
+      const max = Math.max(...data.map(d => d[key]));
+      const pts = data.map((d, i) => {
+        const x = pad + (i / (data.length - 1)) * (w - pad * 2);
+        const y = h - pad - (d[key] / (max || 1)) * (h - pad * 2);
+        return `${x},${y}`;
+      });
+      return 'M' + pts.join('L');
+    },
+
+    buildAreaPath(data, key, w, h, pad) {
+      if (!data || !data.length) return '';
+      const line = this.buildLinePath(data, key, w, h, pad);
+      const lastX = pad + (w - pad * 2);
+      const firstX = pad;
+      const baseY = h - pad;
+      return line + `L${lastX},${baseY} L${firstX},${baseY}Z`;
+    },
+
+    resolvePriorityAction(p) {
+      if (!p.actionType) return;
+      if (p.trekId) {
+        this.selectedTrekId = p.trekId;
+      }
+      if (p.actionType === 'slots') {
+        const trek = this.assignedTreks.find(t => t.id === p.trekId);
+        if (trek) this.openSlotModal(trek);
+      } else if (p.actionType === 'status') {
+        const trek = this.assignedTreks.find(t => t.id === p.trekId);
+        if (trek) this.openStatusModal(trek);
+      } else if (p.actionType === 'attendance') {
+        this.goTab('attendance');
+      } else if (p.actionType === 'participants') {
+        this.goTab('participants');
+      } else if (p.actionType === 'checklist') {
+        const trek = this.assignedTreks.find(t => t.id === p.trekId);
+        if (trek) this.openChecklistModal(trek);
+      }
+    },
   },
 
   watch: {
@@ -631,19 +749,132 @@ const TsStaffLayout = {
           </div>
         </div>
 
-        <!-- Stats row -->
-        <div class="stats-row">
-          <div v-for="s in summaryStats" :key="s.label" class="stat-card">
-            <div class="stat-icon" :class="s.color">
-              <svg v-if="s.icon==='mountain'" viewBox="0 0 24 24"><path d="M3 17l4-8 4 4 4-6 4 10"/></svg>
-              <svg v-if="s.icon==='users'" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M2 19c0-3 3-5 7-5"/><circle cx="16" cy="10" r="3"/><path d="M13 19c0-3 2.7-5 6-5"/></svg>
-              <svg v-if="s.icon==='calendar'" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-              <svg v-if="s.icon==='check'" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-              <svg v-if="s.icon==='alert'" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <!-- Stats row (Redesigned & Grouped) -->
+        <div class="stats-grouped-container">
+          <!-- Group 1: Trek Summary -->
+          <div class="stats-group">
+            <div class="stats-group-title">Trek Summary</div>
+            <div class="stats-group-cards">
+              <div class="stat-item-grouped">
+                <div class="stat-card-header-row">
+                  <div class="stat-num">{{ assignedTreks.length }}</div>
+                  <div class="stat-icon-wrapper stat-icon-mountain">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l4-8 4 4 4-6 4 10"/></svg>
+                  </div>
+                </div>
+                <div class="stat-label">Assigned Treks</div>
+              </div>
+              <div class="stat-item-grouped">
+                <div class="stat-card-header-row">
+                  <div class="stat-num">{{ assignedTreks.filter(t => t.status === 'Completed').length }}</div>
+                  <div class="stat-icon-wrapper stat-icon-check">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                  </div>
+                </div>
+                <div class="stat-label">Completed Treks</div>
+              </div>
             </div>
-            <div class="stat-info">
-              <div class="stat-val">{{ s.value }}</div>
-              <div class="stat-lbl">{{ s.label }}</div>
+          </div>
+
+          <!-- Group 2: Trekker Stats -->
+          <div class="stats-group">
+            <div class="stats-group-title">Trekker Stats</div>
+            <div class="stats-group-cards">
+              <div class="stat-item-grouped">
+                <div class="stat-card-header-row">
+                  <div class="stat-num">{{ participants.filter(p => p.status === 'Booked' || p.status === 'Completed').length }}</div>
+                  <div class="stat-icon-wrapper stat-icon-users">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3"/><path d="M2 19c0-3 3-5 7-5"/><circle cx="16" cy="10" r="3"/><path d="M13 19c0-3 2.7-5 6-5"/></svg>
+                  </div>
+                </div>
+                <div class="stat-label">Total Led</div>
+              </div>
+              <div class="stat-item-grouped">
+                <div class="stat-card-header-row">
+                  <div class="stat-num">{{ participants.filter(p => p.status === 'Booked').length }}</div>
+                  <div class="stat-icon-wrapper stat-icon-active">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                  </div>
+                </div>
+                <div class="stat-label">Active Booked</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Group 3: Operations Actions -->
+          <div class="stats-group">
+            <div class="stats-group-title">Actions & Tasks</div>
+            <div class="stats-group-cards">
+              <div class="stat-item-grouped">
+                <div class="stat-card-header-row">
+                  <div class="stat-num">{{ assignedTreks.filter(t => t.status === 'Pending').length }}</div>
+                  <div class="stat-icon-wrapper stat-icon-cancel">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  </div>
+                </div>
+                <div class="stat-label">Pending Actions</div>
+              </div>
+              <div class="stat-item-grouped">
+                <div class="stat-card-header-row">
+                  <div class="stat-num">{{ unreadCount }}</div>
+                  <div class="stat-icon-wrapper stat-icon-alert">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                  </div>
+                </div>
+                <div class="stat-label">Unread Alerts</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Custom SVG line chart + Occupancy Rate -->
+        <div class="dashboard-grid-equal" style="margin-bottom:1.5rem">
+          <!-- Left side: Monthly Registrations Trend -->
+          <div class="dash-card">
+            <div class="dash-card-header"><span class="dash-card-title">Monthly Registrations Trend</span></div>
+            <div class="chart-svg-wrap">
+              <svg viewBox="0 0 700 180" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto">
+                <defs>
+                  <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#c8922a" stop-opacity="0.25"/>
+                    <stop offset="100%" stop-color="#c8922a" stop-opacity="0.02"/>
+                  </linearGradient>
+                </defs>
+                <!-- grid -->
+                <line v-for="gi in 4" :key="'g'+gi" :x1="30" :y1="30 + (gi-1)*35" :x2="670" :y2="30+(gi-1)*35" class="chart-grid-line"/>
+                <!-- area -->
+                <path :d="buildAreaPath(monthlyRegistrations,'count',700,180,30)" class="chart-area-fill"/>
+                <!-- line -->
+                <path :d="buildLinePath(monthlyRegistrations,'count',700,180,30)" class="chart-line-path"/>
+                <!-- dots & labels -->
+                <g v-for="(m,idx) in monthlyRegistrations" :key="'dot'+idx">
+                  <circle
+                    :cx="30 + (idx/(monthlyRegistrations.length-1 || 1))*(700-60)"
+                    :cy="180 - 30 - (m.count/maxMonthlyRegistrations)*(180-60)"
+                    r="3.5" class="chart-dot"/>
+                  <text
+                    :x="30 + (idx/(monthlyRegistrations.length-1 || 1))*(700-60)"
+                    y="172" text-anchor="middle" class="chart-axis-label">{{ m.month }}</text>
+                </g>
+              </svg>
+            </div>
+          </div>
+          <!-- Right side: Trek Occupancy Rate -->
+          <div class="dash-card">
+            <div class="dash-card-header"><span class="dash-card-title">Trek Occupancy Rate</span></div>
+            <div class="occ-list">
+              <div v-for="s in occupancyBreakdown" :key="s.id" class="occ-item">
+                <div class="occ-meta">
+                  <span class="occ-trek" :title="s.name">{{ s.name }}</span>
+                  <span class="occ-pct">{{ s.pct }}% ({{ s.booked }}/{{ s.total }})</span>
+                </div>
+                <div class="occ-bar-track">
+                  <div class="occ-bar-fill" :class="s.pct >= 90 ? 'occ-full' : s.pct >= 70 ? 'occ-high' : s.pct >= 40 ? 'occ-mid' : 'occ-low'" :style="{ width: s.pct + '%' }"></div>
+                </div>
+              </div>
+              <div v-if="!occupancyBreakdown.length" style="color:var(--stone); text-align:center; padding:2rem 0; font-size:0.88rem">
+                No assigned treks to show occupancy.
+              </div>
             </div>
           </div>
         </div>
@@ -652,12 +883,12 @@ const TsStaffLayout = {
         <div class="dashboard-main-grid">
           <!-- Left column -->
           <div>
-            <!-- Today's Priorities -->
+            <!-- Interactive Priorities & Alerts -->
             <div class="ts-card" style="margin-bottom:1.5rem">
               <div class="ts-card-header">
                 <div>
-                  <div class="ts-card-title">Today's Priorities</div>
-                  <div class="ts-card-sub">Action items requiring your attention</div>
+                  <div class="ts-card-title">Priority Action Desk</div>
+                  <div class="ts-card-sub">Action items requiring staff intervention</div>
                 </div>
               </div>
               <div class="ts-card-body">
@@ -665,11 +896,75 @@ const TsStaffLayout = {
                   <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
                   <p>No urgent actions — all treks are on track!</p>
                 </div>
-                <div class="priorities-list">
-                  <div v-for="(p, i) in todayPriorities" :key="i" class="priority-item" :class="p.type">
-                    <span class="priority-icon">{{ p.type === 'critical' ? '🚨' : p.type === 'warning' ? '⚠️' : 'ℹ️' }}</span>
-                    <span class="priority-text" v-html="p.text"></span>
-                    <span class="priority-time">{{ p.time }}</span>
+                <div class="alerts-tasks-dashboard-grid" v-else>
+                  <div v-for="(p, idx) in todayPriorities" :key="idx" class="task-alert-card" :class="p.type === 'critical' ? 'urgent' : p.type === 'warning' ? 'warning' : 'info'">
+                    <div class="task-card-icon-col">
+                      <span v-if="p.type === 'critical'">🚨</span>
+                      <span v-else-if="p.type === 'warning'">⚠️</span>
+                      <span v-else>ℹ️</span>
+                    </div>
+                    <div class="task-card-body-col">
+                      <div class="task-card-label" v-html="p.text"></div>
+                      <div class="task-card-num" style="font-size:0.62rem; font-family:'Space Mono',monospace; color:var(--stone)">{{ p.time }}</div>
+                    </div>
+                    <button class="btn-primary-ts btn-sm task-resolve-btn" @click="resolvePriorityAction(p)">
+                      Resolve →
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Grouped Operations Console -->
+            <div class="ts-card" style="margin-bottom:1.5rem">
+              <div class="ts-card-header">
+                <div>
+                  <div class="ts-card-title">Operations Console Deck</div>
+                  <div class="ts-card-sub">Quick-access tools for trek and participant operations</div>
+                </div>
+              </div>
+              <div class="ts-card-body">
+                <div class="console-groups-container">
+                  <!-- Group 1: Trek Management -->
+                  <div class="console-group">
+                    <div class="console-group-label">Trek Management</div>
+                    <div class="console-group-buttons">
+                      <button class="console-btn btn-primary-ts" @click="assignedTreks[0] && openSlotModal(assignedTreks[0])" :disabled="!assignedTreks.length">
+                        <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg> Update Slots
+                      </button>
+                      <button class="console-btn btn-forest" @click="assignedTreks[0] && openStatusModal(assignedTreks[0])" :disabled="!assignedTreks.length">
+                        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Change Status
+                      </button>
+                      <button class="console-btn" @click="nextTrek && openCompletionModal(nextTrek)" :disabled="!nextTrek">
+                        <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Complete Trek
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Group 2: Trekker Operations -->
+                  <div class="console-group">
+                    <div class="console-group-label">Trekker & Participant Ops</div>
+                    <div class="console-group-buttons">
+                      <button class="console-btn" @click="goTab('participants')">
+                        <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M2 19c0-3 3-5 7-5"/></svg> View Participants
+                      </button>
+                      <button class="console-btn" @click="goTab('attendance')">
+                        <svg viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/></svg> Mark Attendance
+                      </button>
+                      <button class="console-btn" @click="exportCSV(selectedTrekId)" :disabled="!assignedTreks.length">
+                        <svg viewBox="0 0 24 24"><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Export CSV
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Group 3: Preps & Checklist -->
+                  <div class="console-group">
+                    <div class="console-group-label">Checklists & Gear Setup</div>
+                    <div class="console-group-buttons">
+                      <button class="console-btn btn-primary-ts" @click="assignedTreks[0] && openChecklistModal(assignedTreks[0])" :disabled="!assignedTreks.length">
+                        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg> Gear Checklist
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -747,36 +1042,6 @@ const TsStaffLayout = {
                   <div class="cd-unit"><span class="cd-val">{{ countdown.hours }}</span><span class="cd-lbl">Hrs</span></div>
                   <div class="cd-unit"><span class="cd-val">{{ countdown.minutes }}</span><span class="cd-lbl">Min</span></div>
                   <div class="cd-unit"><span class="cd-val">{{ countdown.seconds }}</span><span class="cd-lbl">Sec</span></div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Quick Actions -->
-            <div class="ts-card" style="margin-bottom:1.25rem">
-              <div class="ts-card-header"><div class="ts-card-title">Quick Actions</div></div>
-              <div class="ts-card-body">
-                <div class="quick-actions-grid">
-                  <button class="qa-btn" @click="assignedTreks[0] && openSlotModal(assignedTreks[0])">
-                    <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg> Update Slots
-                  </button>
-                  <button class="qa-btn" @click="assignedTreks[0] && openStatusModal(assignedTreks[0])">
-                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Change Status
-                  </button>
-                  <button class="qa-btn" @click="goTab('participants')">
-                    <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M2 19c0-3 3-5 7-5"/></svg> View Participants
-                  </button>
-                  <button class="qa-btn" @click="goTab('attendance')">
-                    <svg viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/></svg> Mark Attendance
-                  </button>
-                  <button class="qa-btn qa-btn-gold qa-btn-full" @click="assignedTreks[0] && openChecklistModal(assignedTreks[0])">
-                    <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg> Manage Gear Checklist
-                  </button>
-                  <button class="qa-btn qa-btn-green qa-btn-full" @click="nextTrek && openCompletionModal(nextTrek)">
-                    <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Mark Trek as Completed
-                  </button>
-                  <button class="qa-btn qa-btn-full" @click="exportCSV(selectedTrekId)">
-                    <svg viewBox="0 0 24 24"><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Export Participant CSV
-                  </button>
                 </div>
               </div>
             </div>

@@ -54,5 +54,3 @@ const REVENUE_DATA = {
 };
 
 const BLACKLISTED_USERS = [];
-
-const PENDING_TREKS = [];

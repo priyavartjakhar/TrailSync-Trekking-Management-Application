@@ -112,7 +112,7 @@ class Trek(db.Model):
     end_date = db.Column(db.Date, nullable=False)
     slots = db.Column(db.Integer, nullable=False, default=20)
     price = db.Column(db.Integer, nullable=False, default=5000)
-    status = db.Column(db.String(20), nullable=False, default='Pending') # 'Pending', 'Approved', 'Open', 'Closed', 'Completed'
+    status = db.Column(db.String(20), nullable=False, default='Open') # 'Open', 'Closed', 'Completed'
     image_url = db.Column(db.String(250), nullable=True)
     description = db.Column(db.Text, nullable=True)
     latitude = db.Column(db.Float, nullable=True)

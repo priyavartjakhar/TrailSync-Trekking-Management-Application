@@ -17,6 +17,13 @@ const TsAdminLayout = {
       auditFilter: 'All',
       showTrekModal: false,
       showStaffModal: false,
+      showTrekkerModal: false,
+      showConfirmModal: false,
+      confirmTitle: '',
+      confirmMessage: '',
+      confirmBtnLabel: 'Confirm',
+      confirmCallback: null,
+      trekkerForm: { name: '', email: '', phone: '', password: '', city: '', emergency: '', bio: '' },
       showUserModal: false,
       showAssignModal: false,
       assignTrekObj: null,
@@ -30,12 +37,13 @@ const TsAdminLayout = {
       assignTrekId: null,
       toast: { show: false, msg: '' },
       notifOpen: false,
-      staffViewMode: 'cards',
+      staffViewMode: 'list',
       trekRoutes: [],
-      routeViewMode: 'cards',
+      routeViewMode: 'list',
       showRouteModal: false,
       showFormDiffDropdown: false,
       editingRoute: null,
+      editingStaff: null,
       routeForm: { name:'', location:'', difficulty:'Moderate', duration:5, distance:15, imageUrl:'', description:'', latitude:null, longitude:null },
       selectedRouteDetails: null,
       showRouteDetailsModal: false,
@@ -68,7 +76,6 @@ const TsAdminLayout = {
         dashboard:    'Overview',
         treks:        'Trek Routes',
         batches:      'Trek Batches',
-        approvals:    'Approval Queue',
         staff:        'Trek Staff',
         users:        'User Management',
         bookings:     'All Bookings',
@@ -86,7 +93,7 @@ const TsAdminLayout = {
       trekForm: {
         name:'', location:'', difficulty:'Moderate',
         startDate:'', endDate:'', slots:20, price:5000,
-        status:'Pending', imageUrl:'', description:''
+        status:'Open', imageUrl:'', description:''
       },
       staffForm: { name:'', email:'', phone:'', password:'' },
 
@@ -112,7 +119,6 @@ const TsAdminLayout = {
       userGrowth:         [],
       revenueData:        {},
       blacklistedUsers:   [],
-      pendingTreks:       [],
       alertsAndTasks:     [],
       supportTickets:     [],
     };
@@ -123,7 +129,7 @@ const TsAdminLayout = {
       const map = {
         treks:'Search trek routes…', batches:'Search batches…', staff:'Search staff…',
         users:'Search users…', bookings:'Search bookings…',
-        audit:'Search audit logs…', approvals:'Search pending treks…',
+        audit:'Search audit logs…',
         support_tickets:'Search tickets…',
       };
       return map[this.activeTab] || 'Search…';
@@ -185,7 +191,7 @@ const TsAdminLayout = {
       return Array.from(states).sort();
     },
     selectedRouteDuration() {
-      const route = this.trekRoutes.find(r => r.id === this.trekForm.trekRouteId);
+      const route = this.trekRoutes.find(r => r.id !== undefined && this.trekForm.trekRouteId !== undefined && Number(r.id) === Number(this.trekForm.trekRouteId));
       return route ? route.duration : 0;
     },
     filteredTreks() {
@@ -234,11 +240,13 @@ const TsAdminLayout = {
           a.actor.toLowerCase().includes(this.searchQuery.toLowerCase()));
       return list;
     },
-    filteredPending() {
-      if (!this.searchQuery) return this.pendingTreks;
-      return this.pendingTreks.filter(t =>
-        t.name.toLowerCase().includes(this.searchQuery.toLowerCase()));
+    alertsOnly() {
+      return this.alertsAndTasks.filter(item => item.type !== 'starting_this_week');
     },
+    updatesOnly() {
+      return this.alertsAndTasks.filter(item => item.type === 'starting_this_week');
+    },
+
     maxBookings() {
       const vals = this.popularTreks.map(t => t.bookings);
       return vals.length ? Math.max(...vals) : 1;
@@ -279,7 +287,7 @@ const TsAdminLayout = {
       return list;
     },
     selectedRouteName() {
-      const route = this.trekRoutes.find(r => r.id === this.trekForm.trekRouteId);
+      const route = this.trekRoutes.find(r => r.id !== undefined && this.trekForm.trekRouteId !== undefined && Number(r.id) === Number(this.trekForm.trekRouteId));
       return route ? `[${route.trekCode}] ${route.name} (${route.location})` : '';
     },
     selectedStaffName() {
@@ -451,15 +459,16 @@ const TsAdminLayout = {
       }
     },
     handleTaskAction(type) {
-      if (type === 'pending_approvals') {
-        this.activeTab = 'approvals';
-      } else if (type === 'inactive_staff') {
+      if (type === 'inactive_staff') {
         this.activeTab = 'staff';
       } else if (type === 'unassigned_staff') {
-        this.activeTab = 'treks';
+        this.activeTab = 'batches';
         this.trekFilter = 'All';
       } else if (type === 'starting_this_week') {
-        this.activeTab = 'treks';
+        this.activeTab = 'batches';
+        this.trekFilter = 'All';
+      } else if (type === 'low_occupancy') {
+        this.activeTab = 'batches';
         this.trekFilter = 'All';
       } else if (type === 'pending_tickets') {
         this.activeTab = 'support_tickets';
@@ -497,7 +506,6 @@ const TsAdminLayout = {
         userGrowth: USER_GROWTH,
         revenueData: REVENUE_DATA,
         blacklistedUsers: BLACKLISTED_USERS,
-        pendingTreks: PENDING_TREKS,
         supportTickets: [],
         trekRoutes: [],
       });
@@ -570,15 +578,21 @@ const TsAdminLayout = {
         this.showToast('Failed to save route (error)');
       }
     },
-    async deleteRoute(id) {
-      if (!confirm('Remove this trek route? All its scheduled batches will be deleted!')) return;
-      try {
-        const res = await fetch(`/api/admin/trek_routes/${id}`, { method: 'DELETE' });
-        if (res.ok) { this.showToast('Route removed'); this.loadData(); }
-        else          this.showToast('Failed to remove route');
-      } catch (_) {
-        this.showToast('Failed to remove route (error)');
-      }
+    deleteRoute(id) {
+      this.triggerConfirm(
+        'Confirm Deletion',
+        'Are you sure you want to remove this trek route? All its scheduled batches will be deleted!',
+        'Delete',
+        async () => {
+          try {
+            const res = await fetch(`/api/admin/trek_routes/${id}`, { method: 'DELETE' });
+            if (res.ok) { this.showToast('Route removed'); this.loadData(); }
+            else          this.showToast('Failed to remove route');
+          } catch (_) {
+            this.showToast('Failed to remove route (error)');
+          }
+        }
+      );
     },
     async toggleRouteStatus(route) {
       try {
@@ -594,7 +608,10 @@ const TsAdminLayout = {
       }
     },
     viewRouteDetails(route) {
-      const routeBatches = this.treks.filter(b => b.trekRouteId === route.id || b.name === route.name);
+      const routeBatches = this.treks.filter(b => 
+        (b.trekRouteId !== undefined && b.trekRouteId !== null && route.id !== undefined && route.id !== null && Number(b.trekRouteId) === Number(route.id)) || 
+        (b.name && route.name && b.name.trim().toLowerCase() === route.name.trim().toLowerCase())
+      );
       const processedCount = routeBatches.length;
       let sumPrice = 0;
       let totalBookings = 0;
@@ -602,20 +619,20 @@ const TsAdminLayout = {
       const bookedUsers = [];
       
       routeBatches.forEach(b => {
-        sumPrice += b.price || 0;
-        totalBookings += b.booked || 0;
+        sumPrice += Number(b.price) || 0;
+        totalBookings += Number(b.booked) || 0;
         priceTrends.push({
           batchCode: b.batchCode,
           startDate: b.startDate,
-          price: b.price,
-          booked: b.booked,
-          slots: b.slots,
+          price: Number(b.price) || 0,
+          booked: Number(b.booked) || 0,
+          slots: Number(b.slots) || 0,
           status: b.status,
           staff: b.staff
         });
         
         // Get booked users for this batch
-        const batchBookings = this.allBookings.filter(bk => bk.trekId === b.id && bk.status === 'Booked');
+        const batchBookings = this.allBookings.filter(bk => bk.trekId !== undefined && b.id !== undefined && Number(bk.trekId) === Number(b.id) && bk.status === 'Booked');
         batchBookings.forEach(bk => {
           bookedUsers.push({
             userName: bk.user,
@@ -715,60 +732,173 @@ const TsAdminLayout = {
       }
     },
 
-    async deleteTrek(id) {
-      if (!confirm('Remove this trek? This cannot be undone.')) return;
-      try {
-        const res = await fetch(`/api/admin/treks/${id}`, { method:'DELETE' });
-        if (res.ok) { this.showToast('Trek removed'); this.loadData(); }
-        else          this.showToast('Failed to remove trek');
-      } catch (_) {
-        this.treks = this.treks.filter(t => t.id !== id);
-        this.showToast('Trek removed (mock)');
-      }
+    deleteTrek(id) {
+      this.triggerConfirm(
+        'Confirm Deletion',
+        'Are you sure you want to remove this trek batch? This action cannot be undone.',
+        'Delete',
+        async () => {
+          try {
+            const res = await fetch(`/api/admin/treks/${id}`, { method:'DELETE' });
+            if (res.ok) { this.showToast('Trek removed'); this.loadData(); }
+            else          this.showToast('Failed to remove trek');
+          } catch (_) {
+            this.treks = this.treks.filter(t => t.id !== id);
+            this.showToast('Trek removed (mock)');
+          }
+        }
+      );
     },
 
-    async approveTrek(trek) {
-      try {
-        const res = await fetch(`/api/admin/treks/approve/${trek.id}`, { method:'POST' });
-        if (res.ok) { this.showToast(`"${trek.name}" approved`); this.loadData(); return; }
-      } catch (_) {}
-      this.pendingTreks = this.pendingTreks.filter(t => t.id !== trek.id);
-      const t = this.treks.find(t => t.id === trek.id);
-      if (t) t.status = 'Approved';
-      this.showToast(`"${trek.name}" approved (mock)`);
-    },
 
-    async rejectTrek(trek) {
-      try {
-        const res = await fetch(`/api/admin/treks/reject/${trek.id}`, { method:'POST' });
-        if (res.ok) { this.showToast(`"${trek.name}" rejected`); this.loadData(); return; }
-      } catch (_) {}
-      this.pendingTreks = this.pendingTreks.filter(t => t.id !== trek.id);
-      this.showToast(`"${trek.name}" rejected (mock)`);
-    },
 
     // ── Staff CRUD ─────────────────────────────────────────
-    openStaffModal() {
-      this.staffForm = { name:'', email:'', phone:'', password:'' };
+    openStaffModal(staff = null) {
+      this.editingStaff = staff;
+      if (staff) {
+        this.staffForm = {
+          id: staff.id,
+          name: staff.name,
+          email: staff.contact,
+          phone: staff.phone || '',
+          password: '',
+          skills: staff.skills || 'Wilderness First Aid, Navigation',
+          experience: staff.experience || 2,
+          designation: staff.designation || 'Lead Guide',
+          certifications: staff.certifications || 'Wilderness First Responder (WFR)',
+          languages: staff.languages || 'English, Hindi',
+          completedTreksCount: staff.completedTreksCount || 10,
+          photoUrl: staff.photoUrl || ''
+        };
+      } else {
+        this.staffForm = {
+          name: '',
+          email: '',
+          phone: '',
+          password: '',
+          skills: 'Wilderness First Aid, Navigation',
+          experience: 2,
+          designation: 'Lead Guide',
+          certifications: 'Wilderness First Responder (WFR)',
+          languages: 'English, Hindi',
+          completedTreksCount: 10,
+          photoUrl: ''
+        };
+      }
       this.showStaffModal = true;
     },
-    closeStaffModal() { this.showStaffModal = false; },
+    closeStaffModal() {
+      this.showStaffModal = false;
+      this.editingStaff = null;
+    },
 
     async saveStaff() {
+      if (!this.staffForm.name || !this.staffForm.name.trim()) {
+        this.showToast('Name is required');
+        return;
+      }
+      if (!this.staffForm.email || !this.staffForm.email.trim()) {
+        this.showToast('Email is required');
+        return;
+      }
+
       try {
         const res = await fetch('/api/admin/staff', {
-          method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(this.staffForm)
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(this.staffForm)
         });
-        if (res.ok) { this.showToast('Staff member added'); this.loadData(); }
-        else {
+        if (res.ok) {
+          this.showToast(this.editingStaff ? 'Staff profile updated' : 'Staff member added');
+          this.loadData();
+        } else {
           const d = await res.json();
-          this.showToast(d.error || 'Failed to add staff');
+          this.showToast(d.error || 'Failed to save staff');
         }
       } catch (_) {
-        this.staffList.push({ id: Date.now(), name: this.staffForm.name, contact: this.staffForm.email, phone: this.staffForm.phone, treks:[], active:true, joined: new Date().toISOString().slice(0,10) });
-        this.showToast('Staff added (mock)');
+        if (this.editingStaff) {
+          const idx = this.staffList.findIndex(s => s.id === this.editingStaff.id);
+          if (idx !== -1) {
+            this.staffList[idx] = { ...this.editingStaff, ...this.staffForm, contact: this.staffForm.email };
+          }
+        } else {
+          this.staffList.push({
+            id: Date.now(),
+            name: this.staffForm.name,
+            contact: this.staffForm.email,
+            phone: this.staffForm.phone,
+            treks: [],
+            active: true,
+            joined: new Date().toISOString().slice(0, 10),
+            skills: this.staffForm.skills,
+            experience: this.staffForm.experience,
+            designation: this.staffForm.designation,
+            certifications: this.staffForm.certifications,
+            languages: this.staffForm.languages,
+            completedTreksCount: this.staffForm.completedTreksCount,
+            photoUrl: this.staffForm.photoUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&h=300&fit=crop'
+          });
+        }
+        this.showToast(this.editingStaff ? 'Staff profile updated (mock)' : 'Staff added (mock)');
       }
       this.closeStaffModal();
+    },
+
+    openTrekkerModal() {
+      this.trekkerForm = { name: '', email: '', phone: '', password: '', city: '', emergency: '', bio: '' };
+      this.showTrekkerModal = true;
+    },
+    closeTrekkerModal() {
+      this.showTrekkerModal = false;
+    },
+    async saveTrekker() {
+      if (!this.trekkerForm.name || !this.trekkerForm.name.trim()) {
+        this.showToast('Name is required');
+        return;
+      }
+      if (!this.trekkerForm.email || !this.trekkerForm.email.trim()) {
+        this.showToast('Email is required');
+        return;
+      }
+      try {
+        const res = await fetch('/api/admin/trekkers', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(this.trekkerForm)
+        });
+        if (res.ok) {
+          this.showToast('Trekker added successfully');
+          this.closeTrekkerModal();
+          this.loadData();
+        } else {
+          const err = await res.json();
+          this.showToast(err.error || 'Failed to add trekker');
+        }
+      } catch (_) {
+        this.showToast('Trekker added (mock)');
+        this.closeTrekkerModal();
+      }
+    },
+
+    triggerConfirm(title, message, confirmBtnLabel, callback) {
+      this.confirmTitle = title;
+      this.confirmMessage = message;
+      this.confirmBtnLabel = confirmBtnLabel || 'Confirm';
+      this.confirmCallback = callback;
+      this.showConfirmModal = true;
+    },
+    onConfirmYes() {
+      if (this.confirmCallback) {
+        this.confirmCallback();
+      }
+      this.closeConfirmModal();
+    },
+    closeConfirmModal() {
+      this.showConfirmModal = false;
+      this.confirmTitle = '';
+      this.confirmMessage = '';
+      this.confirmBtnLabel = 'Confirm';
+      this.confirmCallback = null;
     },
 
     async toggleStaffStatus(s) {
@@ -914,14 +1044,21 @@ const TsAdminLayout = {
     },
 
     // ── Booking Actions ────────────────────────────────────
-    async cancelBooking(b) {
-      if (!confirm(`Cancel booking #${b.id} for ${b.user}?`)) return;
-      try {
-        const res = await fetch(`/api/admin/bookings/cancel/${b.id}`, { method:'POST' });
-        if (res.ok) { this.showToast('Booking cancelled'); this.loadData(); return; }
-      } catch (_) {}
-      b.status = 'Cancelled';
-      this.showToast('Booking cancelled (mock)');
+    cancelBooking(b) {
+      this.triggerConfirm(
+        'Cancel Booking',
+        `Are you sure you want to cancel booking #${b.id} for ${b.user}?`,
+        'Cancel Booking',
+        async () => {
+          try {
+            const res = await fetch(`/api/admin/bookings/cancel/${b.id}`, { method:'POST' });
+            if (res.ok) { this.showToast('Booking cancelled'); this.loadData(); return; }
+          } catch (_) {
+            b.status = 'Cancelled';
+            this.showToast('Booking cancelled (mock)');
+          }
+        }
+      );
     },
 
     async resolveTicket(ticket) {
@@ -1024,11 +1161,7 @@ const TsAdminLayout = {
           <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
           <span>Dashboard</span>
         </a>
-        <a class="nav-item" :class="{ active: activeTab==='approvals' }" @click="activeTab='approvals'">
-          <svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-          <span>Approvals</span>
-          <span v-if="pendingTreks.length" class="nav-badge">{{ pendingTreks.length }}</span>
-        </a>
+
 
         <div class="nav-section-label">Manage</div>
         <a class="nav-item" :class="{ active: activeTab==='treks' }" @click="activeTab='treks'">
@@ -1195,7 +1328,7 @@ const TsAdminLayout = {
               <span class="dash-card-title">Alerts & Pending Tasks</span>
             </div>
             <div class="alerts-tasks-dashboard-grid">
-              <div class="task-alert-card" v-for="item in alertsAndTasks" :key="item.label" :class="{ urgent: item.count > 0 }">
+              <div class="task-alert-card" v-for="item in alertsOnly" :key="item.label" :class="{ warning: item.count > 0 && item.count <= 5, danger: item.count > 5 }">
                 <div class="task-card-icon-col">⚠</div>
                 <div class="task-card-body-col">
                   <div class="task-card-num">{{ item.count }}</div>
@@ -1204,6 +1337,25 @@ const TsAdminLayout = {
                 <button class="btn-ghost task-resolve-btn" style="padding: 4px 10px; font-size: 0.72rem; border-radius: 3px;" @click="handleTaskAction(item.type)">
                   Resolve →
                 </button>
+              </div>
+            </div>
+
+            <!-- Sub-section: Updates -->
+            <div style="margin-top: 1.5rem; border-top: 1px solid var(--stone-light); padding-top: 1.25rem;">
+              <div class="dash-card-header" style="padding: 0 0 0.75rem 0; margin-bottom: 0.75rem; border-bottom: none;">
+                <span class="dash-card-title" style="font-size: 0.95rem; font-weight: 700;">Updates</span>
+              </div>
+              <div class="alerts-tasks-dashboard-grid">
+                <div class="task-alert-card" v-for="item in updatesOnly" :key="item.label" :class="{ warning: item.count > 0 && item.count <= 5, danger: item.count > 5 }">
+                  <div class="task-card-icon-col">ℹ</div>
+                  <div class="task-card-body-col">
+                    <div class="task-card-num">{{ item.count }}</div>
+                    <div class="task-card-label">{{ item.label }}</div>
+                  </div>
+                  <button class="btn-ghost task-resolve-btn" style="padding: 4px 10px; font-size: 0.72rem; border-radius: 3px;" @click="handleTaskAction(item.type)">
+                    Manage →
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -1227,6 +1379,10 @@ const TsAdminLayout = {
                   <button class="console-btn btn-create" @click="openStaffModal()">
                     <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                     <span>Add Staff</span>
+                  </button>
+                  <button class="console-btn btn-create" @click="openTrekkerModal()">
+                    <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    <span>Add Trekker</span>
                   </button>
                 </div>
               </div>
@@ -1352,28 +1508,7 @@ const TsAdminLayout = {
 
       </section>
 
-      <!-- ══ TREK APPROVAL QUEUE ════════════════════════════ -->
-      <section v-if="activeTab==='approvals'" class="tab-content">
-        <div style="margin-bottom:1rem; color:var(--stone); font-size:.9rem;">
-          {{ pendingTreks.length }} trek{{ pendingTreks.length !== 1 ? 's' : '' }} awaiting approval
-        </div>
-        <div v-if="filteredPending.length === 0" class="empty-state">
-          <svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-          <p>No pending treks — queue is clear.</p>
-        </div>
-        <div v-else class="queue-list">
-          <div v-for="t in filteredPending" :key="t.id" class="queue-item">
-            <div class="queue-info">
-              <div class="queue-name">{{ t.name }}</div>
-              <div class="queue-meta">{{ t.location }} · <span :class="'diff-pill pill-'+t.difficulty.toLowerCase()">{{ t.difficulty }}</span> · Submitted {{ formatDate(t.createdOn) }}</div>
-            </div>
-            <div class="queue-actions">
-              <button class="act-btn act-green" @click="approveTrek(t)">✓ Approve</button>
-              <button class="act-btn act-del"   @click="rejectTrek(t)">✕ Reject</button>
-            </div>
-          </div>
-        </div>
-      </section>
+
 
       <!-- ══ TREK ROUTES ════════════════════════════════ -->
       <section v-if="activeTab==='treks'" class="tab-content">
@@ -1620,7 +1755,7 @@ const TsAdminLayout = {
       <!-- ══ TREK BATCHES ════════════════════════════════ -->
       <section v-if="activeTab==='batches'" class="tab-content">
         <div class="filter-bar">
-          <button v-for="f in ['All','Open','Pending','Approved','Closed','Completed']" :key="f"
+          <button v-for="f in ['All','Open','Closed','Completed']" :key="f"
             class="filter-btn" :class="{ active: trekFilter===f }" @click="trekFilter=f">{{ f }}</button>
         </div>
         <div class="ts-table-wrap">
@@ -1724,15 +1859,19 @@ const TsAdminLayout = {
             <div class="staff-actions" style="margin-top:.75rem; display: flex; gap: 4px; flex-wrap: wrap;">
               <button class="act-btn act-view" style="flex: 1; min-width: 70px; padding: 4px;" @click="viewStaffDetails(s)">
                 <svg viewBox="0 0 24 24" class="act-btn-icon"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                View Details
+                Details
+              </button>
+              <button class="act-btn act-edit" style="flex: 1; min-width: 70px; padding: 4px;" @click="openStaffModal(s)">
+                <svg viewBox="0 0 24 24" class="act-btn-icon"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                Edit
               </button>
               <button class="act-btn act-assign" style="flex: 1.2; min-width: 80px; padding: 4px;" @click="assignTrekToStaff(s)">
                 <svg viewBox="0 0 24 24" class="act-btn-icon" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                Assign Trek
+                Assign
               </button>
               <button class="act-btn" :class="s.blacklisted ? 'act-open' : 'act-blacklist-btn'" style="flex: 1; min-width: 70px; padding: 4px;" @click="toggleStaffBlacklist(s)">
                 <svg viewBox="0 0 24 24" class="act-btn-icon" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>
-                {{ s.blacklisted ? 'Restore' : 'Blacklist' }}
+                {{ s.blacklisted ? 'Restore' : 'Black' }}
               </button>
             </div>
           </div>
@@ -1772,6 +1911,10 @@ const TsAdminLayout = {
                     <button class="act-btn act-view" @click="viewStaffDetails(s)">
                       <svg viewBox="0 0 24 24" class="act-btn-icon"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                       View Details
+                    </button>
+                    <button class="act-btn act-edit" @click="openStaffModal(s)">
+                      <svg viewBox="0 0 24 24" class="act-btn-icon"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                      Edit
                     </button>
                     <button class="act-btn act-assign" @click="assignTrekToStaff(s)">
                       <svg viewBox="0 0 24 24" class="act-btn-icon" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
@@ -2279,7 +2422,7 @@ const TsAdminLayout = {
                 <div v-if="showRouteDropdown" class="custom-select-dropdown">
                   <input v-model="routeSearchQuery" type="text" class="custom-select-search" placeholder="Search route by name or code..." @click.stop />
                   <div class="custom-select-options">
-                    <div v-for="r in matchingActiveRoutes" :key="r.id" class="custom-select-option" :class="{ selected: trekForm.trekRouteId === r.id }" @click="selectRouteForBatch(r)">
+                    <div v-for="r in matchingActiveRoutes" :key="r.id" class="custom-select-option" :class="{ selected: trekForm.trekRouteId !== undefined && Number(trekForm.trekRouteId) === Number(r.id) }" @click="selectRouteForBatch(r)">
                       <span class="option-code">[{{ r.trekCode }}]</span>
                       <span class="option-name">{{ r.name }}</span>
                       <span class="option-loc">({{ r.location }})</span>
@@ -2463,16 +2606,35 @@ const TsAdminLayout = {
                 </div>
               </div>
 
-              <!-- Price Trend Timeline -->
-              <div class="timeline-section-title">Batch History & Pricing Trend</div>
-              <div class="price-trend-timeline" v-if="selectedRouteDetails.priceTrends.length">
-                <div class="price-trend-item" v-for="trend in selectedRouteDetails.priceTrends" :key="trend.batchCode">
-                  <span class="trend-dot" :class="trend.status.toLowerCase()"></span>
-                  <span class="trend-code">{{ trend.batchCode }}</span>
-                  <span class="trend-date">{{ formatDate(trend.startDate) }} <span style="margin-left:8px; font-size:0.75rem; color:var(--stone); font-style:italic;">• Staff: {{ trend.staff || 'No Staff Assigned' }}</span></span>
-                  <span class="trend-price">₹{{ trend.price.toLocaleString() }}</span>
-                  <span class="trend-occupancy">{{ trend.booked }}/{{ trend.slots }} slots</span>
-                </div>
+              <!-- Price Trend Table -->
+              <div class="timeline-section-title">Batch History & Pricing Details</div>
+              <div v-if="selectedRouteDetails.priceTrends.length" class="ts-table-wrap" style="margin-top: 0.5rem; max-height: 250px; overflow-y: auto;">
+                <table class="ts-table" style="font-size: 0.78rem;">
+                  <thead>
+                    <tr>
+                      <th style="padding: 6px 10px;">Batch</th>
+                      <th style="padding: 6px 10px;">Start Date</th>
+                      <th style="padding: 6px 10px; text-align: right;">Price</th>
+                      <th style="padding: 6px 10px; text-align: center;">Occupancy</th>
+                      <th style="padding: 6px 10px;">Status</th>
+                      <th style="padding: 6px 10px;">Staff Guide</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="trend in selectedRouteDetails.priceTrends" :key="trend.batchCode">
+                      <td class="mono font-bold" style="padding: 6px 10px;">{{ trend.batchCode }}</td>
+                      <td style="padding: 6px 10px;">{{ formatDate(trend.startDate) }}</td>
+                      <td style="padding: 6px 10px; text-align: right; font-weight: 600; color: var(--forest);">₹{{ trend.price.toLocaleString() }}</td>
+                      <td style="padding: 6px 10px; text-align: center;" class="mono">{{ trend.booked }}/{{ trend.slots }}</td>
+                      <td style="padding: 6px 10px;">
+                        <span class="status-pill" :class="'status-' + trend.status.toLowerCase()" style="font-size: 0.68rem; padding: 2px 6px;">
+                          {{ trend.status }}
+                        </span>
+                      </td>
+                      <td style="padding: 6px 10px; font-style: italic; color: var(--forest-mid);">{{ trend.staff || 'Unassigned' }}</td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
               <div v-else style="font-size:0.8rem; color:var(--stone); font-style:italic; text-align:center; padding:1rem;">
                 No scheduled batches for this route.
@@ -2580,26 +2742,128 @@ const TsAdminLayout = {
 
     <!-- ════════ STAFF MODAL ════════ -->
     <div v-if="showStaffModal" class="ts-modal-overlay" @click.self="closeStaffModal">
-      <div class="ts-modal">
+      <div class="ts-modal large">
         <div class="ts-modal-header">
-          <h3 class="ts-modal-title">Add Trek Staff</h3>
+          <h3 class="ts-modal-title">{{ editingStaff ? 'Edit Staff Profile' : 'Add Trek Staff' }}</h3>
           <button class="modal-close" @click="closeStaffModal">✕</button>
         </div>
         <div class="ts-modal-body">
           <div class="form-grid">
-            <div class="form-group form-full">
-              <label>Full Name</label>
-              <input v-model="staffForm.name" type="text" placeholder="Staff member name" />
+            <div class="form-group">
+              <label>Full Name <span style="color: var(--red); font-weight: bold;">*</span></label>
+              <input v-model="staffForm.name" type="text" placeholder="e.g. John Doe" />
+            </div>
+            <div class="form-group">
+              <label>Email <span style="color: var(--red); font-weight: bold;">*</span></label>
+              <input v-model="staffForm.email" type="email" placeholder="staff@trailsync.com" />
+            </div>
+            <div class="form-group">
+              <label>Phone Number</label>
+              <input v-model="staffForm.phone" type="text" placeholder="e.g. +91 9876543210" />
+            </div>
+            <div class="form-group">
+              <label>Password {{ editingStaff ? '(Leave blank to keep unchanged)' : '(Default: Trailsync@123)' }}</label>
+              <input v-model="staffForm.password" type="password" placeholder="••••••••" />
+            </div>
+            <div class="form-group">
+              <label>Designation</label>
+              <input v-model="staffForm.designation" type="text" placeholder="e.g. Lead Guide" />
+            </div>
+            <div class="form-group">
+              <label>Experience (Years)</label>
+              <input v-model.number="staffForm.experience" type="number" min="0" />
+            </div>
+            <div class="form-group">
+              <label>Skills</label>
+              <input v-model="staffForm.skills" type="text" placeholder="e.g. Wilderness First Aid, Navigation" />
+            </div>
+            <div class="form-group">
+              <label>Certifications</label>
+              <input v-model="staffForm.certifications" type="text" placeholder="e.g. WFR" />
+            </div>
+            <div class="form-group">
+              <label>Languages</label>
+              <input v-model="staffForm.languages" type="text" placeholder="e.g. English, Hindi" />
+            </div>
+            <div class="form-group">
+              <label>Completed Treks Count</label>
+              <input v-model.number="staffForm.completedTreksCount" type="number" min="0" />
             </div>
             <div class="form-group form-full">
-              <label>Email</label>
-              <input v-model="staffForm.email" type="email" placeholder="staff@trailsync.com" />
+              <label>Photo URL</label>
+              <input v-model="staffForm.photoUrl" type="text" placeholder="https://images.unsplash.com/photo-..." />
             </div>
           </div>
         </div>
         <div class="ts-modal-footer">
           <button class="btn-ghost" @click="closeStaffModal">Cancel</button>
-          <button class="btn-primary-ts" @click="saveStaff">Add Staff Member</button>
+          <button class="btn-primary-ts" @click="saveStaff">{{ editingStaff ? 'Save Changes' : 'Add Staff Member' }}</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════ TREKKER MODAL ════════ -->
+    <div v-if="showTrekkerModal" class="ts-modal-overlay" @click.self="closeTrekkerModal">
+      <div class="ts-modal">
+        <div class="ts-modal-header">
+          <h3 class="ts-modal-title">Add New Trekker</h3>
+          <button class="modal-close" @click="closeTrekkerModal">✕</button>
+        </div>
+        <div class="ts-modal-body">
+          <div class="form-grid">
+            <div class="form-group form-full">
+              <label>Full Name <span style="color: var(--red); font-weight: bold;">*</span></label>
+              <input v-model="trekkerForm.name" type="text" placeholder="e.g. John Doe" />
+            </div>
+            <div class="form-group form-full">
+              <label>Email <span style="color: var(--red); font-weight: bold;">*</span></label>
+              <input v-model="trekkerForm.email" type="email" placeholder="john.doe@example.com" />
+            </div>
+            <div class="form-group">
+              <label>Phone Number</label>
+              <input v-model="trekkerForm.phone" type="text" placeholder="e.g. +91 9876543210" />
+            </div>
+            <div class="form-group">
+              <label>Password (Default: Trekker@123)</label>
+              <input v-model="trekkerForm.password" type="text" placeholder="Trekker@123" />
+            </div>
+            <div class="form-group">
+              <label>City</label>
+              <input v-model="trekkerForm.city" type="text" placeholder="e.g. Delhi" />
+            </div>
+            <div class="form-group">
+              <label>Emergency Contact</label>
+              <input v-model="trekkerForm.emergency" type="text" placeholder="e.g. +91 9999988888" />
+            </div>
+            <div class="form-group form-full">
+              <label>Bio / Medical Info</label>
+              <textarea v-model="trekkerForm.bio" placeholder="e.g. Has previous experience trekking, no medical history." rows="3"></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="ts-modal-footer">
+          <button class="btn-ghost" @click="closeTrekkerModal">Cancel</button>
+          <button class="btn-primary-ts" @click="saveTrekker">Add Trekker</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════ CUSTOM CONFIRMATION MODAL ════════ -->
+    <div v-if="showConfirmModal" class="ts-modal-overlay" @click.self="closeConfirmModal" style="z-index: 3000;">
+      <div class="ts-modal" style="max-width: 400px;">
+        <div class="ts-modal-header" style="border-bottom: none; padding-bottom: 0;">
+          <h3 class="ts-modal-title" style="color: var(--red); display: flex; align-items: center; gap: 8px;">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+            <span>{{ confirmTitle }}</span>
+          </h3>
+          <button class="modal-close" @click="closeConfirmModal">✕</button>
+        </div>
+        <div class="ts-modal-body" style="padding-top: 1rem; padding-bottom: 1.5rem; font-size: 0.9rem; color: var(--forest-mid);">
+          {{ confirmMessage }}
+        </div>
+        <div class="ts-modal-footer" style="background: var(--snow); border-top: 1px solid var(--stone-light);">
+          <button class="btn-ghost" @click="closeConfirmModal">Cancel</button>
+          <button class="btn-primary-ts" style="background: var(--red); border-color: var(--red);" @click="onConfirmYes">{{ confirmBtnLabel }}</button>
         </div>
       </div>
     </div>

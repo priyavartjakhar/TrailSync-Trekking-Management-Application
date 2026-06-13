@@ -540,12 +540,14 @@ body { font-family:'DM Sans',sans-serif; background:var(--snow); color:var(--bar
   transform: translateY(-2px);
   box-shadow: 0 6px 14px rgba(26,46,26,0.05);
 }
-.task-alert-card.urgent { border-left: 4px solid var(--red); background: rgba(239,68,68,0.02); }
-.task-alert-card:not(.urgent) { opacity: 0.9; }
+.task-alert-card.danger { border-left: 4px solid var(--red); background: rgba(239,68,68,0.02); }
+.task-alert-card.warning { border-left: 4px solid #f59e0b; background: rgba(245,158,11,0.02); }
+.task-alert-card:not(.danger):not(.warning) { opacity: 0.8; }
 
 .task-card-icon-col { font-size: 1.25rem; flex-shrink: 0; }
-.task-alert-card.urgent .task-card-icon-col { color: var(--red); }
-.task-alert-card:not(.urgent) .task-card-icon-col { color: var(--stone); }
+.task-alert-card.danger .task-card-icon-col { color: var(--red); }
+.task-alert-card.warning .task-card-icon-col { color: #f59e0b; }
+.task-alert-card:not(.danger):not(.warning) .task-card-icon-col { color: var(--stone); }
 
 .task-card-body-col { flex: 1; display: flex; flex-direction: column; gap: 1px; }
 .task-card-num { font-family: 'DM Sans', sans-serif; font-size: 1.4rem; font-weight: 700; color: var(--forest); line-height: 1.2; }

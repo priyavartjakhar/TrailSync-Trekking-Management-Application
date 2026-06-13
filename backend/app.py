@@ -988,13 +988,11 @@ def admin_dashboard_data():
         {'label': 'Cancelled Bookings', 'value': cancelled_bookings_count, 'icon': 'cancel', 'category': 'bookings'}
     ]
     
-    pending_treks_count = Trek.query.filter_by(status='Pending').count()
     completed_treks_count = Trek.query.filter_by(status='Completed').count()
     closed_treks_count = Trek.query.filter_by(status='Closed').count()
     
     trek_status_overview = [
         {'label': 'Open', 'count': open_treks, 'pct': int((open_treks/total_batches*100) if total_batches else 0), 'color': '#4ade80'},
-        {'label': 'Pending', 'count': pending_treks_count, 'pct': int((pending_treks_count/total_batches*100) if total_batches else 0), 'color': '#fbbf24'},
         {'label': 'Completed', 'count': completed_treks_count, 'pct': int((completed_treks_count/total_batches*100) if total_batches else 0), 'color': '#a8c5a0'},
         {'label': 'Closed', 'count': closed_treks_count, 'pct': int((closed_treks_count/total_batches*100) if total_batches else 0), 'color': '#ef4444'}
     ]
@@ -1257,17 +1255,8 @@ def admin_dashboard_data():
         })
         
     pending_treks = []
-    for t in Trek.query.filter_by(status='Pending').all():
-        pending_treks.append({
-            'id': t.id,
-            'name': t.name,
-            'location': t.location,
-            'difficulty': t.difficulty,
-            'createdOn': t.start_date.strftime('%Y-%m-%d') if t.start_date else '2026-06-09'
-        })
         
     # Row 6: Alerts & Pending Tasks calculations
-    pending_approval_count = Trek.query.filter_by(status='Pending').count()
     inactive_staff_count = User.query.filter_by(role='staff', active=False).count()
     unassigned_treks_count = Trek.query.filter(Trek.status.in_(['Open', 'Approved']), Trek.staff_id == None).count()
     pending_tickets_count = SupportTicket.query.filter_by(status='Open').count()
@@ -1279,11 +1268,24 @@ def admin_dashboard_data():
         Trek.start_date >= today_val,
         Trek.start_date <= next_week
     ).count()
+
+    # Calculate low occupancy starting soon (less than 50% slots booked and starting in 5 days)
+    low_occupancy_count = 0
+    starting_soon_treks = Trek.query.filter(
+        Trek.status.in_(['Open', 'Approved']),
+        Trek.start_date >= today_val,
+        Trek.start_date <= today_val + timedelta(days=5)
+    ).all()
+    for t in starting_soon_treks:
+        booked = Booking.query.filter_by(trek_id=t.id, status='Booked').count()
+        util_pct = (booked / t.slots) if t.slots else 0.0
+        if util_pct < 0.50:
+            low_occupancy_count += 1
     
     alerts_and_tasks = [
-        {'label': 'Treks Awaiting Approval', 'count': pending_approval_count, 'type': 'pending_approvals'},
         {'label': 'Staff Accounts Inactive', 'count': inactive_staff_count, 'type': 'inactive_staff'},
         {'label': 'Trek Has No Assigned Staff', 'count': unassigned_treks_count, 'type': 'unassigned_staff'},
+        {'label': 'Low Occupancy (<50%) Starting Soon', 'count': low_occupancy_count, 'type': 'low_occupancy'},
         {'label': 'Treks Starting This Week', 'count': treks_starting_week_count, 'type': 'starting_this_week'},
         {'label': 'Pending Support Tickets', 'count': pending_tickets_count, 'type': 'pending_tickets'}
     ]
@@ -1545,41 +1547,124 @@ def admin_save_staff():
         return jsonify({'error': 'Unauthorized'}), 403
         
     data = request.get_json() or {}
+    staff_id = data.get('id')
     email = data.get('email')
     name = data.get('name')
     phone = data.get('phone') or ''
-    password = data.get('password') or 'Trailsync@123'
+    password = data.get('password')
     
+    if not name or not email:
+        return jsonify({'error': 'Name and Email are required.'}), 400
+
+    if staff_id:
+        staff = User.query.get(staff_id)
+        if not staff or staff.role != 'staff':
+            return jsonify({'error': 'Staff member not found.'}), 404
+            
+        existing = User.query.filter(User.email == email, User.id != staff_id).first()
+        if existing:
+            return jsonify({'error': 'Email already registered by another user.'}), 400
+            
+        staff.email = email
+        staff.name = name
+        staff.phone = phone
+        if password:
+            staff.password_hash = generate_password_hash(password)
+            
+        profile = staff.staff_profile
+        if not profile:
+            profile = StaffProfile(user_id=staff.id)
+            db.session.add(profile)
+            
+        profile.skills = data.get('skills', 'Wilderness First Aid, Navigation')
+        try:
+            profile.experience_years = int(data.get('experience', 2))
+        except (ValueError, TypeError):
+            profile.experience_years = 2
+            
+        profile.designation = data.get('designation', 'Lead Guide')
+        profile.certifications = data.get('certifications', 'Wilderness First Responder (WFR)')
+        profile.languages = data.get('languages', 'English, Hindi')
+        try:
+            profile.completed_treks_count = int(data.get('completedTreksCount', 10))
+        except (ValueError, TypeError):
+            profile.completed_treks_count = 10
+            
+        profile.photo_url = data.get('photoUrl')
+        
+    else:
+        existing = User.query.filter_by(email=email).first()
+        if existing:
+            return jsonify({'error': 'Email already registered.'}), 400
+            
+        staff = User(
+            email=email,
+            name=name,
+            phone=phone,
+            password_hash=generate_password_hash(password or 'Trailsync@123'),
+            role='staff'
+        )
+        db.session.add(staff)
+        db.session.flush()
+        
+        profile = StaffProfile(
+            user_id=staff.id,
+            skills=data.get('skills', 'Wilderness First Aid, Navigation'),
+            experience_years=int(data.get('experience', 2)) if data.get('experience') else 2,
+            designation=data.get('designation', 'Lead Guide'),
+            certifications=data.get('certifications', 'Wilderness First Responder (WFR)'),
+            languages=data.get('languages', 'English, Hindi'),
+            completed_treks_count=int(data.get('completedTreksCount', 10)) if data.get('completedTreksCount') else 10,
+            photo_url=data.get('photoUrl'),
+            status='Active'
+        )
+        db.session.add(profile)
+        
+        # Trigger free registration email via Celery
+        try:
+            from backend.tasks import send_staff_creation_email
+            send_staff_creation_email.delay(staff.id, password or 'Trailsync@123')
+        except Exception as e:
+            print("Failed to dispatch Celery staff email:", e)
+            
+    db.session.commit()
+    return jsonify({'success': True})
+
+@app.route('/api/admin/trekkers', methods=['POST'])
+@login_required
+def admin_save_trekker():
+    if current_user.role != 'admin':
+        return jsonify({'error': 'Unauthorized'}), 403
+        
+    data = request.get_json() or {}
+    email = data.get('email')
+    name = data.get('name')
+    phone = data.get('phone') or ''
+    password = data.get('password') or 'Trekker@123'
+    city = data.get('city') or ''
+    emergency = data.get('emergency') or ''
+    bio = data.get('bio') or ''
+    
+    if not email or not name:
+        return jsonify({'error': 'Email and Name are required.'}), 400
+        
     existing = User.query.filter_by(email=email).first()
     if existing:
         return jsonify({'error': 'Email already registered.'}), 400
         
-    staff = User(
+    trekker = User(
         email=email,
         name=name,
         phone=phone,
         password_hash=generate_password_hash(password),
-        role='staff'
+        role='user',
+        city=city,
+        emergency=emergency,
+        bio=bio
     )
-    db.session.add(staff)
-    db.session.flush()
-    
-    profile = StaffProfile(
-        user_id=staff.id,
-        skills='Wilderness First Aid, Navigation',
-        experience_years=2,
-        status='Active'
-    )
-    db.session.add(profile)
+    db.session.add(trekker)
     db.session.commit()
     
-    # Trigger free registration email via Celery
-    try:
-        from backend.tasks import send_staff_creation_email
-        send_staff_creation_email.delay(staff.id, password)
-    except Exception as e:
-        print("Failed to dispatch Celery staff email:", e)
-        
     return jsonify({'success': True})
 
 @app.route('/api/admin/staff/toggle/<int:staff_id>', methods=['POST'])
@@ -1624,35 +1709,7 @@ def admin_restore_user(user_id):
     db.session.commit()
     return jsonify({'success': True, 'blacklisted': False})
 
-@app.route('/api/admin/treks/approve/<int:trek_id>', methods=['POST'])
-@login_required
-def admin_approve_trek(trek_id):
-    if current_user.role != 'admin':
-        return jsonify({'error': 'Unauthorized'}), 403
-        
-    trek = Trek.query.get(trek_id)
-    if not trek:
-        return jsonify({'error': 'Trek not found'}), 404
-        
-    trek.status = 'Approved'
-    db.session.commit()
-    invalidate_open_treks_cache()
-    return jsonify({'success': True})
-
-@app.route('/api/admin/treks/reject/<int:trek_id>', methods=['POST'])
-@login_required
-def admin_reject_trek(trek_id):
-    if current_user.role != 'admin':
-        return jsonify({'error': 'Unauthorized'}), 403
-        
-    trek = Trek.query.get(trek_id)
-    if not trek:
-        return jsonify({'error': 'Trek not found'}), 404
-        
-    trek.status = 'Pending'
-    db.session.commit()
-    invalidate_open_treks_cache()
-    return jsonify({'success': True})
+# Trek approvals/rejections endpoints removed as admin creates treks directly
 
 @app.route('/api/admin/bookings/cancel/<int:booking_id>', methods=['POST'])
 @login_required

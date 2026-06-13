@@ -1,0 +1,7 @@
+- [x] Fix Trek Route details batch filtering (coerce `trekRouteId` to number and use robust matching logic in `viewRouteDetails`)
+- [x] Update computed properties in `admin_components.js` (`selectedRouteDuration` and `selectedRouteName`) to use numeric coercion for ID matching
+- [x] Update batch creation dropdown selection active class to use coerced numeric comparison
+- [x] Verify backend compilation and frontend changes
+- [x] Add editing staff profile functionality (form inputs, data mapping, and backend POST updates)
+- [x] Add "Edit" buttons to card view and list table view inside Staff section in `admin_components.js`
+- [x] Create a well-maintained structured table for batches inside the Trek Route details pop-up modal

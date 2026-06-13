@@ -1358,7 +1358,7 @@ body { font-family:'DM Sans',sans-serif; background:var(--snow); color:var(--bar
   gap: 1rem;
 }
 .calendar-table-wrap {
-  overflow-x: auto;
+  overflow-x: hidden;
   overflow-y: auto;
   max-height: 485px;
   border: 1px solid #cbd5e0;
@@ -1366,6 +1366,7 @@ body { font-family:'DM Sans',sans-serif; background:var(--snow); color:var(--bar
 }
 .calendar-table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: separate; /* Required for sticky borders in Chrome/Safari */
   border-spacing: 0;
   border-left: 1px solid #cbd5e0;
@@ -1383,13 +1384,13 @@ body { font-family:'DM Sans',sans-serif; background:var(--snow); color:var(--bar
   border-bottom: 1px solid #cbd5e0;
   text-align: center;
   padding: 8px 6px;
-  min-width: 32px;
   box-sizing: border-box;
 }
 .calendar-table th.staff-name-col, .calendar-table td.staff-name-col {
   text-align: left;
-  min-width: 120px;
-  max-width: 130px;
+  min-width: 100px;
+  width: 100px;
+  max-width: 100px;
   position: sticky;
   left: 0;
   background: #fff;

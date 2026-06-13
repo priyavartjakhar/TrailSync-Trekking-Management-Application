@@ -2023,7 +2023,7 @@ const TsAdminLayout = {
         </a>
         <a class="nav-item" :class="{ active: activeTab==='blacklist' }" @click="activeTab='blacklist'">
           <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
-          <span>Blacklist</span>
+          <span>Blacklisted Accounts</span>
         </a>
         <a class="nav-item" :class="{ active: activeTab==='support_tickets' }" @click="activeTab='support_tickets'">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
@@ -2773,7 +2773,7 @@ const TsAdminLayout = {
                   <th class="staff-name-col" style="background: #f7fafc; font-weight: bold;">Trek Guide</th>
                   <th v-for="d in daysInActiveMonth" :key="d" 
                       :class="{ 'weekend': isWeekend(d) }"
-                      style="font-size: 0.74rem; padding: 6px 4px; min-width: 30px;">
+                      style="font-size: 0.74rem; padding: 6px 4px;">
                     <div>{{ d }}</div>
                     <div style="font-size: 0.65rem; color: var(--stone); margin-top: 2px; text-transform: uppercase;">{{ getWeekdayLetter(d) }}</div>
                   </th>
@@ -2798,7 +2798,7 @@ const TsAdminLayout = {
                         'free-day': !isStaffBusyOnDay(s, d)
                       }"
                       class="day-cell"
-                      style="height: 36px; min-width: 32px; cursor: pointer; user-select: none; padding: 0; vertical-align: middle;"
+                      style="height: 36px; cursor: pointer; user-select: none; padding: 0; vertical-align: middle;"
                       @click="toggleDayAvailability(s, d)"
                       @mouseenter="showTooltip($event, s, d)"
                       @mouseleave="hideTooltip">

@@ -10,163 +10,166 @@
  * Debugger PIN: 768-230-425
 /Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/jwt/api_jwt.py:365: InsecureKeyLengthWarning: The HMAC key is 27 bytes long, which is below the minimum recommended length of 32 bytes for SHA256. See RFC 7518 Section 3.2.
   decoded = self.decode_complete(
-127.0.0.1 - - [13/Jun/2026 18:56:53] "GET /admin HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 18:56:53] "[36mGET /static/js/admin_data.js HTTP/1.1[0m" 304 -
-127.0.0.1 - - [13/Jun/2026 18:56:53] "[36mGET /static/js/admin_app.js HTTP/1.1[0m" 304 -
-127.0.0.1 - - [13/Jun/2026 18:56:53] "GET /static/js/admin_components.js HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 18:56:53] "[36mGET /static/css/admin_style.css HTTP/1.1[0m" 304 -
-127.0.0.1 - - [13/Jun/2026 18:56:53] "GET /api/admin/dashboard_data HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 18:56:57] "GET /api/admin/batches/1/trekkers HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 18:57:05] "POST /api/admin/batches/remove_trekker HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 18:57:05] "GET /api/admin/batches/1/trekkers HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 18:57:05] "GET /api/admin/dashboard_data HTTP/1.1" 200 -
-/Users/priyavartjakhar/Trekking-Management-Application/backend/app.py:1629: LegacyAPIWarning: The Query.get() method is considered legacy as of the 1.x series of SQLAlchemy and becomes a legacy construct in 2.0. The method is now available as Session.get() (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
-  trek = Trek.query.get(trek_id)
-127.0.0.1 - - [13/Jun/2026 18:57:06] "POST /api/admin/treks HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 18:57:06] "GET /api/admin/dashboard_data HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 18:57:10] "GET /api/admin/batches/1/trekkers HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 18:57:18] "GET /api/admin/batches/1/trekkers HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 18:57:21] "POST /api/admin/treks HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 18:57:21] "GET /api/admin/dashboard_data HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 18:57:23] "GET /api/admin/batches/1/trekkers HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 18:57:45] "GET /api/admin/batches/1/trekkers HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 18:58:58] "GET /admin HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 18:58:58] "[36mGET /static/js/admin_data.js HTTP/1.1[0m" 304 -
-127.0.0.1 - - [13/Jun/2026 18:58:58] "[36mGET /static/css/admin_style.css HTTP/1.1[0m" 304 -
-127.0.0.1 - - [13/Jun/2026 18:58:58] "[36mGET /static/js/admin_components.js HTTP/1.1[0m" 304 -
-127.0.0.1 - - [13/Jun/2026 18:58:58] "[36mGET /static/js/admin_app.js HTTP/1.1[0m" 304 -
-127.0.0.1 - - [13/Jun/2026 18:58:59] "GET /api/admin/dashboard_data HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 18:58:59] "GET /admin HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 18:58:59] "[36mGET /static/css/admin_style.css HTTP/1.1[0m" 304 -
-127.0.0.1 - - [13/Jun/2026 18:58:59] "[36mGET /static/js/admin_app.js HTTP/1.1[0m" 304 -
-127.0.0.1 - - [13/Jun/2026 18:58:59] "[36mGET /static/js/admin_data.js HTTP/1.1[0m" 304 -
-127.0.0.1 - - [13/Jun/2026 18:58:59] "[36mGET /static/js/admin_components.js HTTP/1.1[0m" 304 -
-127.0.0.1 - - [13/Jun/2026 18:58:59] "GET /api/admin/dashboard_data HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 18:58:59] "GET /admin HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 18:58:59] "[36mGET /static/js/admin_data.js HTTP/1.1[0m" 304 -
-127.0.0.1 - - [13/Jun/2026 18:58:59] "[36mGET /static/css/admin_style.css HTTP/1.1[0m" 304 -
-127.0.0.1 - - [13/Jun/2026 18:58:59] "[36mGET /static/js/admin_components.js HTTP/1.1[0m" 304 -
-127.0.0.1 - - [13/Jun/2026 18:58:59] "[36mGET /static/js/admin_app.js HTTP/1.1[0m" 304 -
-127.0.0.1 - - [13/Jun/2026 18:58:59] "GET /api/admin/dashboard_data HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 18:58:59] "GET /admin HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 18:58:59] "[36mGET /static/css/admin_style.css HTTP/1.1[0m" 304 -
-127.0.0.1 - - [13/Jun/2026 18:58:59] "[36mGET /static/js/admin_data.js HTTP/1.1[0m" 304 -
-127.0.0.1 - - [13/Jun/2026 18:58:59] "[36mGET /static/js/admin_components.js HTTP/1.1[0m" 304 -
-127.0.0.1 - - [13/Jun/2026 18:58:59] "[36mGET /static/js/admin_app.js HTTP/1.1[0m" 304 -
-127.0.0.1 - - [13/Jun/2026 18:59:00] "GET /api/admin/dashboard_data HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 18:59:00] "GET /admin HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 18:59:00] "[36mGET /static/css/admin_style.css HTTP/1.1[0m" 304 -
-127.0.0.1 - - [13/Jun/2026 18:59:00] "[36mGET /static/js/admin_data.js HTTP/1.1[0m" 304 -
-127.0.0.1 - - [13/Jun/2026 18:59:00] "[36mGET /static/js/admin_components.js HTTP/1.1[0m" 304 -
-127.0.0.1 - - [13/Jun/2026 18:59:00] "[36mGET /static/js/admin_app.js HTTP/1.1[0m" 304 -
-127.0.0.1 - - [13/Jun/2026 18:59:00] "GET /api/admin/dashboard_data HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 18:59:00] "GET /admin HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 18:59:00] "[36mGET /static/css/admin_style.css HTTP/1.1[0m" 304 -
-127.0.0.1 - - [13/Jun/2026 18:59:00] "[36mGET /static/js/admin_data.js HTTP/1.1[0m" 304 -
-127.0.0.1 - - [13/Jun/2026 18:59:00] "[36mGET /static/js/admin_components.js HTTP/1.1[0m" 304 -
-127.0.0.1 - - [13/Jun/2026 18:59:00] "[36mGET /static/js/admin_app.js HTTP/1.1[0m" 304 -
-127.0.0.1 - - [13/Jun/2026 18:59:00] "GET /api/admin/dashboard_data HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 18:59:00] "GET /admin HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 18:59:00] "[36mGET /static/css/admin_style.css HTTP/1.1[0m" 304 -
-127.0.0.1 - - [13/Jun/2026 18:59:00] "[36mGET /static/js/admin_data.js HTTP/1.1[0m" 304 -
-127.0.0.1 - - [13/Jun/2026 18:59:00] "[36mGET /static/js/admin_components.js HTTP/1.1[0m" 304 -
-127.0.0.1 - - [13/Jun/2026 18:59:00] "[36mGET /static/js/admin_app.js HTTP/1.1[0m" 304 -
-127.0.0.1 - - [13/Jun/2026 18:59:00] "GET /api/admin/dashboard_data HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 18:59:00] "GET /admin HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 18:59:00] "[36mGET /static/css/admin_style.css HTTP/1.1[0m" 304 -
-127.0.0.1 - - [13/Jun/2026 18:59:00] "[36mGET /static/js/admin_data.js HTTP/1.1[0m" 304 -
-127.0.0.1 - - [13/Jun/2026 18:59:00] "[36mGET /static/js/admin_components.js HTTP/1.1[0m" 304 -
-127.0.0.1 - - [13/Jun/2026 18:59:00] "[36mGET /static/js/admin_app.js HTTP/1.1[0m" 304 -
-127.0.0.1 - - [13/Jun/2026 18:59:00] "GET /api/admin/dashboard_data HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 18:59:01] "GET /api/admin/batches/1/trekkers HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 18:59:26] "GET /admin HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 18:59:26] "[36mGET /static/js/admin_data.js HTTP/1.1[0m" 304 -
-127.0.0.1 - - [13/Jun/2026 18:59:26] "[36mGET /static/css/admin_style.css HTTP/1.1[0m" 304 -
-127.0.0.1 - - [13/Jun/2026 18:59:26] "GET /static/js/admin_components.js HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 18:59:26] "[36mGET /static/js/admin_app.js HTTP/1.1[0m" 304 -
-127.0.0.1 - - [13/Jun/2026 18:59:26] "GET /api/admin/dashboard_data HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 18:59:27] "GET /api/admin/batches/1/trekkers HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 18:59:35] "GET /api/admin/batches/1/trekkers HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 19:00:30] "GET /admin HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 19:00:30] "[36mGET /static/css/admin_style.css HTTP/1.1[0m" 304 -
-127.0.0.1 - - [13/Jun/2026 19:00:30] "[36mGET /static/js/admin_data.js HTTP/1.1[0m" 304 -
-127.0.0.1 - - [13/Jun/2026 19:00:30] "[36mGET /static/js/admin_components.js HTTP/1.1[0m" 304 -
-127.0.0.1 - - [13/Jun/2026 19:00:30] "[36mGET /static/js/admin_app.js HTTP/1.1[0m" 304 -
-127.0.0.1 - - [13/Jun/2026 19:00:31] "GET /api/admin/dashboard_data HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 19:00:34] "GET /api/admin/batches/3/trekkers HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 19:01:03] "GET /admin HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 19:01:03] "[36mGET /static/css/admin_style.css HTTP/1.1[0m" 304 -
-127.0.0.1 - - [13/Jun/2026 19:01:03] "[36mGET /static/js/admin_data.js HTTP/1.1[0m" 304 -
-127.0.0.1 - - [13/Jun/2026 19:01:03] "[36mGET /static/js/admin_app.js HTTP/1.1[0m" 304 -
-127.0.0.1 - - [13/Jun/2026 19:01:03] "GET /static/js/admin_components.js HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 19:01:03] "GET /api/admin/dashboard_data HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 19:01:04] "GET /api/admin/batches/1/trekkers HTTP/1.1" 200 -
-/Users/priyavartjakhar/Trekking-Management-Application/backend/app.py:1729: LegacyAPIWarning: The Query.get() method is considered legacy as of the 1.x series of SQLAlchemy and becomes a legacy construct in 2.0. The method is now available as Session.get() (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
-  trek = Trek.query.get(trek_id)
-/Users/priyavartjakhar/Trekking-Management-Application/backend/app.py:1733: LegacyAPIWarning: The Query.get() method is considered legacy as of the 1.x series of SQLAlchemy and becomes a legacy construct in 2.0. The method is now available as Session.get() (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
-  user = User.query.get(user_id)
-127.0.0.1 - - [13/Jun/2026 19:01:26] "POST /api/admin/batches/add_trekker HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 19:01:26] "GET /api/admin/batches/1/trekkers HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 19:01:26] "GET /api/admin/dashboard_data HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 19:01:27] "POST /api/admin/treks HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 19:01:27] "GET /api/admin/dashboard_data HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 19:01:29] "GET /api/admin/batches/2/trekkers HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 19:01:34] "POST /api/admin/batches/add_trekker HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 19:01:34] "GET /api/admin/batches/2/trekkers HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 19:01:34] "GET /api/admin/dashboard_data HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 19:01:37] "POST /api/admin/treks HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 19:01:37] "GET /api/admin/dashboard_data HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 19:01:42] "GET /admin HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 19:01:42] "[36mGET /static/css/admin_style.css HTTP/1.1[0m" 304 -
-127.0.0.1 - - [13/Jun/2026 19:01:42] "[36mGET /static/js/admin_data.js HTTP/1.1[0m" 304 -
-127.0.0.1 - - [13/Jun/2026 19:01:42] "[36mGET /static/js/admin_components.js HTTP/1.1[0m" 304 -
-127.0.0.1 - - [13/Jun/2026 19:01:42] "[36mGET /static/js/admin_app.js HTTP/1.1[0m" 304 -
-127.0.0.1 - - [13/Jun/2026 19:01:42] "GET /api/admin/dashboard_data HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 19:02:11] "GET /admin HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 19:02:11] "[36mGET /static/css/admin_style.css HTTP/1.1[0m" 304 -
-127.0.0.1 - - [13/Jun/2026 19:02:11] "[36mGET /static/js/admin_data.js HTTP/1.1[0m" 304 -
-127.0.0.1 - - [13/Jun/2026 19:02:11] "[36mGET /static/js/admin_components.js HTTP/1.1[0m" 304 -
-127.0.0.1 - - [13/Jun/2026 19:02:11] "[36mGET /static/js/admin_app.js HTTP/1.1[0m" 304 -
-127.0.0.1 - - [13/Jun/2026 19:02:11] "GET /api/admin/dashboard_data HTTP/1.1" 200 -
-/Users/priyavartjakhar/Trekking-Management-Application/backend/app.py:2090: LegacyAPIWarning: The Query.get() method is considered legacy as of the 1.x series of SQLAlchemy and becomes a legacy construct in 2.0. The method is now available as Session.get() (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
-  trek = Trek.query.get(trek_id)
-127.0.0.1 - - [13/Jun/2026 19:02:23] "POST /api/admin/treks/assign/1 HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 19:02:23] "GET /api/admin/dashboard_data HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 19:02:36] "POST /api/admin/treks/assign/1 HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 19:02:36] "GET /api/admin/dashboard_data HTTP/1.1" 200 -
- * Detected change in '/Users/priyavartjakhar/Trekking-Management-Application/backend/app.py', reloading
- * Restarting with stat
- * Debugger is active!
- * Debugger PIN: 768-230-425
-/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/jwt/api_jwt.py:365: InsecureKeyLengthWarning: The HMAC key is 27 bytes long, which is below the minimum recommended length of 32 bytes for SHA256. See RFC 7518 Section 3.2.
-  decoded = self.decode_complete(
-127.0.0.1 - - [13/Jun/2026 22:29:18] "GET /admin HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 22:29:18] "[36mGET /static/js/admin_app.js HTTP/1.1[0m" 304 -
-127.0.0.1 - - [13/Jun/2026 22:29:18] "GET /static/css/admin_style.css HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 22:29:18] "GET /static/js/admin_components.js HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 22:29:18] "[36mGET /static/js/admin_data.js HTTP/1.1[0m" 304 -
-127.0.0.1 - - [13/Jun/2026 22:29:23] "GET /api/admin/dashboard_data HTTP/1.1" 200 -
-/Users/priyavartjakhar/Trekking-Management-Application/backend/app.py:1650: LegacyAPIWarning: The Query.get() method is considered legacy as of the 1.x series of SQLAlchemy and becomes a legacy construct in 2.0. The method is now available as Session.get() (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
-  route = TrekRoute.query.get(trek_route_id)
-127.0.0.1 - - [13/Jun/2026 22:30:55] "POST /api/admin/treks HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 22:30:55] "GET /api/admin/dashboard_data HTTP/1.1" 200 -
-/Users/priyavartjakhar/Trekking-Management-Application/backend/app.py:2099: LegacyAPIWarning: The Query.get() method is considered legacy as of the 1.x series of SQLAlchemy and becomes a legacy construct in 2.0. The method is now available as Session.get() (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
-  trek = Trek.query.get(trek_id)
-127.0.0.1 - - [13/Jun/2026 22:31:04] "POST /api/admin/treks/assign/11 HTTP/1.1" 200 -
-127.0.0.1 - - [13/Jun/2026 22:31:04] "GET /api/admin/dashboard_data HTTP/1.1" 200 -
-/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/multiprocessing/resource_tracker.py:254: UserWarning: resource_tracker: There appear to be 1 leaked semaphore objects to clean up at shutdown
-  warnings.warn('resource_tracker: There appear to be %d '
-/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/multiprocessing/resource_tracker.py:254: UserWarning: resource_tracker: There appear to be 1 leaked semaphore objects to clean up at shutdown
-  warnings.warn('resource_tracker: There appear to be %d '
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 /Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/multiprocessing/resource_tracker.py:254: UserWarning: resource_tracker: There appear to be 1 leaked semaphore objects to clean up at shutdown
-  warnings.warn('resource_tracker: There appear to be %d '
- * Serving Flask app 'app'
- * Debug mode: on
-[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
- * Running on all addresses (0.0.0.0)
- * Running on http://127.0.0.1:8000
- * Running on http://10.177.206.100:8000
-[33mPress CTRL+C to quit[0m
- * Restarting with stat
- * Debugger is active!
- * Debugger PIN: 768-230-425
+127.0.0.1 - - [13/Jun/2026 22:51:12] "GET /admin HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:51:12] "[36mGET /static/css/admin_style.css HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:51:12] "GET /static/js/admin_components.js HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:51:12] "[36mGET /static/js/admin_data.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:51:12] "[36mGET /static/js/admin_app.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:51:13] "GET /api/admin/dashboard_data HTTP/1.1" 200 -
+/Users/priyavartjakhar/Trekking-Management-Application/backend/app.py:1924: LegacyAPIWarning: The Query.get() method is considered legacy as of the 1.x series of SQLAlchemy and becomes a legacy construct in 2.0. The method is now available as Session.get() (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
+  staff = User.query.get(staff_id)
+127.0.0.1 - - [13/Jun/2026 22:51:14] "POST /api/admin/staff/3/toggle_date_availability HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:51:15] "POST /api/admin/staff/3/toggle_date_availability HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:51:15] "POST /api/admin/staff/3/toggle_date_availability HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:51:27] "POST /api/admin/staff/3/toggle_date_availability HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:51:29] "POST /api/admin/staff/3/toggle_date_availability HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:51:29] "POST /api/admin/staff/3/toggle_date_availability HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:51:30] "POST /api/admin/staff/3/toggle_date_availability HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:51:33] "POST /api/admin/staff/3/toggle_date_availability HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:51:39] "POST /api/admin/staff/3/toggle_date_availability HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:53:16] "GET /admin HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:53:16] "[36mGET /static/css/admin_style.css HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:53:16] "[36mGET /static/js/admin_data.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:53:16] "GET /static/js/admin_components.js HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:53:16] "[36mGET /static/js/admin_app.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:53:16] "GET /api/admin/dashboard_data HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:53:17] "GET /admin HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:53:17] "[36mGET /static/css/admin_style.css HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:53:17] "[36mGET /static/js/admin_data.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:53:17] "[36mGET /static/js/admin_components.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:53:17] "[36mGET /static/js/admin_app.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:53:17] "GET /api/admin/dashboard_data HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:53:33] "POST /api/admin/staff/5/toggle_date_availability HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:53:34] "POST /api/admin/staff/6/toggle_date_availability HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:53:35] "POST /api/admin/staff/7/toggle_date_availability HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:53:36] "POST /api/admin/staff/7/toggle_date_availability HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:53:39] "POST /api/admin/staff/7/toggle_date_availability HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:53:46] "GET /admin HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:53:46] "GET /static/css/admin_style.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:53:46] "[36mGET /static/js/admin_data.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:53:46] "GET /static/js/admin_components.js HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:53:46] "[36mGET /static/js/admin_app.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:53:53] "GET /admin HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:53:53] "[36mGET /static/js/admin_components.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:53:53] "[36mGET /static/css/admin_style.css HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:53:53] "[36mGET /static/js/admin_data.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:53:53] "[36mGET /static/js/admin_app.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:53:53] "GET /admin HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:53:53] "[36mGET /static/css/admin_style.css HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:53:53] "[36mGET /static/js/admin_app.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:53:53] "[36mGET /static/js/admin_data.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:53:53] "GET /static/js/admin_components.js HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:53:53] "GET /api/admin/dashboard_data HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:53:53] "GET /admin HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:53:53] "[36mGET /static/css/admin_style.css HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:53:53] "[36mGET /static/js/admin_data.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:53:53] "[36mGET /static/js/admin_components.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:53:53] "[36mGET /static/js/admin_app.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:53:53] "GET /api/admin/dashboard_data HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:54:09] "GET /admin HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:54:09] "[36mGET /static/js/admin_data.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:54:09] "[36mGET /static/css/admin_style.css HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:54:09] "GET /static/js/admin_components.js HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:54:09] "[36mGET /static/js/admin_app.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:54:09] "GET /api/admin/dashboard_data HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:54:10] "GET /admin HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:54:10] "[36mGET /static/css/admin_style.css HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:54:10] "[36mGET /static/js/admin_components.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:54:10] "[36mGET /static/js/admin_app.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:54:10] "[36mGET /static/js/admin_data.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:54:10] "GET /api/admin/dashboard_data HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:54:20] "GET /admin HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:54:20] "[36mGET /static/css/admin_style.css HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:54:20] "[36mGET /static/js/admin_data.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:54:20] "[36mGET /static/js/admin_components.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:54:20] "[36mGET /static/js/admin_app.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:54:20] "GET /api/admin/dashboard_data HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:54:21] "GET /admin HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:54:21] "[36mGET /static/css/admin_style.css HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:54:21] "[36mGET /static/js/admin_data.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:54:21] "[36mGET /static/js/admin_components.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:54:21] "[36mGET /static/js/admin_app.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:54:21] "GET /api/admin/dashboard_data HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:54:21] "GET /admin HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:54:21] "[36mGET /static/css/admin_style.css HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:54:21] "[36mGET /static/js/admin_data.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:54:21] "[36mGET /static/js/admin_components.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:54:21] "[36mGET /static/js/admin_app.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:54:21] "GET /api/admin/dashboard_data HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:54:21] "GET /admin HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:54:21] "[36mGET /static/js/admin_components.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:54:21] "[36mGET /static/css/admin_style.css HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:54:21] "[36mGET /static/js/admin_app.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:54:21] "[36mGET /static/js/admin_data.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:54:21] "GET /api/admin/dashboard_data HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:54:21] "GET /admin HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:54:21] "[36mGET /static/css/admin_style.css HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:54:21] "[36mGET /static/js/admin_components.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:54:21] "[36mGET /static/js/admin_data.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:54:22] "[36mGET /static/js/admin_app.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:54:22] "GET /api/admin/dashboard_data HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:54:22] "GET /admin HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:54:22] "[36mGET /static/css/admin_style.css HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:54:22] "[36mGET /static/js/admin_data.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:54:22] "[36mGET /static/js/admin_components.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:54:22] "[36mGET /static/js/admin_app.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:54:22] "GET /api/admin/dashboard_data HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:54:26] "POST /api/admin/staff/7/toggle_date_availability HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:54:26] "GET /admin HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:54:27] "[36mGET /static/css/admin_style.css HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:54:27] "[36mGET /static/js/admin_components.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:54:27] "[36mGET /static/js/admin_data.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:54:27] "[36mGET /static/js/admin_app.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:54:27] "GET /api/admin/dashboard_data HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:57:19] "GET /admin HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:57:20] "[36mGET /static/js/admin_data.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:57:20] "GET /static/js/admin_components.js HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:57:20] "GET /static/css/admin_style.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:57:20] "[36mGET /static/js/admin_app.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:57:20] "GET /api/admin/dashboard_data HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:57:25] "POST /api/admin/staff/7/toggle_date_availability HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:57:25] "POST /api/admin/staff/7/toggle_date_availability HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:57:26] "POST /api/admin/staff/7/toggle_date_availability HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:57:27] "POST /api/admin/staff/7/toggle_date_availability HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:57:27] "POST /api/admin/staff/7/toggle_date_availability HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:59:23] "GET /admin HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:59:23] "GET /static/css/admin_style.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:59:23] "[36mGET /static/js/admin_data.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:59:23] "[36mGET /static/js/admin_components.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:59:23] "[36mGET /static/js/admin_app.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:59:23] "GET /api/admin/dashboard_data HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:59:25] "GET /admin HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 22:59:25] "[36mGET /static/css/admin_style.css HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:59:25] "[36mGET /static/js/admin_data.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:59:25] "[36mGET /static/js/admin_components.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:59:25] "[36mGET /static/js/admin_app.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 22:59:25] "GET /api/admin/dashboard_data HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 23:00:19] "GET /admin HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 23:00:19] "GET /static/css/admin_style.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 23:00:19] "[36mGET /static/js/admin_data.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 23:00:19] "[36mGET /static/js/admin_components.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 23:00:19] "[36mGET /static/js/admin_app.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 23:00:19] "GET /api/admin/dashboard_data HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 23:01:42] "GET /admin HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 23:01:42] "[36mGET /static/js/admin_data.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 23:01:42] "GET /static/css/admin_style.css HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 23:01:42] "GET /static/js/admin_components.js HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 23:01:42] "[36mGET /static/js/admin_app.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 23:01:43] "GET /admin HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 23:01:43] "[36mGET /static/css/admin_style.css HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 23:01:43] "[36mGET /static/js/admin_data.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 23:01:43] "[36mGET /static/js/admin_components.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 23:01:43] "[36mGET /static/js/admin_app.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 23:01:43] "GET /api/admin/dashboard_data HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 23:01:43] "GET /api/admin/dashboard_data HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 23:04:42] "GET /admin HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 23:04:42] "[36mGET /static/js/admin_data.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 23:04:42] "[36mGET /static/css/admin_style.css HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 23:04:42] "[36mGET /static/js/admin_app.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 23:04:42] "[36mGET /static/js/admin_components.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 23:04:42] "GET /admin HTTP/1.1" 200 -
+127.0.0.1 - - [13/Jun/2026 23:04:42] "[36mGET /static/css/admin_style.css HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 23:04:42] "[36mGET /static/js/admin_app.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 23:04:42] "[36mGET /static/js/admin_data.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 23:04:42] "[36mGET /static/js/admin_components.js HTTP/1.1[0m" 304 -
+127.0.0.1 - - [13/Jun/2026 23:04:42] "GET /api/admin/dashboard_data HTTP/1.1" 200 -

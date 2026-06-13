@@ -8,16 +8,21 @@ echo "  🏔️  Trail Sync - Trekking Management Application      "
 echo "======================================================="
 echo ""
 # Start the Celery worker
-echo "[1/3] Starting Celery worker..."
+echo "[1/4] Starting Celery worker..."
 PYTHONPATH=. celery -A backend.tasks.celery_app worker --loglevel=info &
 CELERY_PID=$!
 
 # Start the Flask backend server
-echo "[2/3] Starting local development server on port 8000..."
+echo "[2/4] Starting local development server on port 8000..."
 PYTHONPATH=. python3 backend/app.py &
 SERVER_PID=$!
 
-echo "[3/3] Opening homepage in your default browser..."
+# Start the Git auto-commit daemon
+echo "[3/4] Starting Git auto-commit daemon (logging to git-autocommit.log)..."
+python3 git-autocommit.py >> git-autocommit.log 2>&1 &
+AUTOCOMMIT_PID=$!
+
+echo "[4/4] Opening homepage in your default browser..."
 sleep 2.0
 open http://localhost:8000
 
@@ -27,8 +32,8 @@ echo "🛑 Press Ctrl+C to stop the services."
 
 # Cleanup function to stop all background processes
 cleanup() {
-  echo -e "\nStopping servers..."
-  kill $SERVER_PID $CELERY_PID 2>/dev/null || true
+  echo -e "\nStopping servers and auto-commit daemon..."
+  kill $SERVER_PID $CELERY_PID $AUTOCOMMIT_PID 2>/dev/null || true
 }
 # Trap SIGINT, SIGTERM, and EXIT to run cleanup
 trap cleanup SIGINT SIGTERM EXIT

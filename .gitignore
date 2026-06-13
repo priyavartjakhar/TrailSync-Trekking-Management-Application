@@ -28,6 +28,5 @@ yarn-error.log*
 *.db-shm
 backend/tma.db
 scratch/
-git-autocommit.log
 flask.log
 

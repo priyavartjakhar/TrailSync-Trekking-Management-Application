@@ -414,32 +414,40 @@ def seed_db():
             
     db.session.flush()
 
-    # Now seed batches (Trek objects) for the first 40 routes
+    # Now seed batches (Trek objects) for the first 10 routes
     all_treks = []
-    # Seeding of default mock batches has been disabled as requested
-            
+    from datetime import date, timedelta
+    routes_to_seed = route_list[:10]
+    for idx, r in enumerate(routes_to_seed):
+        start = date.today() + timedelta(days=10 + idx * 5)
+        end = start + timedelta(days=r.duration)
+        t_price = 4500 + (idx * 1500)
+        t = Trek(
+            trek_route_id=r.id,
+            batch_code=f"{r.trek_code}B01",
+            name=r.name,
+            location=r.location,
+            difficulty=r.difficulty,
+            duration=r.duration,
+            start_date=start,
+            end_date=end,
+            slots=20,
+            price=t_price,
+            status='Open',
+            image_url=r.image_url,
+            description=r.description,
+            latitude=r.latitude,
+            longitude=r.longitude,
+            distance=r.distance
+        )
+        db.session.add(t)
+        all_treks.append(t)
     db.session.flush()
 
-    # Assign 3-4 treks to each of the 10 staff members
-    assignments = {
-        0: [0, 10, 20],
-        1: [1, 11, 21],
-        2: [2, 12, 22],
-        3: [3, 13, 23, 33], # Test Staff (staff@test.com)
-        4: [4, 14, 24, 34],
-        5: [5, 15, 25, 35],
-        6: [6, 16, 26, 36],
-        7: [7, 17, 27, 37],
-        8: [18, 28, 38],
-        9: [19, 29, 39]
-    }
-    
-    for staff_idx, trek_indices in assignments.items():
-        s = staff_users[staff_idx]
-        for t_idx in trek_indices:
-            if t_idx < len(all_treks):
-                all_treks[t_idx].staff_id = s.id
-                
+    for idx, t in enumerate(all_treks):
+        staff_member = staff_users[idx % len(staff_users)]
+        t.staff_id = staff_member.id
+    db.session.flush()
     db.session.commit()
 
     # Seed guide recommended items for popular treks first
@@ -456,9 +464,87 @@ def seed_db():
                 db.session.add(TrekGuideItem(trek_id=t_obj.id, item_name=gi))
     db.session.commit()
 
-    # Seed bookings and packing lists for the 10 open treks
-    # Seeding of default mock bookings has been disabled as requested
-                
+    # Seed bookings and packing lists for the seeded treks
+    if len(trekkers) >= 8 and len(all_treks) >= 3:
+        # Trek 1 bookings:
+        b1 = Booking(
+            user_id=trekkers[0].id,
+            trek_id=all_treks[0].id,
+            booked_on=date.today() - timedelta(days=5),
+            status='Booked',
+            paid=True,
+            booking_price=all_treks[0].price,
+            amount_paid=all_treks[0].price,
+            payment_status='Paid'
+        )
+        b2 = Booking(
+            user_id=trekkers[1].id,
+            trek_id=all_treks[0].id,
+            booked_on=date.today() - timedelta(days=4),
+            status='Booked',
+            paid=True,
+            booking_price=all_treks[0].price,
+            amount_paid=all_treks[0].price,
+            payment_status='Paid'
+        )
+        b3 = Booking(
+            user_id=trekkers[2].id,
+            trek_id=all_treks[0].id,
+            booked_on=date.today() - timedelta(days=3),
+            status='Booked',
+            paid=False,
+            booking_price=all_treks[0].price,
+            amount_paid=0,
+            payment_status='Pending'
+        )
+        db.session.add_all([b1, b2, b3])
+
+        # Trek 2 bookings:
+        b4 = Booking(
+            user_id=trekkers[3].id,
+            trek_id=all_treks[1].id,
+            booked_on=date.today() - timedelta(days=6),
+            status='Booked',
+            paid=True,
+            booking_price=all_treks[1].price,
+            amount_paid=all_treks[1].price,
+            payment_status='Paid'
+        )
+        b5 = Booking(
+            user_id=trekkers[4].id,
+            trek_id=all_treks[1].id,
+            booked_on=date.today() - timedelta(days=2),
+            status='Booked',
+            paid=False,
+            booking_price=all_treks[1].price,
+            amount_paid=0,
+            payment_status='Failed'
+        )
+        db.session.add_all([b4, b5])
+
+        # Trek 3 bookings:
+        b6 = Booking(
+            user_id=trekkers[5].id,
+            trek_id=all_treks[2].id,
+            booked_on=date.today() - timedelta(days=7),
+            status='Booked',
+            paid=True,
+            booking_price=all_treks[2].price,
+            amount_paid=all_treks[2].price,
+            payment_status='Paid'
+        )
+        b7 = Booking(
+            user_id=trekkers[6].id,
+            trek_id=all_treks[2].id,
+            booked_on=date.today() - timedelta(days=10),
+            status='Cancelled',
+            paid=False,
+            booking_price=all_treks[2].price,
+            amount_paid=0,
+            payment_status='Refunded'
+        )
+        db.session.add_all([b6, b7])
+    
     db.session.commit()
 
     # Seed mock support tickets
@@ -704,11 +790,19 @@ def book_trek():
     if existing:
         return jsonify({'error': 'You have already booked this trek.'}), 400
         
+    payment_status = data.get('payment_status', 'Paid')
+    booking_price = trek.price
+    paid = (payment_status == 'Paid')
+    amount_paid = booking_price if paid else 0
+
     booking = Booking(
         user_id=current_user.id,
         trek_id=trek_id,
         status='Booked',
-        paid=True
+        paid=paid,
+        booking_price=booking_price,
+        amount_paid=amount_paid,
+        payment_status=payment_status
     )
     db.session.add(booking)
     db.session.commit()
@@ -855,11 +949,33 @@ def cancel_booking(booking_id):
         return jsonify({'error': 'Unauthorized.'}), 403
         
     booking.status = 'Cancelled'
+    if booking.payment_status == 'Paid' or booking.paid:
+        booking.payment_status = 'Refunded'
+        booking.amount_paid = 0
+        booking.paid = False
     db.session.commit()
     
     invalidate_open_treks_cache()
     
     return jsonify({'message': 'Booking cancelled successfully.'})
+
+@app.route('/api/bookings/pay/<int:booking_id>', methods=['POST'])
+@login_required
+def pay_booking(booking_id):
+    booking = Booking.query.get(booking_id)
+    if not booking or (current_user.role != 'admin' and booking.user_id != current_user.id):
+        return jsonify({'error': 'Booking not found.'}), 404
+    
+    data = request.get_json() or {}
+    payment_status = data.get('payment_status', 'Paid')
+    
+    booking.payment_status = payment_status
+    booking.paid = (payment_status == 'Paid')
+    booking.amount_paid = booking.booking_price if booking.paid else 0
+    
+    db.session.commit()
+    invalidate_open_treks_cache()
+    return jsonify({'message': f'Simulated payment outcome: {payment_status}.'})
 
 @app.route('/api/user/export', methods=['POST'])
 @login_required
@@ -1012,7 +1128,11 @@ def admin_dashboard_data():
     low_slots_treks = Trek.query.filter(Trek.status == 'Open').all()
     low_slots_count = 0
     for t in low_slots_treks:
-        booked_count = Booking.query.filter_by(trek_id=t.id, status='Booked').count()
+        booked_count = Booking.query.filter(
+            Booking.trek_id == t.id,
+            Booking.status == 'Booked',
+            (Booking.payment_status != 'Failed') | (Booking.payment_status == None)
+        ).count()
         if t.slots - booked_count < 5:
             low_slots_count += 1
     if low_slots_count > 0:
@@ -1126,7 +1246,9 @@ def admin_dashboard_data():
             'date': b.booked_on.strftime('%Y-%m-%d'),
             'status': b.status,
             'paid': b.paid,
-            'paidAmount': b.trek.price if b.paid else 0,
+            'bookingPrice': b.booking_price or (b.trek.price if b.trek else 5000),
+            'amountPaid': b.amount_paid if b.amount_paid is not None else (b.trek.price if (b.paid and b.trek) else 0),
+            'paymentStatus': b.payment_status or ('Paid' if b.paid else 'Pending'),
             'paidOn': b.booked_on.strftime('%Y-%m-%d') if b.paid else '—',
             'transactionId': f"TXN{b.booked_on.strftime('%y%m%d')}{b.id:04d}" if b.paid else '—'
         })
@@ -1143,7 +1265,11 @@ def admin_dashboard_data():
     # ── EXTRA FIELDS FOR ADVANCED ADMIN DASHBOARD ───────────────────
     slot_utilization = []
     for t in Trek.query.filter_by(status='Open').all():
-        booked = Booking.query.filter_by(trek_id=t.id, status='Booked').count()
+        booked = Booking.query.filter(
+            Booking.trek_id == t.id,
+            Booking.status == 'Booked',
+            (Booking.payment_status != 'Failed') | (Booking.payment_status == None)
+        ).count()
         slot_utilization.append({
             'trek': t.name,
             'total': t.slots,
@@ -1282,7 +1408,11 @@ def admin_dashboard_data():
         Trek.start_date <= today_val + timedelta(days=5)
     ).all()
     for t in starting_soon_treks:
-        booked = Booking.query.filter_by(trek_id=t.id, status='Booked').count()
+        booked = Booking.query.filter(
+            Booking.trek_id == t.id,
+            Booking.status == 'Booked',
+            (Booking.payment_status != 'Failed') | (Booking.payment_status == None)
+        ).count()
         util_pct = (booked / t.slots) if t.slots else 0.0
         if util_pct < 0.50:
             low_occupancy_count += 1
@@ -1757,6 +1887,10 @@ def admin_cancel_booking(booking_id):
         return jsonify({'error': 'Booking not found'}), 404
         
     booking.status = 'Cancelled'
+    if booking.payment_status == 'Paid' or booking.paid:
+        booking.payment_status = 'Refunded'
+        booking.amount_paid = 0
+        booking.paid = False
     db.session.commit()
     invalidate_open_treks_cache()
     return jsonify({'success': True})

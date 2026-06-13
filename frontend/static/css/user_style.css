@@ -1356,6 +1356,8 @@ body {
 .status-pill { padding: 2px 8px; border-radius: 12px; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; border: 1px solid transparent; font-family: 'Space Mono', monospace; }
 .status-booked { background: rgba(46, 125, 50, 0.1); color: #2e7d32; border-color: rgba(46, 125, 50, 0.2); }
 .status-completed { background: rgba(21, 101, 192, 0.1); color: #1565c0; border-color: rgba(21, 101, 192, 0.2); }
+.status-open { background: rgba(74, 222, 128, 0.15); color: #166534; border-color: rgba(74, 222, 128, 0.3); }
+.status-closed { background: rgba(239, 68, 68, 0.15); color: #991b1b; border-color: rgba(239, 68, 68, 0.3); }
 
 .diff-pill { padding: 2px 8px; border-radius: 4px; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; font-family: 'Space Mono', monospace; }
 .pill-easy { background: rgba(76, 175, 80, 0.1); color: #2e7d32; }

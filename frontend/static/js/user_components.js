@@ -32,6 +32,11 @@ const TsUserLayout = {
       showBookingModal: false,
       bookingTarget: null,
       termsAccepted: false,
+      showPaymentModal: false,
+      paymentTrekBatch: null,
+      selectedPaymentMethod: 'UPI',
+      isPendingRetry: false,
+      retryBookingId: null,
 
       // ── SEARCH / FILTERS ─────────────────────────
       searchQuery: '',
@@ -429,24 +434,64 @@ const TsUserLayout = {
       }
       return dateStr;
     },
-    async bookBatch(batch) {
+    bookBatch(batch) {
+      this.paymentTrekBatch = batch;
+      this.isPendingRetry = false;
+      this.retryBookingId = null;
+      this.showPaymentModal = true;
+    },
+    payPendingBooking(b) {
+      this.paymentTrekBatch = {
+        id: b.trekId,
+        name: b.trekName,
+        location: b.location,
+        price: b.price || b.bookingPrice || 5000,
+        batchCode: b.batchCode || 'N/A'
+      };
+      this.isPendingRetry = true;
+      this.retryBookingId = b.id;
+      this.showPaymentModal = true;
+    },
+    async processSimulatedPayment(status) {
+      if (!this.paymentTrekBatch) return;
       try {
-        const res = await fetch('/api/bookings/book', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ trek_id: batch.id })
-        });
-        const data = await res.json();
+        let res, data;
+        if (this.isPendingRetry) {
+          res = await fetch(`/api/bookings/pay/${this.retryBookingId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ payment_status: status })
+          });
+          data = await res.json();
+        } else {
+          res = await fetch('/api/bookings/book', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              trek_id: this.paymentTrekBatch.id,
+              payment_status: status
+            })
+          });
+          data = await res.json();
+        }
+
         if (res.ok) {
-          this.showToast(data.message || `${batch.name} booked!`, 'success');
+          if (status === 'Paid') {
+            this.showToast(data.message || 'Payment successful! Trek booked.', 'success');
+          } else if (status === 'Pending') {
+            this.showToast(data.message || 'Payment is pending. You can complete it later.', 'warning');
+          } else {
+            this.showToast(data.message || 'Payment failed status simulated.', 'error');
+          }
+          this.showPaymentModal = false;
           this.showBookingModal = false;
           await this.fetchUserData();
         } else {
-          this.showToast(data.error || 'Booking failed', 'error');
+          this.showToast(data.error || 'Transaction failed', 'error');
         }
       } catch (e) {
-        console.error('Booking error:', e);
-        this.showToast('Failed to contact server. Booking could not be completed.', 'error');
+        console.error('Payment error:', e);
+        this.showToast('Failed to contact server. Payment could not be processed.', 'error');
       }
     },
 
@@ -1589,12 +1634,38 @@ const TsUserLayout = {
                     </div>
                   </div>
                   <div class="booking-meta">
-                    <div class="bm-row"><span class="bm-label">Status</span><span class="status-pill status-booked">Booked</span></div>
-                    <div class="bm-row"><span class="bm-label">Amount</span><span class="bm-price">₹{{ b.price.toLocaleString() }}</span></div>
-                    <div class="bm-row"><span class="bm-label">Difficulty</span><span :class="'diff-pill pill-'+b.difficulty.toLowerCase()">{{b.difficulty}}</span></div>
-                    <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem; width: 100%;">
-                      <button class="btn-cancel" @click="cancelBooking(b)" style="flex: 1;">Cancel</button>
-                      <button class="btn-outline" @click="openChecklistModal(b)" style="flex: 1.5; padding: 0.35rem 0.5rem; font-size: 0.72rem; border-radius: 4px; border: 1px solid var(--forest); color: var(--forest); background: transparent; cursor: pointer; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 2px;">📋 Checklist</button>
+                    <div class="bm-row">
+                      <span class="bm-label">Payment</span>
+                      <span :class="['status-pill', 
+                        b.paymentStatus === 'Paid' ? 'status-open' : 
+                        b.paymentStatus === 'Pending' ? 'status-closed' : 'status-closed'
+                      ]" style="font-size:0.75rem; padding: 2px 8px; font-weight:700;">
+                        {{ b.paymentStatus }}
+                      </span>
+                    </div>
+                    <div class="bm-row">
+                      <span class="bm-label">Amount</span>
+                      <span class="bm-price">₹{{ (b.bookingPrice || b.price).toLocaleString() }}</span>
+                    </div>
+                    <div v-if="b.paymentStatus !== 'Paid'" class="bm-row">
+                      <span class="bm-label">Paid</span>
+                      <span style="font-weight:600; color:var(--red);">₹{{ (b.amountPaid || 0).toLocaleString() }}</span>
+                    </div>
+                    <div class="bm-row">
+                      <span class="bm-label">Difficulty</span>
+                      <span :class="'diff-pill pill-'+b.difficulty.toLowerCase()">{{b.difficulty}}</span>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem; width: 100%;">
+                      <div style="display: flex; gap: 0.5rem; width: 100%;">
+                        <button class="btn-cancel" @click="cancelBooking(b)" style="flex: 1;">Cancel</button>
+                        <button class="btn-outline" @click="openChecklistModal(b)" style="flex: 1.5; padding: 0.35rem 0.5rem; font-size: 0.72rem; border-radius: 4px; border: 1px solid var(--forest); color: var(--forest); background: transparent; cursor: pointer; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 2px;">📋 Checklist</button>
+                      </div>
+                      <button v-if="b.paymentStatus === 'Pending'" class="btn-book" @click="payPendingBooking(b)" style="width: 100%; padding: 6px; font-size: 0.78rem; background: var(--gold); border-radius: 4px; border: none; font-weight: 700; color: var(--forest); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;">
+                        💳 Pay Now
+                      </button>
+                      <button v-else-if="b.paymentStatus === 'Failed'" class="btn-book" @click="payPendingBooking(b)" style="width: 100%; padding: 6px; font-size: 0.78rem; background: var(--red); border-radius: 4px; border: none; font-weight: 700; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;">
+                        🔄 Retry Payment
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -2161,6 +2232,106 @@ const TsUserLayout = {
           </div>
           <div class="ts-modal-footer">
             <button class="btn-modal-cancel" @click="showChecklistModal = false">Close</button>
+          </div>
+        </div>
+      </div>
+    </transition>
+
+    <!-- ── SIMULATED PAYMENT MODAL ────────────────── -->
+    <transition name="toast">
+      <div v-if="showPaymentModal" class="ts-modal-overlay" @click.self="showPaymentModal = false">
+        <div class="ts-modal" style="max-width: 480px;">
+          <div class="ts-modal-header" style="background: var(--forest); color: white;">
+            <span class="ts-modal-title" style="color: white; font-weight: 700;">💳 Secure Payment Gateway (Simulated)</span>
+            <button class="modal-close" style="color: white;" @click="showPaymentModal = false">✕</button>
+          </div>
+          <div class="ts-modal-body" v-if="paymentTrekBatch" style="padding: 1.5rem;">
+            <div style="text-align: center; margin-bottom: 1.25rem;">
+              <div style="font-size: 0.8rem; text-transform: uppercase; color: var(--stone); letter-spacing: 1px; font-weight: 600;">Transaction Amount</div>
+              <div style="font-size: 1.8rem; font-weight: 800; color: var(--forest); font-family: 'Playfair Display', serif; margin-top: 4px;">
+                ₹{{ paymentTrekBatch.price.toLocaleString() }}
+              </div>
+            </div>
+
+            <!-- Trek Summary Card -->
+            <div style="background: var(--snow); border: 1px solid var(--stone-light); padding: 12px; border-radius: 6px; margin-bottom: 1.25rem; font-size: 0.85rem; display: flex; flex-direction: column; gap: 6px;">
+              <div><strong>Adventure:</strong> {{ paymentTrekBatch.name }}</div>
+              <div><strong>Location:</strong> {{ paymentTrekBatch.location }}</div>
+              <div v-if="paymentTrekBatch.batchCode"><strong>Batch ID:</strong> <span class="mono" style="font-weight: 700; color: var(--gold-dark);">{{ paymentTrekBatch.batchCode }}</span></div>
+            </div>
+
+            <!-- Payment Method Selection -->
+            <div style="margin-bottom: 1.25rem;">
+              <label style="font-weight: 700; font-size: 0.8rem; color: var(--forest); display: block; margin-bottom: 6px;">Select Payment Method</label>
+              <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+                <div v-for="method in ['UPI', 'Card', 'Netbanking']" :key="method" 
+                  @click="selectedPaymentMethod = method"
+                  :style="{
+                    border: selectedPaymentMethod === method ? '2px solid var(--gold)' : '1px solid var(--stone-light)',
+                    background: selectedPaymentMethod === method ? 'var(--cream)' : 'white',
+                    padding: '10px 4px',
+                    borderRadius: '6px',
+                    textAlign: 'center',
+                    cursor: 'pointer',
+                    fontSize: '0.8rem',
+                    fontWeight: selectedPaymentMethod === method ? '700' : '500',
+                    color: 'var(--forest)'
+                  }">
+                  <span v-if="method === 'UPI'">⚡ UPI</span>
+                  <span v-else-if="method === 'Card'">💳 Card</span>
+                  <span v-else>🏦 Net</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Simulated Card / UPI details input placeholders -->
+            <div v-if="selectedPaymentMethod === 'Card'" style="background: var(--snow); border: 1px solid var(--stone-light); padding: 10px; border-radius: 6px; font-size: 0.8rem; display: flex; flex-direction: column; gap: 8px; margin-bottom: 1.25rem;">
+              <div>
+                <label style="font-size: 0.72rem; color: var(--stone); display: block; margin-bottom: 2px;">Card Number</label>
+                <input type="text" placeholder="4111 2222 3333 4444" disabled style="width: 100%; padding: 4px 8px; border: 1px solid var(--stone-light); border-radius: 4px; background: white; color: var(--stone);" />
+              </div>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                <div>
+                  <label style="font-size: 0.72rem; color: var(--stone); display: block; margin-bottom: 2px;">Expiry Date</label>
+                  <input type="text" placeholder="MM/YY" disabled style="width: 100%; padding: 4px 8px; border: 1px solid var(--stone-light); border-radius: 4px; background: white; color: var(--stone);" />
+                </div>
+                <div>
+                  <label style="font-size: 0.72rem; color: var(--stone); display: block; margin-bottom: 2px;">CVV</label>
+                  <input type="text" placeholder="***" disabled style="width: 100%; padding: 4px 8px; border: 1px solid var(--stone-light); border-radius: 4px; background: white; color: var(--stone);" />
+                </div>
+              </div>
+            </div>
+            <div v-if="selectedPaymentMethod === 'UPI'" style="background: var(--snow); border: 1px solid var(--stone-light); padding: 10px; border-radius: 6px; font-size: 0.8rem; margin-bottom: 1.25rem;">
+              <label style="font-size: 0.72rem; color: var(--stone); display: block; margin-bottom: 2px;">UPI Virtual Payment Address (VPA)</label>
+              <input type="text" placeholder="username@okaxis" disabled style="width: 100%; padding: 4px 8px; border: 1px solid var(--stone-light); border-radius: 4px; background: white; color: var(--stone);" />
+            </div>
+            <div v-if="selectedPaymentMethod === 'Netbanking'" style="background: var(--snow); border: 1px solid var(--stone-light); padding: 10px; border-radius: 6px; font-size: 0.8rem; margin-bottom: 1.25rem;">
+              <label style="font-size: 0.72rem; color: var(--stone); display: block; margin-bottom: 2px;">Select Simulated Bank</label>
+              <select disabled style="width: 100%; padding: 4px 8px; border: 1px solid var(--stone-light); border-radius: 4px; background: white; color: var(--stone);">
+                <option>State Bank of India</option>
+                <option>HDFC Bank</option>
+                <option>ICICI Bank</option>
+              </select>
+            </div>
+
+            <!-- Simulated Payment Gateway Outcomes -->
+            <div>
+              <div style="font-size: 0.8rem; font-weight: 700; color: var(--stone); text-align: center; margin-bottom: 8px;">Select simulated transaction outcome:</div>
+              <div style="display: flex; flex-direction: column; gap: 8px;">
+                <button @click="processSimulatedPayment('Paid')" style="width: 100%; padding: 10px; border-radius: 6px; border: none; background: var(--green); color: white; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 0.85rem;">
+                  ✅ Authorize Payment (Success)
+                </button>
+                <button @click="processSimulatedPayment('Pending')" style="width: 100%; padding: 10px; border-radius: 6px; border: none; background: var(--gold-dark); color: white; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 0.85rem;">
+                  ⏳ Pay Offline / Later (Pending)
+                </button>
+                <button @click="processSimulatedPayment('Failed')" style="width: 100%; padding: 10px; border-radius: 6px; border: none; background: var(--red); color: white; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 0.85rem;">
+                  ❌ Decline Transaction (Failure)
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="ts-modal-footer">
+            <button class="btn-modal-cancel" @click="showPaymentModal = false">Cancel Payment</button>
           </div>
         </div>
       </div>

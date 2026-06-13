@@ -1187,4 +1187,109 @@ body { font-family:'DM Sans',sans-serif; background:var(--snow); color:var(--bar
   border-color: var(--red) !important;
 }
 
+/* Analytics Dashboard Styles */
+.analytics-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+.metric-card-kpi {
+  background: var(--snow);
+  border: 1px solid var(--stone-light);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  position: relative;
+  transition: all 0.25s ease;
+}
+.metric-card-kpi:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+  border-color: rgba(200, 146, 42, 0.3);
+}
+.metric-card-kpi .card-title {
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--stone);
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+.metric-card-kpi .card-value {
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: var(--forest);
+  font-family: 'Playfair Display', serif;
+}
+.metric-card-kpi .card-formula {
+  font-size: 0.72rem;
+  font-family: var(--mono, monospace);
+  color: var(--gold-dark);
+  background: rgba(200, 146, 42, 0.06);
+  padding: 2px 6px;
+  border-radius: 3px;
+  display: inline-block;
+  margin-top: 0.5rem;
+}
+.metric-card-kpi .card-desc {
+  font-size: 0.78rem;
+  color: var(--stone-dark);
+  margin-top: 0.5rem;
+}
+
+/* Donut & Side-by-Side Charts Layout */
+.charts-split-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+@media (max-width: 1024px) {
+  .charts-split-layout {
+    grid-template-columns: 1fr;
+  }
+}
+.donut-wrapper-flex {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  gap: 1.5rem;
+  padding: 1rem 0;
+}
+.donut-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--forest-mid);
+}
+.legend-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+
+/* Leaderboard Highlight Classes */
+.leaderboard-row-1 {
+  background: rgba(200, 146, 42, 0.06) !important;
+  border-left: 4px solid #d4af37 !important;
+}
+.leaderboard-row-2 {
+  background: rgba(160, 160, 160, 0.04) !important;
+  border-left: 4px solid #c0c0c0 !important;
+}
+.leaderboard-row-3 {
+  background: rgba(205, 127, 50, 0.04) !important;
+  border-left: 4px solid #cd7f32 !important;
+}
+.leaderboard-badge {
+  font-size: 1.1rem;
+  margin-right: 4px;
+}
+
 

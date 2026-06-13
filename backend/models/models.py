@@ -126,7 +126,11 @@ class Trek(db.Model):
     bookings = db.relationship('Booking', backref='trek', lazy=True, cascade="all, delete-orphan")
 
     def to_json(self):
-        booked_count = db.session.query(Booking).filter_by(trek_id=self.id, status='Booked').count()
+        booked_count = db.session.query(Booking).filter(
+            Booking.trek_id == self.id,
+            Booking.status == 'Booked',
+            (Booking.payment_status != 'Failed') | (Booking.payment_status == None)
+        ).count()
         return {
             'id': self.id,
             'trekRouteId': self.trek_route_id,
@@ -159,6 +163,9 @@ class Booking(db.Model):
     booked_on = db.Column(db.Date, nullable=False, default=datetime.utcnow().date)
     status = db.Column(db.String(20), nullable=False, default='Booked') # 'Booked', 'Cancelled', 'Completed'
     paid = db.Column(db.Boolean, default=True)
+    booking_price = db.Column(db.Integer, nullable=True)
+    amount_paid = db.Column(db.Integer, nullable=True)
+    payment_status = db.Column(db.String(20), nullable=True) # 'Paid', 'Pending', 'Failed'
 
     @property
     def unique_booking_id(self):
@@ -212,6 +219,9 @@ class Booking(db.Model):
             'status': self.status,
             'price': self.trek.price,
             'paid': self.paid,
+            'bookingPrice': self.booking_price or (self.trek.price if self.trek else 5000),
+            'amountPaid': self.amount_paid or (self.trek.price if (self.paid and self.trek) else 0),
+            'paymentStatus': self.payment_status or ('Paid' if self.paid else 'Pending'),
             'latitude': self.trek.latitude,
             'longitude': self.trek.longitude,
             'distance': self.trek.distance,

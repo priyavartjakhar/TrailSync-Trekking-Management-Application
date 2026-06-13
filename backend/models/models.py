@@ -241,6 +241,7 @@ class StaffProfile(db.Model):
     languages = db.Column(db.String(200), nullable=True, default='English, Hindi')
     completed_treks_count = db.Column(db.Integer, default=10)
     photo_url = db.Column(db.String(250), nullable=True)
+    custom_blocked_dates = db.Column(db.Text, nullable=True, default='')
     
     # Relationship
     user = db.relationship('User', backref=db.backref('staff_profile', uselist=False, cascade="all, delete-orphan"))
@@ -256,7 +257,8 @@ class StaffProfile(db.Model):
             'certifications': self.certifications,
             'languages': self.languages,
             'completedTreksCount': self.completed_treks_count,
-            'photoUrl': self.photo_url
+            'photoUrl': self.photo_url,
+            'customBlockedDates': self.custom_blocked_dates or ''
         }
 
 class BookingChecklistItem(db.Model):

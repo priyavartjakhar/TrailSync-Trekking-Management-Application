@@ -1324,15 +1324,26 @@ body { font-family:'DM Sans',sans-serif; background:var(--snow); color:var(--bar
 }
 .calendar-table-wrap {
   overflow-x: auto;
+  overflow-y: auto;
+  max-height: 485px;
   border: 1px solid #edf2f7;
   border-radius: 6px;
 }
 .calendar-table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate; /* Required for sticky borders in Chrome/Safari */
+  border-spacing: 0;
+}
+.calendar-table thead th {
+  position: sticky;
+  top: 0;
+  background: #f7fafc;
+  z-index: 15;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.08);
 }
 .calendar-table th, .calendar-table td {
-  border: 1px solid #edf2f7;
+  border-right: 1px solid #edf2f7;
+  border-bottom: 1px solid #edf2f7;
   text-align: center;
   padding: 8px 6px;
   min-width: 32px;
@@ -1348,7 +1359,10 @@ body { font-family:'DM Sans',sans-serif; background:var(--snow); color:var(--bar
   box-shadow: 2px 0 5px rgba(0,0,0,0.04);
 }
 .calendar-table th.staff-name-col {
+  top: 0;
+  z-index: 30;
   background: #f7fafc !important;
+  box-shadow: 2px 2px 5px rgba(0,0,0,0.06);
 }
 .calendar-table td.day-cell {
   position: relative;
@@ -1397,6 +1411,21 @@ body { font-family:'DM Sans',sans-serif; background:var(--snow); color:var(--bar
 }
 .calendar-table td.day-cell.busy-day:hover .calendar-tooltip {
   display: block;
+}
+.calendar-table td.day-cell.custom-blocked-day {
+  background: #fff5f5 !important;
+  border-color: #fed7d7 !important;
+  color: #c53030 !important;
+}
+.calendar-table td.day-cell.custom-blocked-day:hover {
+  background: #fed7d7 !important;
+}
+.calendar-table td.day-cell.free-day {
+  background: #fff;
+  transition: background 0.15s;
+}
+.calendar-table td.day-cell.free-day:hover {
+  background: #f7fafc;
 }
 
 

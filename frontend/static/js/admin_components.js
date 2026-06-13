@@ -499,13 +499,35 @@ const TsAdminLayout = {
       const end = new Date(this.checkedEnd);
       return this.staffList.filter(s => {
         if (!s.active || s.blacklisted) return false;
-        if (!s.treksDone || !s.treksDone.length) return true;
-        const isBusy = s.treksDone.some(t => {
-          const tStart = new Date(t.startDate);
-          const tEnd = new Date(t.endDate);
-          return tStart <= end && tEnd >= start;
-        });
-        return !isBusy;
+        
+        // 1. Check Trek batch conflicts
+        if (s.treksDone && s.treksDone.length) {
+          const isBusyTrek = s.treksDone.some(t => {
+            const tStart = new Date(t.startDate);
+            const tEnd = new Date(t.endDate);
+            return tStart <= end && tEnd >= start;
+          });
+          if (isBusyTrek) return false;
+        }
+        
+        // 2. Check custom blocked dates
+        if (s.customBlockedDates) {
+          const blockedDates = s.customBlockedDates.split(',').map(x => x.trim()).filter(Boolean);
+          // Loop through each day from start to end
+          let curr = new Date(start);
+          while (curr <= end) {
+            const y = curr.getFullYear();
+            const m = String(curr.getMonth() + 1).padStart(2, '0');
+            const d = String(curr.getDate()).padStart(2, '0');
+            const dStr = `${y}-${m}-${d}`;
+            if (blockedDates.includes(dStr)) {
+              return false; // Busy on this day
+            }
+            curr.setDate(curr.getDate() + 1);
+          }
+        }
+        
+        return true;
       });
     },
     revenueKPIs() {
@@ -815,6 +837,39 @@ const TsAdminLayout = {
         }
       }
       return { status: 'Available' };
+    },
+    isStaffBusyOnDay(staff, day) {
+      if (this.getConflictTrekForDay(staff, day)) return true;
+      const dStr = `${this.calendarYear}-${String(this.calendarMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      if (staff.customBlockedDates) {
+        const dates = staff.customBlockedDates.split(',').map(x => x.trim());
+        if (dates.includes(dStr)) return true;
+      }
+      return false;
+    },
+    async toggleDayAvailability(staff, day) {
+      const dStr = `${this.calendarYear}-${String(this.calendarMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      const trekConflict = this.getConflictTrekForDay(staff, day);
+      if (trekConflict) {
+        this.showToast(`Cannot clear: Guide is assigned to trek batch '${trekConflict.batchId}'. Reassign guide in batch settings.`);
+        return;
+      }
+      try {
+        const res = await fetch(`/api/admin/staff/${staff.id}/toggle_date_availability`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ date: dStr })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          staff.customBlockedDates = data.customBlockedDates;
+          this.showToast(`Guide availability updated: marked as ${data.action === 'busy' ? 'Unavailable' : 'Available'}.`);
+        } else {
+          this.showToast('Failed to toggle date availability.');
+        }
+      } catch (err) {
+        this.showToast('Network error toggling date availability.');
+      }
     },
     changeCalendarMonth(delta) {
       let m = this.calendarMonth + delta;
@@ -2689,22 +2744,34 @@ const TsAdminLayout = {
                     </div>
                   </td>
                   <td v-for="d in daysInActiveMonth" :key="d"
-                      :class="{ 'weekend': isWeekend(d), 'busy-day': getConflictTrekForDay(s, d) }"
+                      :class="{ 
+                        'weekend': isWeekend(d), 
+                        'busy-day': isStaffBusyOnDay(s, d), 
+                        'custom-blocked-day': isStaffBusyOnDay(s, d) && !getConflictTrekForDay(s, d),
+                        'free-day': !isStaffBusyOnDay(s, d)
+                      }"
                       class="day-cell"
-                      style="height: 36px; min-width: 32px; font-size: 0.72rem; vertical-align: middle;">
-                    <template v-if="getConflictTrekForDay(s, d)">
-                      <span style="font-weight: bold;">{{ getConflictTrekForDay(s, d).batchId }}</span>
+                      style="height: 38px; min-width: 80px; font-size: 0.72rem; vertical-align: middle; cursor: pointer; user-select: none;"
+                      @click="toggleDayAvailability(s, d)">
+                    <template v-if="isStaffBusyOnDay(s, d)">
+                      <span class="status-pill status-inactive" style="font-size: 0.65rem; padding: 2px 6px; font-weight: bold;">Busy</span>
                       <div class="calendar-tooltip">
                         <div style="font-weight: bold; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 3px; margin-bottom: 3px;">
-                          {{ getConflictTrekForDay(s, d).batchId }}
+                          Busy Schedule
                         </div>
-                        <div>Trek: {{ getConflictTrekForDay(s, d).trekName }}</div>
-                        <div>Dates: {{ getConflictTrekForDay(s, d).startDate }} to {{ getConflictTrekForDay(s, d).endDate }}</div>
-                        <div>Trekkers: {{ getConflictTrekForDay(s, d).trekkersCount }} registered</div>
+                        <div v-if="getConflictTrekForDay(s, d)">
+                          <strong>Trek:</strong> {{ getConflictTrekForDay(s, d).trekName }}<br>
+                          <strong>Batch:</strong> {{ getConflictTrekForDay(s, d).batchId }}<br>
+                          <strong>Dates:</strong> {{ getConflictTrekForDay(s, d).startDate }} to {{ getConflictTrekForDay(s, d).endDate }}<br>
+                          <strong>Trekkers:</strong> {{ getConflictTrekForDay(s, d).trekkersCount }} registered
+                        </div>
+                        <div v-else>
+                          <strong>Custom Block:</strong> Unavailable.<br>Click to toggle Free/Available.
+                        </div>
                       </div>
                     </template>
                     <template v-else>
-                      <span style="color: #cbd5e0;">•</span>
+                      <span class="status-pill status-active" style="font-size: 0.65rem; padding: 2px 6px; font-weight: 500; background: #e6fffa; color: #319795; border: 1px solid #b2f5ea;">Available</span>
                     </template>
                   </td>
                 </tr>

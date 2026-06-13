@@ -1203,7 +1203,8 @@ def admin_dashboard_data():
             'languages': languages,
             'completedTreksCount': completed_count + len(assigned),
             'photoUrl': photo_url,
-            'treksDone': treks_done
+            'treksDone': treks_done,
+            'customBlockedDates': profile.custom_blocked_dates if (profile and profile.custom_blocked_dates) else ''
         })
         
     users = []
@@ -1634,6 +1635,18 @@ def admin_save_trek():
         ).first()
         if conflict:
             return jsonify({'error': f"Conflict: Guide is already assigned to batch '{conflict.name}' ({conflict.batch_code}) from {conflict.start_date} to {conflict.end_date}."}), 400
+            
+        guide = User.query.get(staff_id)
+        if guide and guide.staff_profile and guide.staff_profile.custom_blocked_dates:
+            blocked_str = guide.staff_profile.custom_blocked_dates
+            blocked_dates = [d.strip() for d in blocked_str.split(',') if d.strip()]
+            from datetime import timedelta
+            curr = start_date
+            while curr <= end_date:
+                curr_str = curr.strftime('%Y-%m-%d')
+                if curr_str in blocked_dates:
+                    return jsonify({'error': f"Conflict: Guide is marked Unavailable (Leave/Off Day) on {curr_str}. Clear unavailability first."}), 400
+                curr += timedelta(days=1)
 
     if trek_id:
         trek = Trek.query.get(trek_id)
@@ -1897,6 +1910,45 @@ def admin_save_staff():
     db.session.commit()
     return jsonify({'success': True})
 
+@app.route('/api/admin/staff/<int:staff_id>/toggle_date_availability', methods=['POST'])
+@login_required
+def admin_toggle_staff_date_availability(staff_id):
+    if current_user.role != 'admin':
+        return jsonify({'error': 'Unauthorized'}), 403
+        
+    data = request.get_json() or {}
+    date_str = data.get('date')
+    if not date_str:
+        return jsonify({'error': 'Date is required.'}), 400
+        
+    staff = User.query.get(staff_id)
+    if not staff or staff.role != 'staff':
+        return jsonify({'error': 'Staff member not found.'}), 404
+        
+    profile = staff.staff_profile
+    if not profile:
+        profile = StaffProfile(user_id=staff.id)
+        db.session.add(profile)
+        
+    blocked_dates = profile.custom_blocked_dates or ''
+    dates_list = [d.strip() for d in blocked_dates.split(',') if d.strip()]
+    
+    if date_str in dates_list:
+        dates_list.remove(date_str)
+        action = 'free'
+    else:
+        dates_list.append(date_str)
+        action = 'busy'
+        
+    profile.custom_blocked_dates = ','.join(dates_list)
+    db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'action': action,
+        'customBlockedDates': profile.custom_blocked_dates
+    })
+
 @app.route('/api/admin/trekkers', methods=['POST'])
 @login_required
 def admin_save_trekker():
@@ -2119,6 +2171,17 @@ def admin_assign_trek(trek_id):
     ).first()
     if conflict:
         return jsonify({'error': f"Conflict: Guide is already assigned to batch '{conflict.name}' ({conflict.batch_code}) from {conflict.start_date} to {conflict.end_date}."}), 400
+        
+    if staff.staff_profile and staff.staff_profile.custom_blocked_dates:
+        blocked_str = staff.staff_profile.custom_blocked_dates
+        blocked_dates = [d.strip() for d in blocked_str.split(',') if d.strip()]
+        from datetime import timedelta
+        curr = trek.start_date
+        while curr <= trek.end_date:
+            curr_str = curr.strftime('%Y-%m-%d')
+            if curr_str in blocked_dates:
+                return jsonify({'error': f"Conflict: Guide is marked Unavailable (Leave/Off Day) on {curr_str}. Clear unavailability first."}), 400
+            curr += timedelta(days=1)
         
     trek.staff_id = staff.id
     db.session.commit()

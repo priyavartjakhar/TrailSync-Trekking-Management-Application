@@ -1087,12 +1087,38 @@ const TsAdminLayout = {
       this.selectedUserDetails = null;
     },
     openTicketDetails(ticket) {
+      const user = this.users.find(u => u.id === ticket.userId);
+      if (user) {
+        const photos = [
+          "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&h=300&fit=crop",
+          "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&h=300&fit=crop",
+          "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300&h=300&fit=crop",
+          "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=300&h=300&fit=crop",
+          "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=300&h=300&fit=crop"
+        ];
+        user.photoUrl = photos[user.id % photos.length];
+        user.bookingsList = this.allBookings.filter(b => b.userId === user.id);
+        ticket.userDetails = user;
+      } else {
+        ticket.userDetails = null;
+      }
       this.selectedTicketDetails = ticket;
       this.showTicketDetailsModal = true;
     },
     closeTicketDetails() {
       this.showTicketDetailsModal = false;
       this.selectedTicketDetails = null;
+    },
+    getCategoryClass(category) {
+      const map = {
+        'General Inquiry': 'cat-general',
+        'Booking & Reservation': 'cat-booking',
+        'Payments & Refunds': 'cat-payment',
+        'Profile & Account Settings': 'cat-profile',
+        'Technical Issue / Bug': 'cat-bug',
+        'Feedback & Suggestions': 'cat-feedback'
+      };
+      return map[category] || 'cat-general';
     },
     closeBlacklistModal() {
       this.showBlacklistModal = false;
@@ -3754,8 +3780,8 @@ const TsAdminLayout = {
 
       <!-- ══ SUPPORT TICKETS ════════════════════════════════ -->
       <section v-if="activeTab==='support_tickets'" class="tab-content">
-        <!-- Filter Tabs & Refresh Button Bar -->
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+        <!-- Filter Tabs Bar -->
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem;">
           <div class="ticket-tabs" style="margin-bottom:0; border-bottom:none; padding-bottom:0;">
             <button class="ticket-tab-btn" :class="{ active: ticketStatusFilter === 'All' }" @click="ticketStatusFilter = 'All'">
               All
@@ -3770,11 +3796,6 @@ const TsAdminLayout = {
               <span class="ticket-tab-count">{{ supportTickets.filter(t => t.status === 'Resolved').length }}</span>
             </button>
           </div>
-          <button class="refresh-btn" @click="loadData" title="Refresh Tickets">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
-            </svg>
-          </button>
         </div>
 
         <div v-if="filteredTickets.length === 0" class="empty-state">
@@ -3790,29 +3811,25 @@ const TsAdminLayout = {
                 <th>Sender</th>
                 <th>Category</th>
                 <th>Subject</th>
-                <th>Message Preview</th>
                 <th>Status</th>
-                <th>Actions</th>
+                <th style="text-align:right;">Actions</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="t in filteredTickets" :key="t.id">
-                <td class="mono font-bold" style="color:var(--forest)">{{ t.ticketId || `TS26#${String(t.id).padStart(3, '0')}` }}</td>
+                <td class="mono font-bold" style="color:var(--forest)">{{ t.ticketId || ('TS26#' + String(t.id).padStart(3, '0')) }}</td>
                 <td class="mono" style="font-size:0.78rem; white-space:nowrap;">{{ t.createdAt ? t.createdAt.split(' ')[0] : '—' }}</td>
                 <td>
                   <div style="font-weight:600; color:var(--forest)">{{ t.name }}</div>
                   <div style="font-size:0.75rem; color:var(--stone)">{{ t.email }}</div>
                 </td>
                 <td>
-                  <span class="category-tag" :class="'cat-' + (t.category || 'inquiry').toLowerCase()">
-                    {{ t.category || 'Inquiry' }}
+                  <span class="category-tag" :class="getCategoryClass(t.category)">
+                    {{ t.category || 'General Inquiry' }}
                   </span>
                 </td>
-                <td style="font-weight:600; font-size:0.85rem; max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                <td style="font-weight:600; font-size:0.85rem; max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
                   {{ t.cleanSubject || t.subject }}
-                </td>
-                <td style="max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:0.82rem; color:var(--stone)">
-                  {{ t.message }}
                 </td>
                 <td>
                   <span class="status-pill" :class="t.status === 'Open' ? 'status-pending' : 'status-approved'">
@@ -3820,9 +3837,9 @@ const TsAdminLayout = {
                   </span>
                 </td>
                 <td>
-                  <div class="action-btns">
-                    <button class="act-btn act-green" style="padding: 2px 8px; font-size: 0.75rem;" @click="openTicketDetails(t)">View</button>
-                    <button class="act-btn act-green" style="padding: 2px 8px; font-size: 0.75rem;" v-if="t.status === 'Open'" @click="resolveTicket(t)">Resolve</button>
+                  <div class="action-btns" style="justify-content:flex-end;">
+                    <button class="act-btn act-view" style="border: 1px solid rgba(61,107,61,0.25); padding: 4px 10px;" @click="openTicketDetails(t)">View</button>
+                    <button class="act-btn act-assign" v-if="t.status === 'Open'" @click="resolveTicket(t)">Resolve</button>
                   </div>
                 </td>
               </tr>
@@ -4694,44 +4711,74 @@ const TsAdminLayout = {
 
     <!-- ════════ SUPPORT TICKET DETAILS MODAL ════════ -->
     <div v-if="showTicketDetailsModal" class="ts-modal-overlay" @click.self="closeTicketDetails">
-      <div class="ts-modal">
+      <div class="ts-modal large">
         <div class="ts-modal-header">
-          <h3 class="ts-modal-title">Ticket details — {{ selectedTicketDetails.ticketId || `TS26#${String(selectedTicketDetails.id).padStart(3, '0')}` }}</h3>
+          <h3 class="ts-modal-title">Ticket details — {{ selectedTicketDetails.ticketId || ('TS26#' + String(selectedTicketDetails.id).padStart(3, '0')) }}</h3>
           <button class="modal-close" @click="closeTicketDetails">✕</button>
         </div>
-        <div class="ts-modal-body" style="padding: 1.5rem;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; background: var(--snow); padding: 0.75rem 1rem; border-radius: 6px; border: 1px solid rgba(26,46,26,0.06);">
+        <div class="ts-modal-body" style="padding: 1.5rem; max-height: 480px; overflow-y: auto;">
+          <div class="details-modal-grid">
+            
+            <!-- Left Side: Ticket Description -->
+            <div style="border-right: 1px solid var(--stone-light); padding-right: 1.5rem;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; background: var(--snow); padding: 0.75rem 1rem; border-radius: 6px; border: 1px solid rgba(26,46,26,0.06);">
+                <div>
+                  <span class="category-tag" :class="getCategoryClass(selectedTicketDetails.category)" style="margin-right: 8px;">
+                    {{ selectedTicketDetails.category || 'General Inquiry' }}
+                  </span>
+                  <span class="status-pill" :class="selectedTicketDetails.status === 'Open' ? 'status-pending' : 'status-approved'">
+                    {{ selectedTicketDetails.status }}
+                  </span>
+                </div>
+                <div class="mono" style="font-size: 0.78rem; color: var(--stone);">
+                  Submitted: {{ selectedTicketDetails.createdAt ? selectedTicketDetails.createdAt.split(' ')[0] : '—' }}
+                </div>
+              </div>
+
+              <div style="margin-bottom: 1.25rem;">
+                <div style="font-size: 0.8rem; font-weight: 700; color: var(--forest); text-transform: uppercase; margin-bottom: 0.25rem;">Subject</div>
+                <div style="font-weight: 600; color: var(--bark); font-size: 1.05rem; line-height: 1.4;">
+                  {{ selectedTicketDetails.cleanSubject || selectedTicketDetails.subject }}
+                </div>
+              </div>
+
+              <div>
+                <div style="font-size: 0.8rem; font-weight: 700; color: var(--forest); text-transform: uppercase; margin-bottom: 0.25rem;">Message Description</div>
+                <div style="font-size: 0.9rem; color: var(--stone); line-height: 1.5; white-space: pre-wrap; background: var(--snow); padding: 1rem; border-radius: 6px; border: 1px solid rgba(26,46,26,0.06); min-height: 120px; max-height: 200px; overflow-y: auto;">
+                  {{ selectedTicketDetails.message }}
+                </div>
+              </div>
+            </div>
+
+            <!-- Right Side: User Profile Details -->
             <div>
-              <span class="category-tag" :class="'cat-' + (selectedTicketDetails.category || 'inquiry').toLowerCase()" style="margin-right: 8px;">
-                {{ selectedTicketDetails.category || 'Inquiry' }}
-              </span>
-              <span class="status-pill" :class="selectedTicketDetails.status === 'Open' ? 'status-pending' : 'status-approved'">
-                {{ selectedTicketDetails.status }}
-              </span>
-            </div>
-            <div class="mono" style="font-size: 0.78rem; color: var(--stone);">
-              Submitted: {{ selectedTicketDetails.createdAt }}
-            </div>
-          </div>
+              <div v-if="selectedTicketDetails.userDetails">
+                <div style="text-align: center; margin-bottom: 1.25rem;">
+                  <img :src="selectedTicketDetails.userDetails.photoUrl" style="width: 90px; height: 90px; border-radius: 50%; object-fit: cover; border: 2px solid var(--forest); box-shadow: 0 4px 8px rgba(0,0,0,0.1); margin-bottom: 0.5rem;" />
+                  <h4 style="font-weight: 700; color: var(--forest); margin-bottom: 0.1rem;">{{ selectedTicketDetails.userDetails.name }}</h4>
+                  <div style="font-size: 0.8rem; color: var(--stone); font-family: monospace;">ID: {{ selectedTicketDetails.userDetails.memberId }}</div>
+                </div>
 
-          <div style="margin-bottom: 1.25rem;">
-            <div style="font-size: 0.8rem; font-weight: 700; color: var(--forest); text-transform: uppercase; margin-bottom: 0.25rem;">Sender</div>
-            <div style="font-weight: 600; color: var(--bark); font-size: 0.95rem;">{{ selectedTicketDetails.name }}</div>
-            <div style="font-size: 0.82rem; color: var(--stone); font-family: monospace;">{{ selectedTicketDetails.email }}</div>
-          </div>
-
-          <div style="margin-bottom: 1.25rem;">
-            <div style="font-size: 0.8rem; font-weight: 700; color: var(--forest); text-transform: uppercase; margin-bottom: 0.25rem;">Subject</div>
-            <div style="font-weight: 600; color: var(--bark); font-size: 1rem; line-height: 1.4;">
-              {{ selectedTicketDetails.cleanSubject || selectedTicketDetails.subject }}
+                <div class="staff-detail-info" style="background: var(--snow); padding: 1rem; border-radius: 6px; border: 1px solid var(--stone-light); font-size: 0.82rem;">
+                  <div style="margin-bottom: 6px;"><strong>Email:</strong> {{ selectedTicketDetails.userDetails.email }}</div>
+                  <div style="margin-bottom: 6px;"><strong>Phone:</strong> {{ selectedTicketDetails.userDetails.phone || '—' }}</div>
+                  <div style="margin-bottom: 6px;"><strong>City:</strong> {{ selectedTicketDetails.userDetails.city || '—' }}</div>
+                  <div style="margin-bottom: 6px;"><strong>Emergency Contact:</strong> {{ selectedTicketDetails.userDetails.emergency || '—' }}</div>
+                  <div style="margin-bottom: 6px;"><strong>Joined:</strong> {{ formatDate(selectedTicketDetails.userDetails.registered) }}</div>
+                  <div style="margin-bottom: 6px;"><strong>Total Bookings:</strong> <span class="mono" style="font-weight:700; color:var(--forest);">{{ selectedTicketDetails.userDetails.bookingsList.length }}</span></div>
+                  <div><strong>Bio:</strong> {{ selectedTicketDetails.userDetails.bio || 'No bio provided.' }}</div>
+                </div>
+              </div>
+              
+              <div v-else style="text-align: center; padding: 2rem 1rem; background: var(--snow); border-radius: 6px; border: 1px dashed var(--stone); height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                <svg viewBox="0 0 24 24" width="36" height="36" style="stroke: var(--stone); opacity: 0.6; margin-bottom: 0.75rem;" fill="none" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                <h5 style="font-size: 0.9rem; color: var(--forest); font-weight: 700; margin-bottom: 0.25rem;">Guest Submitter</h5>
+                <p style="font-size: 0.78rem; color: var(--stone); line-height: 1.4; margin: 0;">
+                  No registered account matches this ticket's email address ({{ selectedTicketDetails.email }}).
+                </p>
+              </div>
             </div>
-          </div>
 
-          <div>
-            <div style="font-size: 0.8rem; font-weight: 700; color: var(--forest); text-transform: uppercase; margin-bottom: 0.25rem;">Message Description</div>
-            <div style="font-size: 0.9rem; color: var(--stone); line-height: 1.5; white-space: pre-wrap; background: var(--snow); padding: 1rem; border-radius: 6px; border: 1px solid rgba(26,46,26,0.06); max-height: 200px; overflow-y: auto;">
-              {{ selectedTicketDetails.message }}
-            </div>
           </div>
         </div>
         <div class="ts-modal-footer" style="display: flex; justify-content: flex-end; gap: 0.5rem; padding: 1rem 1.5rem;">

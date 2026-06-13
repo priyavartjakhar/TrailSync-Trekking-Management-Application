@@ -84,6 +84,7 @@ const TsUserLayout = {
       submittingSupport: false,
       loadingSupport: false,
       expandedFaq: null,
+      showCategoryDropdown: false,
 
       // ── INTERACTIVE WIDGETS STATE ──────────────────
       showPrepDrawer: false,
@@ -296,6 +297,17 @@ const TsUserLayout = {
 
       window.location.hash = tab;
     },
+    getCategoryClass(category) {
+      const map = {
+        'General Inquiry': 'cat-general',
+        'Booking & Reservation': 'cat-booking',
+        'Payments & Refunds': 'cat-payment',
+        'Profile & Account Settings': 'cat-profile',
+        'Technical Issue / Bug': 'cat-bug',
+        'Feedback & Suggestions': 'cat-feedback'
+      };
+      return map[category] || 'cat-general';
+    },
     activateTab(tab) {
       const validTabs = ['dashboard', 'explore', 'bookings', 'history', 'profile', 'support'];
       if (!tab || !validTabs.includes(tab)) return;
@@ -347,6 +359,7 @@ const TsUserLayout = {
       this.showDiffFilterDropdown = false;
       this.showLocFilterDropdown = false;
       this.showDurFilterDropdown = false;
+      this.showCategoryDropdown = false;
       this[type] = !current;
     },
     closeDropdowns() {
@@ -354,6 +367,7 @@ const TsUserLayout = {
       this.showDiffFilterDropdown = false;
       this.showLocFilterDropdown = false;
       this.showDurFilterDropdown = false;
+      this.showCategoryDropdown = false;
     },
     sendGuideMessage() {
       if (!this.guideMessage.trim()) return;
@@ -1936,14 +1950,31 @@ const TsUserLayout = {
                     </div>
                     <div>
                       <label style="display: block; font-size: 0.85rem; font-weight: 600; color: var(--forest); margin-bottom: 0.5rem">Category</label>
-                      <select v-model="supportForm.category" style="width: 100%; padding: 0.75rem; border: 1px solid rgba(26,46,26,0.15); border-radius: 6px; background: #fff">
-                        <option value="General">General Inquiry</option>
-                        <option value="Booking">Booking & Reservation</option>
-                        <option value="Payment">Payments & Refunds</option>
-                        <option value="Profile">Profile & Account Settings</option>
-                        <option value="Bug">Technical Issue / Bug</option>
-                        <option value="Feedback">Feedback & Suggestions</option>
-                      </select>
+                      <div class="custom-select-wrapper" :class="{ 'is-open': showCategoryDropdown }">
+                        <div class="custom-select-trigger" @click.stop="showCategoryDropdown = !showCategoryDropdown" style="padding: 0.75rem; border: 1px solid rgba(26,46,26,0.15); border-radius: 6px; background: #fff; display: flex; justify-content: space-between; align-items: center; cursor: pointer; font-size: 0.9rem;">
+                          <span>
+                            {{
+                              supportForm.category === 'General' ? 'General Inquiry' :
+                              supportForm.category === 'Booking' ? 'Booking & Reservation' :
+                              supportForm.category === 'Payment' ? 'Payments & Refunds' :
+                              supportForm.category === 'Profile' ? 'Profile & Account Settings' :
+                              supportForm.category === 'Bug' ? 'Technical Issue / Bug' :
+                              supportForm.category === 'Feedback' ? 'Feedback & Suggestions' : 'General Inquiry'
+                            }}
+                          </span>
+                          <svg viewBox="0 0 24 24" class="custom-select-arrow" :class="{ open: showCategoryDropdown }" style="width: 16px; height: 16px; transition: transform 0.2s;"><polyline points="6 9 12 15 18 9"/></svg>
+                        </div>
+                        <div v-show="showCategoryDropdown" class="custom-select-dropdown" style="z-index: 2000;">
+                          <div class="custom-select-options">
+                            <div class="custom-select-option" :class="{ selected: supportForm.category === 'General' }" @click="supportForm.category = 'General'; showCategoryDropdown = false;">General Inquiry</div>
+                            <div class="custom-select-option" :class="{ selected: supportForm.category === 'Booking' }" @click="supportForm.category = 'Booking'; showCategoryDropdown = false;">Booking & Reservation</div>
+                            <div class="custom-select-option" :class="{ selected: supportForm.category === 'Payment' }" @click="supportForm.category = 'Payment'; showCategoryDropdown = false;">Payments & Refunds</div>
+                            <div class="custom-select-option" :class="{ selected: supportForm.category === 'Profile' }" @click="supportForm.category = 'Profile'; showCategoryDropdown = false;">Profile & Account Settings</div>
+                            <div class="custom-select-option" :class="{ selected: supportForm.category === 'Bug' }" @click="supportForm.category = 'Bug'; showCategoryDropdown = false;">Technical Issue / Bug</div>
+                            <div class="custom-select-option" :class="{ selected: supportForm.category === 'Feedback' }" @click="supportForm.category = 'Feedback'; showCategoryDropdown = false;">Feedback & Suggestions</div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                     <div>
                       <label style="display: block; font-size: 0.85rem; font-weight: 600; color: var(--forest); margin-bottom: 0.5rem">Message Details</label>
@@ -1963,11 +1994,6 @@ const TsUserLayout = {
                   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid rgba(26,46,26,0.08); padding-bottom: 0.75rem">
                     <h3 style="font-family:'Playfair Display',serif; font-size: 1.4rem; color: var(--forest)">Ticket History</h3>
                     <div style="display: flex; align-items: center; gap: 0.5rem">
-                      <button class="refresh-btn" @click="fetchUserTickets" title="Refresh Tickets" style="width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center;">
-                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                          <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
-                        </svg>
-                      </button>
                       <span style="font-size: 0.8rem; background: rgba(26,46,26,0.05); color: var(--forest); padding: 4px 10px; border-radius: 30px; font-weight: 600">
                         {{ supportTickets.length }} {{ supportTickets.length === 1 ? 'ticket' : 'tickets' }}
                       </span>
@@ -1993,9 +2019,9 @@ const TsUserLayout = {
                       <div class="ts-card-body" style="padding: 1.25rem">
                         <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem">
                           <div>
-                            <span style="font-size: 0.75rem; font-weight: 700; color: var(--forest); margin-right: 8px; font-family: monospace;">{{ ticket.ticketId || `TS26#${String(ticket.id).padStart(3, '0')}` }}</span>
-                            <span class="category-tag" :class="'cat-' + (ticket.category || 'inquiry').toLowerCase()" style="padding: 1px 6px; font-size: 0.65rem;">
-                              {{ ticket.category || 'Inquiry' }}
+                            <span style="font-size: 0.75rem; font-weight: 700; color: var(--forest); margin-right: 8px; font-family: monospace;">{{ ticket.ticketId || ('TS26#' + String(ticket.id).padStart(3, '0')) }}</span>
+                            <span class="category-tag" :class="getCategoryClass(ticket.category)" style="padding: 1px 6px; font-size: 0.65rem;">
+                              {{ ticket.category || 'General Inquiry' }}
                             </span>
                           </div>
                           <span :style="{

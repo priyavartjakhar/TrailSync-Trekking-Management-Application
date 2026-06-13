@@ -315,13 +315,29 @@ class SupportTicket(db.Model):
 
     def to_json(self):
         import re
-        category = 'Inquiry'
+        CATEGORY_MAP = {
+            'General': 'General Inquiry',
+            'Booking': 'Booking & Reservation',
+            'Payment': 'Payments & Refunds',
+            'Profile': 'Profile & Account Settings',
+            'Bug': 'Technical Issue / Bug',
+            'Feedback': 'Feedback & Suggestions',
+            'Inquiry': 'General Inquiry'
+        }
+        category = 'General Inquiry'
         clean_subject = self.subject
         if self.subject:
             match = re.match(r'^\[(.*?)\]\s*(.*)$', self.subject)
             if match:
-                category = match.group(1)
+                raw_cat = match.group(1)
+                category = CATEGORY_MAP.get(raw_cat, raw_cat)
                 clean_subject = match.group(2)
+            else:
+                # Seeded or legacy tickets without brackets
+                # Attempt to guess from content or default to General Inquiry
+                category = 'General Inquiry'
+                clean_subject = self.subject
+
         return {
             'id': self.id,
             'ticketId': f"TS26#{self.id:03d}" if self.id else "TS26#000",

@@ -1292,4 +1292,111 @@ body { font-family:'DM Sans',sans-serif; background:var(--snow); color:var(--bar
   margin-right: 4px;
 }
 
+/* Staff Availability Calendar & Range Checker */
+.availability-card {
+  border-radius: 6px;
+  padding: 1rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.availability-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px rgba(0,0,0,0.08);
+}
+.calendar-timeline-container {
+  background: #fff;
+  border-radius: 6px;
+  border: 1px solid rgba(26,46,26,.09);
+  padding: 1.5rem;
+  margin-top: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+}
+.calendar-timeline-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+.calendar-table-wrap {
+  overflow-x: auto;
+  border: 1px solid #edf2f7;
+  border-radius: 6px;
+}
+.calendar-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.calendar-table th, .calendar-table td {
+  border: 1px solid #edf2f7;
+  text-align: center;
+  padding: 8px 6px;
+  min-width: 32px;
+  box-sizing: border-box;
+}
+.calendar-table th.staff-name-col, .calendar-table td.staff-name-col {
+  text-align: left;
+  min-width: 180px;
+  position: sticky;
+  left: 0;
+  background: #fff;
+  z-index: 10;
+  box-shadow: 2px 0 5px rgba(0,0,0,0.04);
+}
+.calendar-table th.staff-name-col {
+  background: #f7fafc !important;
+}
+.calendar-table td.day-cell {
+  position: relative;
+  cursor: default;
+}
+.calendar-table td.day-cell.weekend, .calendar-table th.weekend {
+  background: #fcfdfd;
+}
+.calendar-table td.day-cell.busy-day {
+  background: #fcf8e3; /* Soft warm amber for busy days */
+  border-color: #faebcc;
+  color: #8a6d3b;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.calendar-table td.day-cell.busy-day:hover {
+  background: #fae7b5;
+}
+.calendar-tooltip {
+  display: none;
+  position: absolute;
+  bottom: 110%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #2d3748;
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 0.74rem;
+  line-height: 1.35;
+  white-space: nowrap;
+  z-index: 200;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  pointer-events: none;
+  text-align: left;
+}
+.calendar-tooltip::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 5px;
+  border-style: solid;
+  border-color: #2d3748 transparent transparent transparent;
+}
+.calendar-table td.day-cell.busy-day:hover .calendar-tooltip {
+  display: block;
+}
+
 

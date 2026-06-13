@@ -1,0 +1,60 @@
+ 
+ -------------- celery@Panther v5.4.0 (opalescent)
+--- ***** ----- 
+-- ******* ---- macOS-26.5-arm64-arm-64bit 2026-06-13 15:07:58
+- *** --- * --- 
+- ** ---------- [config]
+- ** ---------- .> app:         backend.tasks:0x104e141d0
+- ** ---------- .> transport:   redis://localhost:6379/0
+- ** ---------- .> results:     redis://localhost:6379/0
+- *** --- * --- .> concurrency: 8 (prefork)
+-- ******* ---- .> task events: OFF (enable -E to monitor tasks in this worker)
+--- ***** ----- 
+ -------------- [queues]
+                .> celery           exchange=celery(direct) key=celery
+                
+
+[tasks]
+  . backend.tasks.export_booking_history_csv
+  . backend.tasks.generate_monthly_report
+  . backend.tasks.send_daily_reminders
+  . backend.tasks.send_staff_creation_email
+  . backend.tasks.send_welcome_email
+
+[2026-06-13 15:07:59,122: WARNING/MainProcess] /Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/celery/worker/consumer/consumer.py:508: CPendingDeprecationWarning: The broker_connection_retry configuration setting will no longer determine
+whether broker connection retries are made during startup in Celery 6.0 and above.
+If you wish to retain the existing behavior for retrying connections on startup,
+you should set broker_connection_retry_on_startup to True.
+  warnings.warn(
+
+[2026-06-13 15:07:59,148: INFO/MainProcess] Connected to redis://localhost:6379/0
+[2026-06-13 15:07:59,149: WARNING/MainProcess] /Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/celery/worker/consumer/consumer.py:508: CPendingDeprecationWarning: The broker_connection_retry configuration setting will no longer determine
+whether broker connection retries are made during startup in Celery 6.0 and above.
+If you wish to retain the existing behavior for retrying connections on startup,
+you should set broker_connection_retry_on_startup to True.
+  warnings.warn(
+
+[2026-06-13 15:07:59,159: INFO/MainProcess] mingle: searching for neighbors
+[2026-06-13 15:08:00,276: INFO/MainProcess] mingle: all alone
+[2026-06-13 15:08:00,286: INFO/MainProcess] celery@Panther ready.
+[2026-06-13 15:08:51,885: INFO/MainProcess] Task backend.tasks.generate_monthly_report[c14d45e3-8cf7-414d-ba97-1473d7b6189f] received
+[2026-06-13 15:08:56,261: INFO/MainProcess] Task backend.tasks.send_daily_reminders[ae8adb97-b8b2-4ce3-8ea3-4dc04cbb6bcb] received
+[2026-06-13 15:09:00,806: WARNING/ForkPoolWorker-8] SMTP email sent successfully to jakharpriyavart@gmail.com
+[2026-06-13 15:09:00,814: INFO/ForkPoolWorker-8] Task backend.tasks.generate_monthly_report[c14d45e3-8cf7-414d-ba97-1473d7b6189f] succeeded in 8.925933749997057s: 'Generated monthly report and emailed to jakharpriyavart@gmail.com with PDF attached.'
+[2026-06-13 15:09:04,385: WARNING/ForkPoolWorker-1] SMTP email sent successfully to aryan@mail.com
+[2026-06-13 15:09:08,579: WARNING/ForkPoolWorker-1] SMTP email sent successfully to sneha@mail.com
+[2026-06-13 15:09:13,029: WARNING/ForkPoolWorker-1] SMTP email sent successfully to kabir@mail.com
+[2026-06-13 15:09:17,354: WARNING/ForkPoolWorker-1] SMTP email sent successfully to ananya@mail.com
+[2026-06-13 15:09:22,135: WARNING/ForkPoolWorker-1] SMTP email sent successfully to dev@mail.com
+[2026-06-13 15:09:22,146: INFO/ForkPoolWorker-1] Task backend.tasks.send_daily_reminders[ae8adb97-b8b2-4ce3-8ea3-4dc04cbb6bcb] succeeded in 25.882045082980767s: 'Dispatched 5 daily reminders.'
+[2026-06-13 15:11:24,833: INFO/MainProcess] Task backend.tasks.send_welcome_email[742c9d60-683c-48c5-b426-26c9ecd7c964] received
+[2026-06-13 15:11:30,288: WARNING/ForkPoolWorker-8] SMTP email sent successfully to priyavartjakhar301@gmail.com
+[2026-06-13 15:11:30,300: INFO/ForkPoolWorker-8] Task backend.tasks.send_welcome_email[742c9d60-683c-48c5-b426-26c9ecd7c964] succeeded in 5.45532504201401s: 'Welcome email sent to priyavartjakhar301@gmail.com with 3 recommended treks.'
+[2026-06-13 15:13:12,152: INFO/MainProcess] Task backend.tasks.send_daily_reminders[a69e896a-0aa3-4fac-95f8-d9f0fe5ac180] received
+[2026-06-13 15:13:17,710: WARNING/ForkPoolWorker-8] SMTP email sent successfully to aryan@mail.com
+[2026-06-13 15:13:23,033: WARNING/ForkPoolWorker-8] SMTP email sent successfully to sneha@mail.com
+[2026-06-13 15:13:28,175: WARNING/ForkPoolWorker-8] SMTP email sent successfully to kabir@mail.com
+[2026-06-13 15:13:33,376: WARNING/ForkPoolWorker-8] SMTP email sent successfully to ananya@mail.com
+[2026-06-13 15:13:38,496: WARNING/ForkPoolWorker-8] SMTP email sent successfully to dev@mail.com
+[2026-06-13 15:13:43,105: WARNING/ForkPoolWorker-8] SMTP email sent successfully to priyavartjakhar301@gmail.com
+[2026-06-13 15:13:43,116: INFO/ForkPoolWorker-8] Task backend.tasks.send_daily_reminders[a69e896a-0aa3-4fac-95f8-d9f0fe5ac180] succeeded in 30.958113875007257s: 'Dispatched 6 daily reminders.'

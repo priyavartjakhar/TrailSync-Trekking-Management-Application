@@ -1232,7 +1232,8 @@ def admin_dashboard_data():
             'registered': u.registered_at.strftime('%Y-%m-%d'),
             'bookings': ucnt,
             'blacklisted': u.blacklisted,
-            'photoUrl': photo_url
+            'photoUrl': photo_url,
+            'role': 'user'
         })
         
     all_bookings = []
@@ -1549,6 +1550,7 @@ def admin_save_trek_route():
         db.session.add(route)
 
     db.session.commit()
+    invalidate_open_treks_cache()
     return jsonify({'success': True, 'route': route.to_json()})
 
 @app.route('/api/admin/trek_routes/<int:route_id>', methods=['DELETE'])
@@ -1578,6 +1580,7 @@ def admin_toggle_trek_route(route_id):
         
     route.active = not route.active
     db.session.commit()
+    invalidate_open_treks_cache()
     return jsonify({'success': True, 'active': route.active})
 
 @app.route('/api/admin/treks', methods=['POST'])
@@ -1622,6 +1625,16 @@ def admin_save_trek():
         if existing_batch:
             return jsonify({'error': f'A batch starting on {start_date_str} is already scheduled (Redundant batch).'}), 400
             
+    if staff_id:
+        conflict = Trek.query.filter(
+            Trek.staff_id == staff_id,
+            Trek.id != trek_id,
+            Trek.start_date <= end_date,
+            Trek.end_date >= start_date
+        ).first()
+        if conflict:
+            return jsonify({'error': f"Conflict: Guide is already assigned to batch '{conflict.name}' ({conflict.batch_code}) from {conflict.start_date} to {conflict.end_date}."}), 400
+
     if trek_id:
         trek = Trek.query.get(trek_id)
         if not trek:
@@ -1631,8 +1644,7 @@ def admin_save_trek():
         trek.slots = slots
         trek.price = price
         trek.status = status
-        if staff_id:
-            trek.staff_id = staff_id
+        trek.staff_id = staff_id
     else:
         # Create a new batch from a TrekRoute
         route = TrekRoute.query.get(trek_route_id)
@@ -1687,6 +1699,113 @@ def admin_delete_trek(trek_id):
     db.session.commit()
     invalidate_open_treks_cache()
     return jsonify({'success': True})
+
+@app.route('/api/admin/batches/<int:trek_id>/trekkers', methods=['GET'])
+@login_required
+def admin_get_batch_trekkers(trek_id):
+    if current_user.role != 'admin':
+        return jsonify({'error': 'Unauthorized'}), 403
+        
+    bookings = Booking.query.filter_by(trek_id=trek_id).all()
+    trekkers = []
+    for b in bookings:
+        user = b.user
+        member_id = user.to_json()['memberId']
+        trekkers.append({
+            'userId': user.id,
+            'userName': user.name,
+            'userEmail': user.email,
+            'memberId': member_id,
+            'bookingId': b.id,
+            'status': b.status,
+            'paymentStatus': b.payment_status or 'Paid'
+        })
+    return jsonify({'success': True, 'trekkers': trekkers})
+
+@app.route('/api/admin/batches/add_trekker', methods=['POST'])
+@login_required
+def admin_add_trekker_to_batch():
+    if current_user.role != 'admin':
+        return jsonify({'error': 'Unauthorized'}), 403
+        
+    data = request.get_json() or {}
+    trek_id = data.get('trek_id')
+    user_id = data.get('user_id')
+    
+    if not trek_id or not user_id:
+        return jsonify({'error': 'Trek ID and User ID are required.'}), 400
+        
+    trek = Trek.query.get(trek_id)
+    if not trek:
+        return jsonify({'error': 'Trek batch not found.'}), 404
+        
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({'error': 'Trekker user not found.'}), 404
+        
+    # Check if user already booked
+    existing = Booking.query.filter_by(trek_id=trek_id, user_id=user_id, status='Booked').first()
+    if existing:
+        return jsonify({'error': 'User is already registered/booked in this batch.'}), 400
+        
+    # Check if slot is available
+    booked_count = db.session.query(Booking).filter(
+        Booking.trek_id == trek_id,
+        Booking.status == 'Booked',
+        (Booking.payment_status != 'Failed') | (Booking.payment_status == None)
+    ).count()
+    if booked_count >= trek.slots:
+        return jsonify({'error': 'Trek batch is already full. Increase slots first.'}), 400
+        
+    # Create booking
+    booking = Booking(
+        user_id=user_id,
+        trek_id=trek_id,
+        booked_on=date.today(),
+        status='Booked',
+        paid=True,
+        booking_price=trek.price,
+        amount_paid=trek.price,
+        payment_status='Paid'
+    )
+    db.session.add(booking)
+    db.session.commit()
+    invalidate_open_treks_cache()
+    
+    return jsonify({
+        'success': True,
+        'message': f'Trekker {user.name} successfully added to batch.',
+        'booking': {
+            'id': booking.id,
+            'userId': user.id,
+            'userName': user.name,
+            'userEmail': user.email,
+            'memberId': user.to_json()['memberId']
+        }
+    })
+
+@app.route('/api/admin/batches/remove_trekker', methods=['POST'])
+@login_required
+def admin_remove_trekker_from_batch():
+    if current_user.role != 'admin':
+        return jsonify({'error': 'Unauthorized'}), 403
+        
+    data = request.get_json() or {}
+    trek_id = data.get('trek_id')
+    user_id = data.get('user_id')
+    
+    if not trek_id or not user_id:
+        return jsonify({'error': 'Trek ID and User ID are required.'}), 400
+        
+    booking = Booking.query.filter_by(trek_id=trek_id, user_id=user_id).first()
+    if not booking:
+        return jsonify({'error': 'No booking found for this user in this batch.'}), 404
+        
+    db.session.delete(booking)
+    db.session.commit()
+    invalidate_open_treks_cache()
+    
+    return jsonify({'success': True, 'message': 'Trekker removed from batch successfully.'})
 
 @app.route('/api/admin/staff', methods=['POST'])
 @login_required
@@ -1990,6 +2109,16 @@ def admin_assign_trek(trek_id):
     staff = User.query.filter_by(email=email, role='staff').first()
     if not staff:
         return jsonify({'error': 'Staff member not found'}), 404
+        
+    # Check conflict
+    conflict = Trek.query.filter(
+        Trek.staff_id == staff.id,
+        Trek.id != trek_id,
+        Trek.start_date <= trek.end_date,
+        Trek.end_date >= trek.start_date
+    ).first()
+    if conflict:
+        return jsonify({'error': f"Conflict: Guide is already assigned to batch '{conflict.name}' ({conflict.batch_code}) from {conflict.start_date} to {conflict.end_date}."}), 400
         
     trek.staff_id = staff.id
     db.session.commit()

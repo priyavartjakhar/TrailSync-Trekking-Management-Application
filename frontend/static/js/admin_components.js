@@ -58,6 +58,9 @@ const TsAdminLayout = {
       selectedRouteDetails: null,
       showRouteDetailsModal: false,
       routeSearchQuery: '',
+      batchTrekkers: [],
+      showTrekSearch: false,
+      trekkerManageMode: '',
       showRouteDropdown: false,
       staffSearchQuery: '',
       showStaffDropdown: false,
@@ -82,12 +85,17 @@ const TsAdminLayout = {
       selectedStaffDetails: null,
       showUserDetailsModal: false,
       selectedUserDetails: null,
+      availabilityStart: '2026-06-13',
+      availabilityEnd: '2026-06-18',
+      calendarYear: 2026,
+      calendarMonth: 5,
 
       tabTitles: {
         dashboard:    'Overview',
         treks:        'Trek Routes',
         batches:      'Trek Batches',
         staff:        'Trek Staff',
+        staff_availability: 'Staff Availability & Scheduling',
         users:        'User Management',
         bookings:     'All Bookings',
         analytics:    'Analytics & Charts',
@@ -479,6 +487,9 @@ const TsAdminLayout = {
         (t.batchCode && t.batchCode.toLowerCase().includes(this.trekSearchQuery.toLowerCase()))
       );
     },
+    daysInActiveMonth() {
+      return new Date(this.calendarYear, this.calendarMonth + 1, 0).getDate();
+    },
     revenueKPIs() {
       const livePaidSum = this.allBookings.reduce((sum, b) => {
         return sum + (b.status !== 'Cancelled' && b.paymentStatus === 'Paid' ? (Number(b.amountPaid) || 0) : 0);
@@ -682,6 +693,42 @@ const TsAdminLayout = {
         refundedPct: refPct,
         nonRefundedPct: nonRefPct
       };
+    },
+    matchingTrekkerSearchResults() {
+      if (!this.trekSearchQuery) return [];
+      const q = this.trekSearchQuery.toLowerCase().trim();
+      return this.users.filter(u => {
+        const name = u.name ? u.name.toLowerCase() : '';
+        const memberId = u.memberId ? u.memberId.toLowerCase() : '';
+        const email = u.email ? u.email.toLowerCase() : '';
+        const rawId = u.id ? u.id.toString() : '';
+        const digitsOnly = memberId.replace(/\D/g, '');
+        return (
+          name.includes(q) ||
+          memberId.includes(q) ||
+          email.includes(q) ||
+          rawId === q ||
+          digitsOnly.includes(q)
+        );
+      });
+    },
+    matchingBatchTrekkers() {
+      if (!this.trekSearchQuery) return this.batchTrekkers;
+      const q = this.trekSearchQuery.toLowerCase().trim();
+      return this.batchTrekkers.filter(t => {
+        const name = t.userName ? t.userName.toLowerCase() : '';
+        const memberId = t.memberId ? t.memberId.toLowerCase() : '';
+        const email = t.userEmail ? t.userEmail.toLowerCase() : '';
+        const rawId = t.userId ? t.userId.toString() : '';
+        const digitsOnly = memberId.replace(/\D/g, '');
+        return (
+          name.includes(q) ||
+          memberId.includes(q) ||
+          email.includes(q) ||
+          rawId === q ||
+          digitsOnly.includes(q)
+        );
+      });
     }
   },
 
@@ -715,6 +762,61 @@ const TsAdminLayout = {
       this.trekForm.staff_id = staff ? staff.id : null;
       this.showStaffDropdown = false;
       this.staffSearchQuery = '';
+    },
+    getWeekdayLetter(day) {
+      const date = new Date(this.calendarYear, this.calendarMonth, day);
+      const days = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+      return days[date.getDay()];
+    },
+    isWeekend(day) {
+      const date = new Date(this.calendarYear, this.calendarMonth, day);
+      const dayOfWeek = date.getDay();
+      return dayOfWeek === 0 || dayOfWeek === 6;
+    },
+    getConflictTrekForDay(staff, day) {
+      if (!staff.treksDone) return null;
+      const dStr = `${this.calendarYear}-${String(this.calendarMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      return staff.treksDone.find(t => dStr >= t.startDate && dStr <= t.endDate) || null;
+    },
+    checkRangeStatus(staff) {
+      if (!staff.treksDone || !this.availabilityStart || !this.availabilityEnd) {
+        return { status: 'Available' };
+      }
+      const start = new Date(this.availabilityStart);
+      const end = new Date(this.availabilityEnd);
+      for (const t of staff.treksDone) {
+        const tStart = new Date(t.startDate);
+        const tEnd = new Date(t.endDate);
+        if (tStart <= end && tEnd >= start) {
+          return {
+            status: 'Busy',
+            trekName: t.trekName,
+            batchId: t.batchId,
+            range: `${t.startDate} to ${t.endDate}`
+          };
+        }
+      }
+      return { status: 'Available' };
+    },
+    changeCalendarMonth(delta) {
+      let m = this.calendarMonth + delta;
+      let y = this.calendarYear;
+      if (m > 11) {
+        m = 0;
+        y += 1;
+      } else if (m < 0) {
+        m = 11;
+        y -= 1;
+      }
+      this.calendarMonth = m;
+      this.calendarYear = y;
+    },
+    getMonthName(monthIdx) {
+      const months = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+      ];
+      return months[monthIdx];
     },
     handleGlobalClick(e) {
       this.showRouteDropdown = false;
@@ -1112,8 +1214,13 @@ const TsAdminLayout = {
       this.staffSearchQuery = '';
       this.showRouteDropdown = false;
       this.showStaffDropdown = false;
+      this.batchTrekkers = [];
+      this.showTrekSearch = false;
+      this.trekkerManageMode = '';
+      this.trekSearchQuery = '';
       if (trek) {
         this.trekForm = { ...trek };
+        this.fetchBatchTrekkers(trek.id);
       } else {
         this.trekForm = {
           trekRouteId: '',
@@ -1128,6 +1235,60 @@ const TsAdminLayout = {
       this.showTrekModal = true;
     },
     closeTrekModal() { this.showTrekModal = false; this.editingTrek = null; },
+
+    async fetchBatchTrekkers(trekId) {
+      try {
+        const res = await fetch(`/api/admin/batches/${trekId}/trekkers`);
+        if (res.ok) {
+          const d = await res.json();
+          this.batchTrekkers = d.trekkers || [];
+        }
+      } catch (e) {
+        console.error("Error fetching batch trekkers:", e);
+      }
+    },
+    async addTrekkerToBatch(user) {
+      try {
+        const res = await fetch('/api/admin/batches/add_trekker', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ trek_id: this.editingTrek.id, user_id: user.id })
+        });
+        const d = await res.json();
+        if (res.ok) {
+          this.showToast(d.message || 'Trekker added successfully.');
+          this.fetchBatchTrekkers(this.editingTrek.id);
+          this.loadData();
+          this.trekSearchQuery = '';
+          this.showTrekSearch = false;
+        } else {
+          this.showToast(d.error || 'Failed to add trekker.');
+        }
+      } catch (e) {
+        this.showToast('Error adding trekker.');
+      }
+    },
+    async removeTrekkerFromBatch(user) {
+      try {
+        const res = await fetch('/api/admin/batches/remove_trekker', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ trek_id: this.editingTrek.id, user_id: user.userId })
+        });
+        const d = await res.json();
+        if (res.ok) {
+          this.showToast(d.message || 'Trekker removed successfully.');
+          this.fetchBatchTrekkers(this.editingTrek.id);
+          this.loadData();
+          this.trekSearchQuery = '';
+          this.showTrekSearch = false;
+        } else {
+          this.showToast(d.error || 'Failed to remove trekker.');
+        }
+      } catch (e) {
+        this.showToast('Error removing trekker.');
+      }
+    },
 
     async saveTrek() {
       // Frontend validation
@@ -1723,6 +1884,10 @@ const TsAdminLayout = {
         <a class="nav-item" :class="{ active: activeTab==='staff' }" @click="activeTab='staff'">
           <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
           <span>Trek Staff</span>
+        </a>
+        <a class="nav-item" :class="{ active: activeTab==='staff_availability' }" @click="activeTab='staff_availability'">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line><path d="M8 14h.01"></path><path d="M12 14h.01"></path><path d="M16 14h.01"></path><path d="M8 18h.01"></path><path d="M12 18h.01"></path><path d="M16 18h.01"></path></svg>
+          <span>Staff Availability</span>
         </a>
         <a class="nav-item" :class="{ active: activeTab==='users' }" @click="activeTab='users'">
           <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M2 19c0-3 3-5 7-5"/><circle cx="16" cy="10" r="3"/><path d="M13 19c0-3 2.7-5 6-5"/></svg>
@@ -2448,6 +2613,120 @@ const TsAdminLayout = {
         <div v-if="!filteredStaff.length" class="empty-state">
           <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
           <p>No staff match your search.</p>
+        </div>
+      </section>
+
+      <!-- ══ STAFF AVAILABILITY CALENDAR ═══════════════════ -->
+      <section v-if="activeTab==='staff_availability'" class="tab-content">
+        <div style="background: #fff; border-radius: 6px; border: 1px solid rgba(26,46,26,.09); padding: 1.5rem; margin-bottom: 1.5rem;">
+          <h4 style="color: var(--forest); margin: 0 0 1rem 0; font-size: 1.1rem; font-weight: 600;">
+            🔍 Quick Date Range Availability Checker
+          </h4>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; align-items: end;">
+            <div class="form-group" style="margin-bottom: 0;">
+              <label style="font-weight: 600; font-size: 0.82rem; color: var(--bark);">Start Date</label>
+              <input v-model="availabilityStart" type="date" style="width: 100%;" />
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label style="font-weight: 600; font-size: 0.82rem; color: var(--bark);">End Date</label>
+              <input v-model="availabilityEnd" type="date" style="width: 100%;" />
+            </div>
+            <div style="font-size: 0.82rem; color: var(--stone); padding-bottom: 8px;">
+              Checking availability between <strong>{{ availabilityStart }}</strong> and <strong>{{ availabilityEnd }}</strong>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; margin-top: 1.5rem;">
+            <div v-for="s in staffList" :key="s.id" 
+                 class="availability-card"
+                 :style="checkRangeStatus(s).status === 'Available' ? 'border: 1px solid #c6f6d5; background: #f0fff4;' : 'border: 1px solid #fed7d7; background: #fff5f5;'">
+              <div style="display: flex; gap: 10px; align-items: center;">
+                <img :src="s.photoUrl" style="width: 42px; height: 42px; border-radius: 50%; object-fit: cover; border: 2px solid #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" />
+                <div style="flex-grow: 1;">
+                  <div style="font-weight: 600; font-size: 0.9rem; color: var(--forest);">{{ s.name }}</div>
+                  <div style="font-size: 0.76rem; color: var(--stone);">{{ s.designation }}</div>
+                </div>
+                <div>
+                  <span v-if="checkRangeStatus(s).status === 'Available'" 
+                        class="status-pill status-open" style="font-size: 0.72rem; padding: 2px 8px;">Available</span>
+                  <span v-else 
+                        class="status-pill status-inactive" style="font-size: 0.72rem; padding: 2px 8px; background: #feb2b2; color: #9b2c2c;">Busy</span>
+                </div>
+              </div>
+              <div style="margin-top: 10px; font-size: 0.8rem; color: var(--bark);">
+                <div v-if="checkRangeStatus(s).status === 'Available'" style="color: #22543d; display: flex; align-items: center; gap: 4px;">
+                  ✓ Free to be assigned to batches.
+                </div>
+                <div v-else style="color: #742a2a;">
+                  ⚠️ Busy on <strong>{{ checkRangeStatus(s).batchId }}</strong> ({{ checkRangeStatus(s).trekName }}) from {{ checkRangeStatus(s).range }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Visual Timeline Monthly Calendar -->
+        <div class="calendar-timeline-container">
+          <div class="calendar-timeline-header">
+            <h4 style="color: var(--forest); margin: 0; font-size: 1.1rem; font-weight: 600;">
+              📅 Monthly Guide Schedule Overview
+            </h4>
+            <div style="display: flex; align-items: center; gap: 1rem;">
+              <button class="btn-ghost" style="padding: 4px 12px; font-size: 0.8rem;" @click="changeCalendarMonth(-1)">◀ Prev</button>
+              <span style="font-weight: 600; font-size: 0.95rem; color: var(--forest); min-width: 120px; text-align: center;">
+                {{ getMonthName(calendarMonth) }} {{ calendarYear }}
+              </span>
+              <button class="btn-ghost" style="padding: 4px 12px; font-size: 0.8rem;" @click="changeCalendarMonth(1)">Next ▶</button>
+            </div>
+          </div>
+
+          <div class="calendar-table-wrap">
+            <table class="calendar-table">
+              <thead>
+                <tr>
+                  <th class="staff-name-col" style="background: #f7fafc; font-weight: bold;">Trek Guide</th>
+                  <th v-for="d in daysInActiveMonth" :key="d" 
+                      :class="{ 'weekend': isWeekend(d) }"
+                      style="font-size: 0.74rem; padding: 6px 4px; min-width: 30px;">
+                    <div>{{ d }}</div>
+                    <div style="font-size: 0.65rem; color: var(--stone); margin-top: 2px; text-transform: uppercase;">{{ getWeekdayLetter(d) }}</div>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="s in staffList" :key="s.id">
+                  <td class="staff-name-col">
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                      <img :src="s.photoUrl" style="width: 28px; height: 28px; border-radius: 50%; object-fit: cover;" />
+                      <div>
+                        <div style="font-weight: 600; font-size: 0.82rem; white-space: nowrap;">{{ s.name }}</div>
+                        <div style="font-size: 0.7rem; color: var(--stone); white-space: nowrap;">{{ s.designation }}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td v-for="d in daysInActiveMonth" :key="d"
+                      :class="{ 'weekend': isWeekend(d), 'busy-day': getConflictTrekForDay(s, d) }"
+                      class="day-cell"
+                      style="height: 36px; min-width: 32px; font-size: 0.72rem; vertical-align: middle;">
+                    <template v-if="getConflictTrekForDay(s, d)">
+                      <span style="font-weight: bold;">{{ getConflictTrekForDay(s, d).batchId }}</span>
+                      <div class="calendar-tooltip">
+                        <div style="font-weight: bold; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 3px; margin-bottom: 3px;">
+                          {{ getConflictTrekForDay(s, d).batchId }}
+                        </div>
+                        <div>Trek: {{ getConflictTrekForDay(s, d).trekName }}</div>
+                        <div>Dates: {{ getConflictTrekForDay(s, d).startDate }} to {{ getConflictTrekForDay(s, d).endDate }}</div>
+                        <div>Trekkers: {{ getConflictTrekForDay(s, d).trekkersCount }} registered</div>
+                      </div>
+                    </template>
+                    <template v-else>
+                      <span style="color: #cbd5e0;">•</span>
+                    </template>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </section>
 
@@ -3323,83 +3602,164 @@ const TsAdminLayout = {
     <!-- ════════ TREK MODAL ════════ -->
     <!-- ════════ BATCH MODAL (showTrekModal) ════════ -->
     <div v-if="showTrekModal" class="ts-modal-overlay" @click.self="closeTrekModal">
-      <div class="ts-modal">
+      <div class="ts-modal" :class="{ 'large': editingTrek }">
         <div class="ts-modal-header">
           <h3 class="ts-modal-title">{{ editingTrek ? 'Edit Batch' : 'Schedule New Batch' }}</h3>
           <button class="modal-close" @click="closeTrekModal">✕</button>
         </div>
         <div class="ts-modal-body">
-          <div class="form-grid">
-            <!-- Route Selection (only for new batches) -->
-            <!-- Route Selection (only for new batches) -->
-            <div v-if="!editingTrek" class="form-group form-full">
-              <div class="custom-select-wrapper" :class="{ 'is-open': showRouteDropdown }">
-                <label>Select Trek Route <span style="color: var(--red); font-weight: bold;">*</span></label>
-                <div class="custom-select-trigger" @click.stop="showRouteDropdown = !showRouteDropdown">
-                  <span>{{ selectedRouteName || 'Choose an active trek route...' }}</span>
-                  <svg viewBox="0 0 24 24" class="custom-select-arrow" :class="{ open: showRouteDropdown }"><polyline points="6 9 12 15 18 9"/></svg>
-                </div>
-                <div v-if="showRouteDropdown" class="custom-select-dropdown">
-                  <input v-model="routeSearchQuery" type="text" class="custom-select-search" placeholder="Search route by name or code..." @click.stop />
-                  <div class="custom-select-options">
-                    <div v-for="r in matchingActiveRoutes" :key="r.id" class="custom-select-option" :class="{ selected: trekForm.trekRouteId !== undefined && Number(trekForm.trekRouteId) === Number(r.id) }" @click="selectRouteForBatch(r)">
-                      <span class="option-code">[{{ r.trekCode }}]</span>
-                      <span class="option-name">{{ r.name }}</span>
-                      <span class="option-loc">({{ r.location }})</span>
-                    </div>
-                    <div v-if="!matchingActiveRoutes.length" class="custom-select-no-results">
-                      No matching active routes found.
+          <div :style="editingTrek ? 'display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; align-items: start;' : ''">
+            <!-- Left Side: Batch Details Form Grid -->
+            <div class="form-grid">
+              <!-- Route Selection (only for new batches) -->
+              <div v-if="!editingTrek" class="form-group form-full">
+                <div class="custom-select-wrapper" :class="{ 'is-open': showRouteDropdown }">
+                  <label>Select Trek Route <span style="color: var(--red); font-weight: bold;">*</span></label>
+                  <div class="custom-select-trigger" @click.stop="showRouteDropdown = !showRouteDropdown">
+                    <span>{{ selectedRouteName || 'Choose an active trek route...' }}</span>
+                    <svg viewBox="0 0 24 24" class="custom-select-arrow" :class="{ open: showRouteDropdown }"><polyline points="6 9 12 15 18 9"/></svg>
+                  </div>
+                  <div v-if="showRouteDropdown" class="custom-select-dropdown">
+                    <input v-model="routeSearchQuery" type="text" class="custom-select-search" placeholder="Search route by name or code..." @click.stop />
+                    <div class="custom-select-options">
+                      <div v-for="r in matchingActiveRoutes" :key="r.id" class="custom-select-option" :class="{ selected: trekForm.trekRouteId !== undefined && Number(trekForm.trekRouteId) === Number(r.id) }" @click="selectRouteForBatch(r)">
+                        <span class="option-code">[{{ r.trekCode }}]</span>
+                        <span class="option-name">{{ r.name }}</span>
+                        <span class="option-loc">({{ r.location }})</span>
+                      </div>
+                      <div v-if="!matchingActiveRoutes.length" class="custom-select-no-results">
+                        No matching active routes found.
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
-            <div v-else class="form-group form-full">
-              <label>Trek Route</label>
-              <input type="text" :value="'[' + (trekForm.batchCode || '—') + '] ' + trekForm.name + ' (' + trekForm.location + ')'" disabled style="background:var(--snow); color:var(--stone);" />
+              <div v-else class="form-group form-full">
+                <label>Trek Route</label>
+                <input type="text" :value="'[' + (trekForm.batchCode || '—') + '] ' + trekForm.name + ' (' + trekForm.location + ')'" disabled style="background:var(--snow); color:var(--stone);" />
+              </div>
+
+              <div class="form-group">
+                <label>Start Date <span style="color: var(--red); font-weight: bold;">*</span></label>
+                <input v-model="trekForm.startDate" type="date" />
+              </div>
+              <div class="form-group">
+                <label>End Date <span style="color: var(--red); font-weight: bold;">*</span></label>
+                <input v-model="trekForm.endDate" type="date" readonly style="background: var(--snow); color: var(--stone); cursor: not-allowed;" />
+                <div v-if="selectedRouteDuration" style="font-size: 0.76rem; color: var(--forest); margin-top: 4px; font-weight: 500;">
+                  ⏱ {{ selectedRouteDuration }} days trek duration (Auto-calculated)
+                </div>
+              </div>
+              <div class="form-group">
+                <label>Available Slots <span style="color: var(--red); font-weight: bold;">*</span></label>
+                <input v-model.number="trekForm.slots" type="number" min="1" />
+              </div>
+              <div class="form-group">
+                <label>Price (INR) <span style="color: var(--red); font-weight: bold;">*</span></label>
+                <input v-model.number="trekForm.price" type="number" min="0" />
+              </div>
+              <div class="form-group form-full">
+                <div class="custom-select-wrapper" :class="{ 'is-open': showStaffDropdown }">
+                  <label>Assign Staff Guide (Optional)</label>
+                  <div class="custom-select-trigger" @click.stop="showStaffDropdown = !showStaffDropdown">
+                    <span>{{ selectedStaffName || 'No Staff Assigned' }}</span>
+                    <svg viewBox="0 0 24 24" class="custom-select-arrow" :class="{ open: showStaffDropdown }"><polyline points="6 9 12 15 18 9"/></svg>
+                  </div>
+                  <div v-if="showStaffDropdown" class="custom-select-dropdown">
+                    <input v-model="staffSearchQuery" type="text" class="custom-select-search" placeholder="Search staff member..." @click.stop />
+                    <div class="custom-select-options">
+                      <div class="custom-select-option" :class="{ selected: trekForm.staff_id === null }" @click="selectStaffForBatch(null)">
+                        <em>No Staff Assigned</em>
+                      </div>
+                      <div v-for="s in matchingStaff" :key="s.id" class="custom-select-option" :class="{ selected: trekForm.staff_id === s.id }" @click="selectStaffForBatch(s)">
+                        <span class="option-name">{{ s.name }}</span>
+                        <span class="option-email">({{ s.contact }})</span>
+                      </div>
+                      <div v-if="!matchingStaff.length" class="custom-select-no-results">
+                        No staff members found.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <div class="form-group">
-              <label>Start Date <span style="color: var(--red); font-weight: bold;">*</span></label>
-              <input v-model="trekForm.startDate" type="date" />
-            </div>
-            <div class="form-group">
-              <label>End Date <span style="color: var(--red); font-weight: bold;">*</span></label>
-              <input v-model="trekForm.endDate" type="date" readonly style="background: var(--snow); color: var(--stone); cursor: not-allowed;" />
-              <div v-if="selectedRouteDuration" style="font-size: 0.76rem; color: var(--forest); margin-top: 4px; font-weight: 500;">
-                ⏱ {{ selectedRouteDuration }} days trek duration (Auto-calculated)
-              </div>
-            </div>
-            <div class="form-group">
-              <label>Available Slots <span style="color: var(--red); font-weight: bold;">*</span></label>
-              <input v-model.number="trekForm.slots" type="number" min="1" />
-            </div>
-            <div class="form-group">
-              <label>Price (INR) <span style="color: var(--red); font-weight: bold;">*</span></label>
-              <input v-model.number="trekForm.price" type="number" min="0" />
-            </div>
-            <div class="form-group form-full">
-              <div class="custom-select-wrapper" :class="{ 'is-open': showStaffDropdown }">
-                <label>Assign Staff Guide (Optional)</label>
-                <div class="custom-select-trigger" @click.stop="showStaffDropdown = !showStaffDropdown">
-                  <span>{{ selectedStaffName || 'No Staff Assigned' }}</span>
-                  <svg viewBox="0 0 24 24" class="custom-select-arrow" :class="{ open: showStaffDropdown }"><polyline points="6 9 12 15 18 9"/></svg>
+            <!-- Right Side: Manage Batch Trekkers Section (Parallel Layout) -->
+            <div v-if="editingTrek" style="border-left: 1px solid #edf2f7; padding-left: 1.5rem; display: flex; flex-direction: column; gap: 1rem; align-self: stretch; position: relative;">
+              <h4 style="color: var(--forest); margin: 0; font-size: 1.05rem; display: flex; justify-content: space-between; align-items: center; font-weight: 600;">
+                <span>Registered Trekkers ({{ batchTrekkers.length }} / {{ trekForm.slots }})</span>
+                <div style="display: flex; gap: 0.5rem;">
+                  <button class="act-btn act-assign" style="font-size: 0.75rem; padding: 4px 10px; background-color: #e6fffa; color: #319795; border: 1px solid #b2f5ea; font-weight: 600; border-radius: 4px;" @click.stop="trekkerManageMode === 'add' ? (showTrekSearch = !showTrekSearch) : (showTrekSearch = true, trekkerManageMode = 'add'); trekSearchQuery = '';">
+                    + Add
+                  </button>
+                  <button class="act-btn act-del" style="font-size: 0.75rem; padding: 4px 10px; background-color: #fee2e2; color: #ef4444; border: 1px solid #fca5a5; font-weight: 600; border-radius: 4px;" @click.stop="trekkerManageMode === 'remove' ? (showTrekSearch = !showTrekSearch) : (showTrekSearch = true, trekkerManageMode = 'remove'); trekSearchQuery = '';">
+                    ✕ Remove
+                  </button>
                 </div>
-                <div v-if="showStaffDropdown" class="custom-select-dropdown">
-                  <input v-model="staffSearchQuery" type="text" class="custom-select-search" placeholder="Search staff member..." @click.stop />
-                  <div class="custom-select-options">
-                    <div class="custom-select-option" :class="{ selected: trekForm.staff_id === null }" @click="selectStaffForBatch(null)">
-                      <em>No Staff Assigned</em>
+              </h4>
+
+              <!-- Search Bar for adding/removing trekkers -->
+              <div v-if="showTrekSearch" style="position: absolute; top: 2.2rem; left: 1.5rem; right: 0; background: #ffffff; border: 1px solid #e2e8f0; padding: 12px; border-radius: 6px; z-index: 100; box-shadow: 0 10px 20px rgba(0,0,0,0.1);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                  <span style="font-size: 0.82rem; font-weight: bold; color: var(--gold);">
+                    {{ trekkerManageMode === 'add' ? 'Search Trekker to Add' : 'Search Registered Trekker to Remove' }}
+                  </span>
+                  <button style="background: none; border: none; color: #a0aec0; cursor: pointer; font-size: 0.9rem;" @click="showTrekSearch = false">✕ Close</button>
+                </div>
+                <input v-model="trekSearchQuery" type="text" placeholder="Search by name, ID or email..." class="custom-select-search" style="margin-bottom: 8px; width: 100%;" />
+                
+                <div style="max-height: 150px; overflow-y: auto; background: #ffffff; border: 1px solid #edf2f7; border-radius: 4px;">
+                  <!-- If Add Mode -->
+                  <template v-if="trekkerManageMode === 'add'">
+                    <div v-for="u in matchingTrekkerSearchResults" :key="u.id" style="display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid #edf2f7; font-size: 0.85rem;">
+                      <div>
+                        <strong>{{ u.name }}</strong> <span style="color: #718096; font-size: 0.76rem;">[{{ u.memberId }}]</span>
+                        <div style="font-size: 0.76rem; color: #a0aec0;">{{ u.email }}</div>
+                      </div>
+                      <button class="act-btn act-assign" style="font-size: 0.76rem; padding: 4px 8px; background-color: #e6fffa; color: #319795; border: 1px solid #b2f5ea; font-weight: 600; border-radius: 4px;" @click="addTrekkerToBatch(u)">
+                        + Add
+                      </button>
                     </div>
-                    <div v-for="s in matchingStaff" :key="s.id" class="custom-select-option" :class="{ selected: trekForm.staff_id === s.id }" @click="selectStaffForBatch(s)">
-                      <span class="option-name">{{ s.name }}</span>
-                      <span class="option-email">({{ s.contact }})</span>
+                    <div v-if="!matchingTrekkerSearchResults.length && trekSearchQuery" style="padding: 8px; font-size: 0.82rem; color: #a0aec0; text-align: center;">
+                      No trekkers found.
                     </div>
-                    <div v-if="!matchingStaff.length" class="custom-select-no-results">
-                      No staff members found.
+                  </template>
+
+                  <!-- If Remove Mode -->
+                  <template v-if="trekkerManageMode === 'remove'">
+                    <div v-for="t in matchingBatchTrekkers" :key="t.userId" style="display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid #edf2f7; font-size: 0.85rem;">
+                      <div>
+                        <strong>{{ t.userName }}</strong> <span style="color: #718096; font-size: 0.76rem;">[{{ t.memberId }}]</span>
+                        <div style="font-size: 0.76rem; color: #a0aec0;">{{ t.userEmail }}</div>
+                      </div>
+                      <button class="act-btn act-del" style="font-size: 0.76rem; padding: 4px 8px; background-color: #fee2e2; color: #ef4444; border: 1px solid #fca5a5; font-weight: 600; border-radius: 4px;" @click="removeTrekkerFromBatch(t)">
+                        ✕ Remove
+                      </button>
                     </div>
+                    <div v-if="!matchingBatchTrekkers.length && trekSearchQuery" style="padding: 8px; font-size: 0.82rem; color: #a0aec0; text-align: center;">
+                      No matching registered trekkers found.
+                    </div>
+                  </template>
+                </div>
+              </div>
+
+              <!-- List of current registered trekkers -->
+              <div v-if="batchTrekkers.length" style="background: #ffffff; border: 1px solid #edf2f7; border-radius: 6px; max-height: 200px; overflow-y: auto;">
+                <div v-for="t in batchTrekkers" :key="t.userId" style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #edf2f7; font-size: 0.88rem;">
+                  <div>
+                    <strong>{{ t.userName }}</strong> <span style="color: #718096; font-size: 0.78rem;">[{{ t.memberId }}]</span>
+                    <div style="font-size: 0.78rem; color: #a0aec0;">{{ t.userEmail }}</div>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="status-pill status-open" style="font-size: 0.72rem; padding: 2px 8px;">Active</span>
+                    <button class="act-btn act-del" style="font-size: 0.76rem; padding: 4px 8px; background-color: #fee2e2; color: #ef4444; border: 1px solid #fca5a5; font-weight: 600; border-radius: 4px;" @click="removeTrekkerFromBatch(t)">
+                      ✕ Remove
+                    </button>
                   </div>
                 </div>
+              </div>
+              <div v-else style="text-align: center; padding: 15px; background: #fafafa; border: 1px dashed #e2e8f0; border-radius: 6px; font-size: 0.85rem; color: #a0aec0;">
+                No trekkers registered in this batch yet.
               </div>
             </div>
           </div>

@@ -1490,7 +1490,7 @@ const TsUserLayout = {
           </div>
 
           <!-- Search & Filters -->
-          <div class="ts-card" style="margin-bottom:1.5rem; padding:1.25rem 1.5rem">
+          <div class="ts-card" style="margin-bottom:1.5rem; padding:1.25rem 1.5rem; overflow:visible;">
             <div style="display:flex; gap:1rem; flex-wrap:wrap; align-items:flex-end">
               <div style="flex:1; min-width:200px">
                 <label style="font-size:0.72rem; font-weight:600; color:var(--forest); text-transform:uppercase; letter-spacing:0.06em; display:block; margin-bottom:5px">Search</label>

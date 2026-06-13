@@ -93,6 +93,7 @@ const TsAdminLayout = {
       checkedStart: '',
       checkedEnd: '',
       calendarTooltip: { show: false, x: 0, y: 0, content: '' },
+      calendarSearchQuery: '',
 
       tabTitles: {
         dashboard:    'Overview',
@@ -493,6 +494,15 @@ const TsAdminLayout = {
     },
     daysInActiveMonth() {
       return new Date(this.calendarYear, this.calendarMonth + 1, 0).getDate();
+    },
+    filteredCalendarStaff() {
+      if (!this.calendarSearchQuery) return this.staffList;
+      const q = this.calendarSearchQuery.toLowerCase();
+      return this.staffList.filter(s =>
+        s.name.toLowerCase().includes(q) ||
+        s.designation.toLowerCase().includes(q) ||
+        (s.memberId && s.memberId.toLowerCase().includes(q))
+      );
     },
     availableStaff() {
       if (!this.hasCheckedRange || !this.checkedStart || !this.checkedEnd) return [];
@@ -2738,12 +2748,21 @@ const TsAdminLayout = {
             <h4 style="color: var(--forest); margin: 0; font-size: 1.1rem; font-weight: 600;">
               📅 Monthly Guide Schedule Overview
             </h4>
-            <div style="display: flex; align-items: center; gap: 1rem;">
-              <button class="btn-ghost" style="padding: 4px 12px; font-size: 0.8rem;" @click="changeCalendarMonth(-1)">◀ Prev</button>
-              <span style="font-weight: 600; font-size: 0.95rem; color: var(--forest); min-width: 120px; text-align: center;">
-                {{ getMonthName(calendarMonth) }} {{ calendarYear }}
-              </span>
-              <button class="btn-ghost" style="padding: 4px 12px; font-size: 0.8rem;" @click="changeCalendarMonth(1)">Next ▶</button>
+            <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+              <!-- Calendar Search input -->
+              <div class="search-box" style="display: flex; align-items: center; background: #f7fafc; border: 1px solid #cbd5e0; padding: 4px 10px; border-radius: 4px;">
+                <svg viewBox="0 0 24 24" style="width: 14px; height: 14px; fill: none; stroke: var(--stone); stroke-width: 2.5; margin-right: 6px;"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input v-model="calendarSearchQuery" type="text" placeholder="Search guide by name or ID..." style="border: none; background: transparent; outline: none; font-size: 0.8rem; width: 180px; color: var(--forest);" />
+                <button v-if="calendarSearchQuery" @click="calendarSearchQuery = ''" style="background: none; border: none; color: var(--stone); cursor: pointer; font-size: 0.8rem; padding: 0 2px;">✕</button>
+              </div>
+
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <button class="btn-ghost" style="padding: 4px 12px; font-size: 0.8rem;" @click="changeCalendarMonth(-1)">◀ Prev</button>
+                <span style="font-weight: 600; font-size: 0.95rem; color: var(--forest); min-width: 120px; text-align: center;">
+                  {{ getMonthName(calendarMonth) }} {{ calendarYear }}
+                </span>
+                <button class="btn-ghost" style="padding: 4px 12px; font-size: 0.8rem;" @click="changeCalendarMonth(1)">Next ▶</button>
+              </div>
             </div>
           </div>
 
@@ -2761,7 +2780,7 @@ const TsAdminLayout = {
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="s in staffList" :key="s.id">
+                <tr v-for="s in filteredCalendarStaff" :key="s.id">
                   <td class="staff-name-col">
                     <div style="display: flex; gap: 8px; align-items: center;">
                       <img :src="s.photoUrl" style="width: 28px; height: 28px; border-radius: 50%; object-fit: cover;" />
@@ -2779,10 +2798,22 @@ const TsAdminLayout = {
                         'free-day': !isStaffBusyOnDay(s, d)
                       }"
                       class="day-cell"
-                      style="height: 36px; min-width: 32px; cursor: pointer; user-select: none;"
+                      style="height: 36px; min-width: 32px; cursor: pointer; user-select: none; padding: 0; vertical-align: middle;"
                       @click="toggleDayAvailability(s, d)"
                       @mouseenter="showTooltip($event, s, d)"
                       @mouseleave="hideTooltip">
+                    <div class="availability-indicator"
+                         :class="{
+                           'indicator-free': !isStaffBusyOnDay(s, d),
+                           'indicator-busy': isStaffBusyOnDay(s, d) && getConflictTrekForDay(s, d),
+                           'indicator-blocked': isStaffBusyOnDay(s, d) && !getConflictTrekForDay(s, d)
+                         }">
+                    </div>
+                  </td>
+                </tr>
+                <tr v-if="!filteredCalendarStaff.length">
+                  <td :colspan="daysInActiveMonth + 1" style="text-align: center; padding: 2.5rem; color: var(--stone); font-style: italic; font-size: 0.9rem; background: #fff;">
+                    No staff guides found matching your search.
                   </td>
                 </tr>
               </tbody>

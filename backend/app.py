@@ -671,15 +671,7 @@ def user_dashboard_data():
     ).all()
     trek_history = [b.to_json() for b in history_query]
     
-    profile = {
-        'memberId': current_user.to_json()['memberId'],
-        'name': current_user.name,
-        'email': current_user.email,
-        'phone': current_user.phone or '',
-        'city': current_user.city or '',
-        'emergency': current_user.emergency or '',
-        'bio': current_user.bio or ''
-    }
+    profile = current_user.to_json()
     
     return jsonify({
         'available_treks': available_treks,
@@ -934,6 +926,42 @@ def user_password():
     current_user.password_hash = generate_password_hash(new_pw)
     db.session.commit()
     return jsonify({'message': 'Password updated successfully.'})
+
+@app.route('/api/user/tickets', methods=['GET'])
+@login_required
+def get_user_tickets():
+    if current_user.role != 'user':
+        return jsonify({'error': 'Unauthorized'}), 403
+    tickets = SupportTicket.query.filter_by(user_id=current_user.id).order_by(SupportTicket.created_at.desc()).all()
+    return jsonify([ticket.to_json() for ticket in tickets])
+
+@app.route('/api/user/tickets', methods=['POST'])
+@login_required
+def create_user_ticket():
+    if current_user.role != 'user':
+        return jsonify({'error': 'Unauthorized'}), 403
+    data = request.get_json() or {}
+    subject = data.get('subject', '').strip()
+    message = data.get('message', '').strip()
+    category = data.get('category', 'General').strip()
+    
+    if not subject or not message:
+        return jsonify({'error': 'Subject and Message are required'}), 400
+        
+    full_subject = f"[{category}] {subject}"
+    
+    ticket = SupportTicket(
+        user_id=current_user.id,
+        name=current_user.name,
+        email=current_user.email,
+        subject=full_subject,
+        message=message,
+        status='Open'
+    )
+    db.session.add(ticket)
+    db.session.commit()
+    
+    return jsonify({'success': True, 'ticket': ticket.to_json(), 'message': 'Ticket submitted successfully'})
 
 # ── ADMIN API ────────────────────────────────────────────────
 

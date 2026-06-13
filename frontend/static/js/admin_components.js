@@ -2750,15 +2750,16 @@ const TsAdminLayout = {
                     <th>Certifications</th>
                     <th>Specialty Skills</th>
                     <th style="text-align: center;">Status</th>
+                    <th style="text-align: center;">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr v-for="s in availableStaff" :key="s.id">
                     <td>
-                      <div style="display: flex; gap: 10px; align-items: center;">
+                      <div style="display: flex; gap: 10px; align-items: center; cursor: pointer;" @click="viewStaffDetails(s)" title="Click to view full profile">
                         <img :src="s.photoUrl" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover;" />
                         <div>
-                          <div style="font-weight: 600; color: var(--forest);">{{ s.name }}</div>
+                          <div style="font-weight: 600; color: var(--forest); transition: color 0.15s;" @mouseenter="$event.target.style.color = 'var(--gold)'" @mouseleave="$event.target.style.color = 'var(--forest)'">{{ s.name }}</div>
                           <div style="font-size: 0.72rem; color: var(--stone);">{{ s.memberId }}</div>
                         </div>
                       </div>
@@ -2772,6 +2773,14 @@ const TsAdminLayout = {
                       <span class="status-pill status-active" style="font-size: 0.72rem; padding: 2px 8px; background: #e6fffa; color: #319795; border: 1px solid #b2f5ea;">
                         ✓ Available
                       </span>
+                    </td>
+                    <td style="text-align: center;">
+                      <div class="action-btns" style="display: flex; justify-content: center; gap: 6px;">
+                        <button class="act-btn act-view" style="padding: 4px 10px;" @click="viewStaffDetails(s)">
+                          <svg viewBox="0 0 24 24" class="act-btn-icon"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                          View Profile
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 </tbody>

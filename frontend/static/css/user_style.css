@@ -2171,3 +2171,22 @@ body {
   background: var(--forest);
   color: #fff;
 }
+
+/* ── Support Ticket Category Badges ───────────────────────── */
+.category-tag {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.cat-general { background: rgba(108, 117, 125, 0.1) !important; color: #495057 !important; border: 1px solid rgba(108, 117, 125, 0.2) !important; }
+.cat-booking { background: rgba(0, 123, 255, 0.1) !important; color: #007bff !important; border: 1px solid rgba(0, 123, 255, 0.2) !important; }
+.cat-payment { background: rgba(40, 167, 69, 0.1) !important; color: #28a745 !important; border: 1px solid rgba(40, 167, 69, 0.2) !important; }
+.cat-profile { background: rgba(23, 162, 184, 0.1) !important; color: #17a2b8 !important; border: 1px solid rgba(23, 162, 184, 0.2) !important; }
+.cat-bug { background: rgba(220, 53, 69, 0.1) !important; color: #dc3545 !important; border: 1px solid rgba(220, 53, 69, 0.2) !important; }
+.cat-feedback { background: rgba(111, 66, 193, 0.1) !important; color: #6f42c1 !important; border: 1px solid rgba(111, 66, 193, 0.2) !important; }
+.cat-inquiry { background: rgba(108, 117, 125, 0.1) !important; color: #495057 !important; border: 1px solid rgba(108, 117, 125, 0.2) !important; }
+

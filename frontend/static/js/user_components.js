@@ -1962,9 +1962,16 @@ const TsUserLayout = {
                 <div class="ts-card-body" style="padding: 2rem">
                   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid rgba(26,46,26,0.08); padding-bottom: 0.75rem">
                     <h3 style="font-family:'Playfair Display',serif; font-size: 1.4rem; color: var(--forest)">Ticket History</h3>
-                    <span style="font-size: 0.8rem; background: rgba(26,46,26,0.05); color: var(--forest); padding: 4px 10px; border-radius: 30px; font-weight: 600">
-                      {{ supportTickets.length }} {{ supportTickets.length === 1 ? 'ticket' : 'tickets' }}
-                    </span>
+                    <div style="display: flex; align-items: center; gap: 0.5rem">
+                      <button class="refresh-btn" @click="fetchUserTickets" title="Refresh Tickets" style="width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center;">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+                        </svg>
+                      </button>
+                      <span style="font-size: 0.8rem; background: rgba(26,46,26,0.05); color: var(--forest); padding: 4px 10px; border-radius: 30px; font-weight: 600">
+                        {{ supportTickets.length }} {{ supportTickets.length === 1 ? 'ticket' : 'tickets' }}
+                      </span>
+                    </div>
                   </div>
 
                   <!-- Loading State -->
@@ -1986,9 +1993,9 @@ const TsUserLayout = {
                       <div class="ts-card-body" style="padding: 1.25rem">
                         <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem">
                           <div>
-                            <span style="font-size: 0.75rem; font-weight: 700; color: var(--stone); margin-right: 8px">#TKT-{{ ticket.id }}</span>
-                            <span style="font-size: 0.75rem; font-weight: 600; text-transform: uppercase; background: rgba(0,0,0,0.05); padding: 2px 8px; border-radius: 4px; color: var(--stone)">
-                              {{ ticket.subject.includes('[') ? ticket.subject.split(']')[0].replace('[','') : 'Inquiry' }}
+                            <span style="font-size: 0.75rem; font-weight: 700; color: var(--forest); margin-right: 8px; font-family: monospace;">{{ ticket.ticketId || `TS26#${String(ticket.id).padStart(3, '0')}` }}</span>
+                            <span class="category-tag" :class="'cat-' + (ticket.category || 'inquiry').toLowerCase()" style="padding: 1px 6px; font-size: 0.65rem;">
+                              {{ ticket.category || 'Inquiry' }}
                             </span>
                           </div>
                           <span :style="{
@@ -2002,7 +2009,7 @@ const TsUserLayout = {
                             {{ ticket.status }}
                           </span>
                         </div>
-                        <h4 style="font-weight: 700; color: var(--forest); font-size: 0.95rem; margin-bottom: 0.5rem">{{ ticket.subject.replace(/^[\[].*[\]]\s*/, '') }}</h4>
+                        <h4 style="font-weight: 700; color: var(--forest); font-size: 0.95rem; margin-bottom: 0.5rem">{{ ticket.cleanSubject || ticket.subject }}</h4>
                         <p style="font-size: 0.85rem; color: var(--stone); line-height: 1.4; white-space: pre-wrap">{{ ticket.message }}</p>
                         <div style="margin-top: 0.75rem; border-top: 1px solid rgba(0,0,0,0.04); padding-top: 0.5rem; display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; color: var(--stone)">
                           <span>Submitted on {{ ticket.createdAt }}</span>

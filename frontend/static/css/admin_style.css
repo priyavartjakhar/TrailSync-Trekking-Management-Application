@@ -1482,4 +1482,87 @@ body { font-family:'DM Sans',sans-serif; background:var(--snow); color:var(--bar
   border: 1px solid #e53e3e !important;
 }
 
+/* ── Support Ticket Category Badges ───────────────────────── */
+.category-tag {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.cat-general { background: rgba(108, 117, 125, 0.1) !important; color: #495057 !important; border: 1px solid rgba(108, 117, 125, 0.2) !important; }
+.cat-booking { background: rgba(0, 123, 255, 0.1) !important; color: #007bff !important; border: 1px solid rgba(0, 123, 255, 0.2) !important; }
+.cat-payment { background: rgba(40, 167, 69, 0.1) !important; color: #28a745 !important; border: 1px solid rgba(40, 167, 69, 0.2) !important; }
+.cat-profile { background: rgba(23, 162, 184, 0.1) !important; color: #17a2b8 !important; border: 1px solid rgba(23, 162, 184, 0.2) !important; }
+.cat-bug { background: rgba(220, 53, 69, 0.1) !important; color: #dc3545 !important; border: 1px solid rgba(220, 53, 69, 0.2) !important; }
+.cat-feedback { background: rgba(111, 66, 193, 0.1) !important; color: #6f42c1 !important; border: 1px solid rgba(111, 66, 193, 0.2) !important; }
+.cat-inquiry { background: rgba(108, 117, 125, 0.1) !important; color: #495057 !important; border: 1px solid rgba(108, 117, 125, 0.2) !important; }
+
+/* ── Support Ticket Tabs and Utilities ────────────────────── */
+.ticket-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid rgba(26, 46, 26, 0.08);
+  padding-bottom: 0.5rem;
+}
+.ticket-tab-btn {
+  background: none;
+  border: none;
+  padding: 8px 16px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--stone);
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ticket-tab-btn:hover {
+  background: rgba(26, 46, 26, 0.03);
+  color: var(--forest);
+}
+.ticket-tab-btn.active {
+  background: var(--forest);
+  color: #fff;
+}
+.ticket-tab-count {
+  font-size: 0.75rem;
+  background: rgba(0, 0, 0, 0.1);
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-weight: 700;
+}
+.ticket-tab-btn.active .ticket-tab-count {
+  background: rgba(255, 255, 255, 0.2);
+}
+.refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 4px;
+  border: 1px solid rgba(26, 46, 26, 0.1);
+  background: #fff;
+  color: var(--forest);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.refresh-btn:hover {
+  background: var(--snow);
+  border-color: var(--forest);
+}
+.refresh-btn svg {
+  transition: transform 0.3s ease;
+}
+.refresh-btn:active svg {
+  transform: rotate(180deg);
+}
+
+
 

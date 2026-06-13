@@ -314,12 +314,23 @@ class SupportTicket(db.Model):
     user = db.relationship('User', backref=db.backref('support_tickets', lazy=True, cascade="all, delete-orphan"))
 
     def to_json(self):
+        import re
+        category = 'Inquiry'
+        clean_subject = self.subject
+        if self.subject:
+            match = re.match(r'^\[(.*?)\]\s*(.*)$', self.subject)
+            if match:
+                category = match.group(1)
+                clean_subject = match.group(2)
         return {
             'id': self.id,
+            'ticketId': f"TS26#{self.id:03d}" if self.id else "TS26#000",
             'userId': self.user_id,
             'name': self.name,
             'email': self.email,
             'subject': self.subject,
+            'cleanSubject': clean_subject,
+            'category': category,
             'message': self.message,
             'status': self.status,
             'createdAt': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else ''

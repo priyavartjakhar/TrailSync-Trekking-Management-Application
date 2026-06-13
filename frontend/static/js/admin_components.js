@@ -147,6 +147,9 @@ const TsAdminLayout = {
       supportTickets:     [],
       showBookingDetailsModal: false,
       selectedBookingDetails: null,
+      ticketStatusFilter: 'All',
+      showTicketDetailsModal: false,
+      selectedTicketDetails: null,
     };
   },
 
@@ -454,14 +457,24 @@ const TsAdminLayout = {
     bookingsStats() { return this.stats.filter(s => s.category === 'bookings'); },
     filteredTickets() {
       let list = this.supportTickets;
+      if (this.ticketStatusFilter !== 'All') {
+        list = list.filter(t => t.status === this.ticketStatusFilter);
+      }
       if (this.searchQuery) {
         const q = this.searchQuery.toLowerCase();
-        list = list.filter(t =>
-          t.name.toLowerCase().includes(q) ||
-          t.email.toLowerCase().includes(q) ||
-          t.subject.toLowerCase().includes(q) ||
-          t.message.toLowerCase().includes(q)
-        );
+        list = list.filter(t => {
+          const formattedId = `ts26#${String(t.id).padStart(3, '0')}`.toLowerCase();
+          const category = (t.category || '').toLowerCase();
+          const cleanSubject = (t.cleanSubject || '').toLowerCase();
+          return t.name.toLowerCase().includes(q) ||
+                 t.email.toLowerCase().includes(q) ||
+                 t.subject.toLowerCase().includes(q) ||
+                 t.message.toLowerCase().includes(q) ||
+                 formattedId.includes(q) ||
+                 category.includes(q) ||
+                 cleanSubject.includes(q) ||
+                 String(t.id).includes(q);
+        });
       }
       return list;
     },
@@ -1072,6 +1085,14 @@ const TsAdminLayout = {
     closeUserDetails() {
       this.showUserDetailsModal = false;
       this.selectedUserDetails = null;
+    },
+    openTicketDetails(ticket) {
+      this.selectedTicketDetails = ticket;
+      this.showTicketDetailsModal = true;
+    },
+    closeTicketDetails() {
+      this.showTicketDetailsModal = false;
+      this.selectedTicketDetails = null;
     },
     closeBlacklistModal() {
       this.showBlacklistModal = false;
@@ -1898,13 +1919,18 @@ const TsAdminLayout = {
       try {
         const res = await fetch(`/api/admin/support_tickets/resolve/${ticket.id}`, { method:'POST' });
         if (res.ok) {
-          this.showToast(`Ticket #${ticket.id} resolved`);
+          const tId = ticket.ticketId || `TS26#${String(ticket.id).padStart(3, '0')}`;
+          this.showToast(`Ticket ${tId} resolved`);
+          if (this.selectedTicketDetails && this.selectedTicketDetails.id === ticket.id) {
+            this.selectedTicketDetails.status = 'Resolved';
+          }
           this.loadData();
           return;
         }
       } catch (_) {}
       ticket.status = 'Resolved';
-      this.showToast(`Ticket #${ticket.id} resolved (mock)`);
+      const tId = ticket.ticketId || `TS26#${String(ticket.id).padStart(3, '0')}`;
+      this.showToast(`Ticket ${tId} resolved (mock)`);
     },
 
     // ── Reports / Jobs ─────────────────────────────────────
@@ -3728,9 +3754,29 @@ const TsAdminLayout = {
 
       <!-- ══ SUPPORT TICKETS ════════════════════════════════ -->
       <section v-if="activeTab==='support_tickets'" class="tab-content">
-        <div style="margin-bottom:1rem; color:var(--stone); font-size:.9rem;">
-          {{ supportTickets.filter(t => t.status === 'Open').length }} open support ticket{{ supportTickets.filter(t => t.status === 'Open').length !== 1 ? 's' : '' }}
+        <!-- Filter Tabs & Refresh Button Bar -->
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+          <div class="ticket-tabs" style="margin-bottom:0; border-bottom:none; padding-bottom:0;">
+            <button class="ticket-tab-btn" :class="{ active: ticketStatusFilter === 'All' }" @click="ticketStatusFilter = 'All'">
+              All
+              <span class="ticket-tab-count">{{ supportTickets.length }}</span>
+            </button>
+            <button class="ticket-tab-btn" :class="{ active: ticketStatusFilter === 'Open' }" @click="ticketStatusFilter = 'Open'">
+              Open
+              <span class="ticket-tab-count">{{ supportTickets.filter(t => t.status === 'Open').length }}</span>
+            </button>
+            <button class="ticket-tab-btn" :class="{ active: ticketStatusFilter === 'Resolved' }" @click="ticketStatusFilter = 'Resolved'">
+              Resolved
+              <span class="ticket-tab-count">{{ supportTickets.filter(t => t.status === 'Resolved').length }}</span>
+            </button>
+          </div>
+          <button class="refresh-btn" @click="loadData" title="Refresh Tickets">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+            </svg>
+          </button>
         </div>
+
         <div v-if="filteredTickets.length === 0" class="empty-state">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
           <p>No support tickets found.</p>
@@ -3740,32 +3786,44 @@ const TsAdminLayout = {
             <thead>
               <tr>
                 <th>Ticket ID</th>
+                <th>Date</th>
                 <th>Sender</th>
+                <th>Category</th>
                 <th>Subject</th>
-                <th>Message</th>
+                <th>Message Preview</th>
                 <th>Status</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="t in filteredTickets" :key="t.id">
-                <td class="mono">#{{ t.id }}</td>
+                <td class="mono font-bold" style="color:var(--forest)">{{ t.ticketId || `TS26#${String(t.id).padStart(3, '0')}` }}</td>
+                <td class="mono" style="font-size:0.78rem; white-space:nowrap;">{{ t.createdAt ? t.createdAt.split(' ')[0] : '—' }}</td>
                 <td>
                   <div style="font-weight:600; color:var(--forest)">{{ t.name }}</div>
                   <div style="font-size:0.75rem; color:var(--stone)">{{ t.email }}</div>
                 </td>
-                <td style="font-weight:500">{{ t.subject }}</td>
-                <td style="max-width:300px; font-size:0.82rem; color:var(--stone)">{{ t.message }}</td>
+                <td>
+                  <span class="category-tag" :class="'cat-' + (t.category || 'inquiry').toLowerCase()">
+                    {{ t.category || 'Inquiry' }}
+                  </span>
+                </td>
+                <td style="font-weight:600; font-size:0.85rem; max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                  {{ t.cleanSubject || t.subject }}
+                </td>
+                <td style="max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:0.82rem; color:var(--stone)">
+                  {{ t.message }}
+                </td>
                 <td>
                   <span class="status-pill" :class="t.status === 'Open' ? 'status-pending' : 'status-approved'">
                     {{ t.status }}
                   </span>
                 </td>
                 <td>
-                  <div class="action-btns" v-if="t.status === 'Open'">
-                    <button class="act-btn act-green" @click="resolveTicket(t)">Resolve</button>
+                  <div class="action-btns">
+                    <button class="act-btn act-green" style="padding: 2px 8px; font-size: 0.75rem;" @click="openTicketDetails(t)">View</button>
+                    <button class="act-btn act-green" style="padding: 2px 8px; font-size: 0.75rem;" v-if="t.status === 'Open'" @click="resolveTicket(t)">Resolve</button>
                   </div>
-                  <span v-else style="color:var(--stone); font-size:0.8rem; font-style:italic">No actions</span>
                 </td>
               </tr>
             </tbody>
@@ -4630,6 +4688,55 @@ const TsAdminLayout = {
         </div>
         <div class="ts-modal-footer">
           <button class="btn-primary-ts" @click="closeBookingDetails">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════ SUPPORT TICKET DETAILS MODAL ════════ -->
+    <div v-if="showTicketDetailsModal" class="ts-modal-overlay" @click.self="closeTicketDetails">
+      <div class="ts-modal">
+        <div class="ts-modal-header">
+          <h3 class="ts-modal-title">Ticket details — {{ selectedTicketDetails.ticketId || `TS26#${String(selectedTicketDetails.id).padStart(3, '0')}` }}</h3>
+          <button class="modal-close" @click="closeTicketDetails">✕</button>
+        </div>
+        <div class="ts-modal-body" style="padding: 1.5rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; background: var(--snow); padding: 0.75rem 1rem; border-radius: 6px; border: 1px solid rgba(26,46,26,0.06);">
+            <div>
+              <span class="category-tag" :class="'cat-' + (selectedTicketDetails.category || 'inquiry').toLowerCase()" style="margin-right: 8px;">
+                {{ selectedTicketDetails.category || 'Inquiry' }}
+              </span>
+              <span class="status-pill" :class="selectedTicketDetails.status === 'Open' ? 'status-pending' : 'status-approved'">
+                {{ selectedTicketDetails.status }}
+              </span>
+            </div>
+            <div class="mono" style="font-size: 0.78rem; color: var(--stone);">
+              Submitted: {{ selectedTicketDetails.createdAt }}
+            </div>
+          </div>
+
+          <div style="margin-bottom: 1.25rem;">
+            <div style="font-size: 0.8rem; font-weight: 700; color: var(--forest); text-transform: uppercase; margin-bottom: 0.25rem;">Sender</div>
+            <div style="font-weight: 600; color: var(--bark); font-size: 0.95rem;">{{ selectedTicketDetails.name }}</div>
+            <div style="font-size: 0.82rem; color: var(--stone); font-family: monospace;">{{ selectedTicketDetails.email }}</div>
+          </div>
+
+          <div style="margin-bottom: 1.25rem;">
+            <div style="font-size: 0.8rem; font-weight: 700; color: var(--forest); text-transform: uppercase; margin-bottom: 0.25rem;">Subject</div>
+            <div style="font-weight: 600; color: var(--bark); font-size: 1rem; line-height: 1.4;">
+              {{ selectedTicketDetails.cleanSubject || selectedTicketDetails.subject }}
+            </div>
+          </div>
+
+          <div>
+            <div style="font-size: 0.8rem; font-weight: 700; color: var(--forest); text-transform: uppercase; margin-bottom: 0.25rem;">Message Description</div>
+            <div style="font-size: 0.9rem; color: var(--stone); line-height: 1.5; white-space: pre-wrap; background: var(--snow); padding: 1rem; border-radius: 6px; border: 1px solid rgba(26,46,26,0.06); max-height: 200px; overflow-y: auto;">
+              {{ selectedTicketDetails.message }}
+            </div>
+          </div>
+        </div>
+        <div class="ts-modal-footer" style="display: flex; justify-content: flex-end; gap: 0.5rem; padding: 1rem 1.5rem;">
+          <button class="btn-primary-ts" @click="closeTicketDetails" style="background: #e2e8f0; border-color: #cbd5e0; color: #4a5568;">Close</button>
+          <button class="btn-primary-ts" v-if="selectedTicketDetails.status === 'Open'" @click="resolveTicket(selectedTicketDetails)">Resolve Ticket</button>
         </div>
       </div>
     </div>

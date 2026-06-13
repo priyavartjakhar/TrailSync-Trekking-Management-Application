@@ -1388,7 +1388,8 @@ body { font-family:'DM Sans',sans-serif; background:var(--snow); color:var(--bar
 }
 .calendar-table th.staff-name-col, .calendar-table td.staff-name-col {
   text-align: left;
-  min-width: 180px;
+  min-width: 120px;
+  max-width: 130px;
   position: sticky;
   left: 0;
   background: #fff;

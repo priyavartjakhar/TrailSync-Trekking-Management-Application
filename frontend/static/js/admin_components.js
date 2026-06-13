@@ -2782,11 +2782,11 @@ const TsAdminLayout = {
               <tbody>
                 <tr v-for="s in filteredCalendarStaff" :key="s.id">
                   <td class="staff-name-col">
-                    <div style="display: flex; gap: 8px; align-items: center;">
-                      <img :src="s.photoUrl" style="width: 28px; height: 28px; border-radius: 50%; object-fit: cover;" />
-                      <div>
-                        <div style="font-weight: 600; font-size: 0.82rem; white-space: nowrap;">{{ s.name }}</div>
-                        <div style="font-size: 0.7rem; color: var(--stone); white-space: nowrap;">{{ s.designation }}</div>
+                    <div style="display: flex; gap: 6px; align-items: center; width: 100%; overflow: hidden;">
+                      <img :src="s.photoUrl" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover; flex-shrink: 0;" />
+                      <div style="min-width: 0; flex: 1; overflow: hidden;">
+                        <div style="font-weight: 600; font-size: 0.76rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" :title="s.name">{{ s.name }}</div>
+                        <div style="font-size: 0.65rem; color: var(--stone); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ s.designation }}</div>
                       </div>
                     </div>
                   </td>

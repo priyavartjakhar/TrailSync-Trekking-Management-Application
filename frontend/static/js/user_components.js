@@ -38,6 +38,20 @@ const TsUserLayout = {
       isPendingRetry: false,
       retryBookingId: null,
 
+      // ── SIMULATED PAYMENT GATEWAY STATE ───────────
+      paymentProcessing: false,
+      paymentProcessingMsg: '',
+      paymentProcessingProgress: 0,
+      paymentResultState: null,
+      paymentDetails: {
+        cardNumber: '',
+        cardName: '',
+        cardExpiry: '',
+        cardCvv: '',
+        upiId: '',
+        bank: 'State Bank of India'
+      },
+
       // ── SEARCH / FILTERS ─────────────────────────
       searchQuery: '',
       difficultyFilter: '',
@@ -452,6 +466,7 @@ const TsUserLayout = {
       this.paymentTrekBatch = batch;
       this.isPendingRetry = false;
       this.retryBookingId = null;
+      this.resetPaymentForm();
       this.showPaymentModal = true;
     },
     payPendingBooking(b) {
@@ -464,10 +479,77 @@ const TsUserLayout = {
       };
       this.isPendingRetry = true;
       this.retryBookingId = b.id;
+      this.resetPaymentForm();
       this.showPaymentModal = true;
+    },
+    resetPaymentForm() {
+      this.paymentResultState = null;
+      this.paymentProcessing = false;
+      this.paymentProcessingProgress = 0;
+      this.paymentProcessingMsg = '';
+      this.paymentDetails = {
+        cardNumber: '',
+        cardName: '',
+        cardExpiry: '',
+        cardCvv: '',
+        upiId: '',
+        bank: 'State Bank of India'
+      };
+    },
+    async dismissPaymentModal(shouldFetch = true) {
+      this.showPaymentModal = false;
+      this.showBookingModal = false;
+      this.paymentResultState = null;
+      if (shouldFetch) {
+        await this.fetchUserData();
+      }
+    },
+    onCardNumberInput(e) {
+      let val = e.target.value.replace(/\D/g, '');
+      if (val.length > 16) val = val.slice(0, 16);
+      let formatted = '';
+      for (let i = 0; i < val.length; i++) {
+        if (i > 0 && i % 4 === 0) formatted += ' ';
+        formatted += val[i];
+      }
+      this.paymentDetails.cardNumber = formatted;
+    },
+    onCardExpiryInput(e) {
+      let val = e.target.value.replace(/\D/g, '');
+      if (val.length > 4) val = val.slice(0, 4);
+      if (val.length > 2) {
+        this.paymentDetails.cardExpiry = val.slice(0, 2) + '/' + val.slice(2);
+      } else {
+        this.paymentDetails.cardExpiry = val;
+      }
+    },
+    onCardCvvInput(e) {
+      let val = e.target.value.replace(/\D/g, '');
+      if (val.length > 3) val = val.slice(0, 3);
+      this.paymentDetails.cardCvv = val;
     },
     async processSimulatedPayment(status) {
       if (!this.paymentTrekBatch) return;
+
+      // Start simulated loading screen
+      this.paymentProcessing = true;
+      this.paymentProcessingProgress = 15;
+      this.paymentProcessingMsg = 'Establishing secure handshake with payment gateway...';
+
+      const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+      await sleep(600);
+      this.paymentProcessingProgress = 45;
+      this.paymentProcessingMsg = 'Encrypting payment credentials (256-bit AES)...';
+
+      await sleep(600);
+      this.paymentProcessingProgress = 75;
+      this.paymentProcessingMsg = 'Authorizing transaction with bank servers...';
+
+      await sleep(600);
+      this.paymentProcessingProgress = 90;
+      this.paymentProcessingMsg = 'Finalizing reservation details...';
+
       try {
         let res, data;
         if (this.isPendingRetry) {
@@ -489,7 +571,13 @@ const TsUserLayout = {
           data = await res.json();
         }
 
+        this.paymentProcessingProgress = 100;
+        await sleep(350);
+
         if (res.ok) {
+          this.paymentProcessing = false;
+          this.paymentResultState = status;
+
           if (status === 'Paid') {
             this.showToast(data.message || 'Payment successful! Trek booked.', 'success');
           } else if (status === 'Pending') {
@@ -497,14 +585,15 @@ const TsUserLayout = {
           } else {
             this.showToast(data.message || 'Payment failed status simulated.', 'error');
           }
-          this.showPaymentModal = false;
-          this.showBookingModal = false;
-          await this.fetchUserData();
         } else {
+          this.paymentProcessing = false;
+          this.paymentResultState = 'Failed';
           this.showToast(data.error || 'Transaction failed', 'error');
         }
       } catch (e) {
         console.error('Payment error:', e);
+        this.paymentProcessing = false;
+        this.paymentResultState = 'Failed';
         this.showToast('Failed to contact server. Payment could not be processed.', 'error');
       }
     },
@@ -2272,99 +2361,217 @@ const TsUserLayout = {
 
     <!-- ── SIMULATED PAYMENT MODAL ────────────────── -->
     <transition name="toast">
-      <div v-if="showPaymentModal" class="ts-modal-overlay" @click.self="showPaymentModal = false">
-        <div class="ts-modal" style="max-width: 480px;">
-          <div class="ts-modal-header" style="background: var(--forest); color: white;">
-            <span class="ts-modal-title" style="color: white; font-weight: 700;">💳 Secure Payment Gateway (Simulated)</span>
-            <button class="modal-close" style="color: white;" @click="showPaymentModal = false">✕</button>
-          </div>
-          <div class="ts-modal-body" v-if="paymentTrekBatch" style="padding: 1.5rem;">
-            <div style="text-align: center; margin-bottom: 1.25rem;">
-              <div style="font-size: 0.8rem; text-transform: uppercase; color: var(--stone); letter-spacing: 1px; font-weight: 600;">Transaction Amount</div>
-              <div style="font-size: 1.8rem; font-weight: 800; color: var(--forest); font-family: 'Playfair Display', serif; margin-top: 4px;">
-                ₹{{ paymentTrekBatch.price.toLocaleString() }}
-              </div>
-            </div>
-
-            <!-- Trek Summary Card -->
-            <div style="background: var(--snow); border: 1px solid var(--stone-light); padding: 12px; border-radius: 6px; margin-bottom: 1.25rem; font-size: 0.85rem; display: flex; flex-direction: column; gap: 6px;">
-              <div><strong>Adventure:</strong> {{ paymentTrekBatch.name }}</div>
-              <div><strong>Location:</strong> {{ paymentTrekBatch.location }}</div>
-              <div v-if="paymentTrekBatch.batchCode"><strong>Batch ID:</strong> <span class="mono" style="font-weight: 700; color: var(--gold-dark);">{{ paymentTrekBatch.batchCode }}</span></div>
-            </div>
-
-            <!-- Payment Method Selection -->
-            <div style="margin-bottom: 1.25rem;">
-              <label style="font-weight: 700; font-size: 0.8rem; color: var(--forest); display: block; margin-bottom: 6px;">Select Payment Method</label>
-              <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
-                <div v-for="method in ['UPI', 'Card', 'Netbanking']" :key="method" 
-                  @click="selectedPaymentMethod = method"
-                  :style="{
-                    border: selectedPaymentMethod === method ? '2px solid var(--gold)' : '1px solid var(--stone-light)',
-                    background: selectedPaymentMethod === method ? 'var(--cream)' : 'white',
-                    padding: '10px 4px',
-                    borderRadius: '6px',
-                    textAlign: 'center',
-                    cursor: 'pointer',
-                    fontSize: '0.8rem',
-                    fontWeight: selectedPaymentMethod === method ? '700' : '500',
-                    color: 'var(--forest)'
-                  }">
-                  <span v-if="method === 'UPI'">⚡ UPI</span>
-                  <span v-else-if="method === 'Card'">💳 Card</span>
-                  <span v-else>🏦 Net</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Simulated Card / UPI details input placeholders -->
-            <div v-if="selectedPaymentMethod === 'Card'" style="background: var(--snow); border: 1px solid var(--stone-light); padding: 10px; border-radius: 6px; font-size: 0.8rem; display: flex; flex-direction: column; gap: 8px; margin-bottom: 1.25rem;">
-              <div>
-                <label style="font-size: 0.72rem; color: var(--stone); display: block; margin-bottom: 2px;">Card Number</label>
-                <input type="text" placeholder="4111 2222 3333 4444" disabled style="width: 100%; padding: 4px 8px; border: 1px solid var(--stone-light); border-radius: 4px; background: white; color: var(--stone);" />
-              </div>
-              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                <div>
-                  <label style="font-size: 0.72rem; color: var(--stone); display: block; margin-bottom: 2px;">Expiry Date</label>
-                  <input type="text" placeholder="MM/YY" disabled style="width: 100%; padding: 4px 8px; border: 1px solid var(--stone-light); border-radius: 4px; background: white; color: var(--stone);" />
-                </div>
-                <div>
-                  <label style="font-size: 0.72rem; color: var(--stone); display: block; margin-bottom: 2px;">CVV</label>
-                  <input type="text" placeholder="***" disabled style="width: 100%; padding: 4px 8px; border: 1px solid var(--stone-light); border-radius: 4px; background: white; color: var(--stone);" />
-                </div>
-              </div>
-            </div>
-            <div v-if="selectedPaymentMethod === 'UPI'" style="background: var(--snow); border: 1px solid var(--stone-light); padding: 10px; border-radius: 6px; font-size: 0.8rem; margin-bottom: 1.25rem;">
-              <label style="font-size: 0.72rem; color: var(--stone); display: block; margin-bottom: 2px;">UPI Virtual Payment Address (VPA)</label>
-              <input type="text" placeholder="username@okaxis" disabled style="width: 100%; padding: 4px 8px; border: 1px solid var(--stone-light); border-radius: 4px; background: white; color: var(--stone);" />
-            </div>
-            <div v-if="selectedPaymentMethod === 'Netbanking'" style="background: var(--snow); border: 1px solid var(--stone-light); padding: 10px; border-radius: 6px; font-size: 0.8rem; margin-bottom: 1.25rem;">
-              <label style="font-size: 0.72rem; color: var(--stone); display: block; margin-bottom: 2px;">Select Simulated Bank</label>
-              <select disabled style="width: 100%; padding: 4px 8px; border: 1px solid var(--stone-light); border-radius: 4px; background: white; color: var(--stone);">
-                <option>State Bank of India</option>
-                <option>HDFC Bank</option>
-                <option>ICICI Bank</option>
-              </select>
-            </div>
-
-            <!-- Simulated Payment Gateway Outcomes -->
+      <div v-if="showPaymentModal" class="ts-modal-overlay" @click.self="dismissPaymentModal(false)">
+        <div class="ts-modal" style="max-width: 480px; border: none; box-shadow: 0 20px 50px rgba(0,0,0,0.3);">
+          
+          <!-- Header -->
+          <div class="pay-sim-modal-header d-flex justify-content-between align-items-center">
             <div>
-              <div style="font-size: 0.8rem; font-weight: 700; color: var(--stone); text-align: center; margin-bottom: 8px;">Select simulated transaction outcome:</div>
-              <div style="display: flex; flex-direction: column; gap: 8px;">
-                <button @click="processSimulatedPayment('Paid')" style="width: 100%; padding: 10px; border-radius: 6px; border: none; background: var(--green); color: white; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 0.85rem;">
-                  ✅ Authorize Payment (Success)
-                </button>
-                <button @click="processSimulatedPayment('Pending')" style="width: 100%; padding: 10px; border-radius: 6px; border: none; background: var(--gold-dark); color: white; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 0.85rem;">
-                  ⏳ Pay Offline / Later (Pending)
-                </button>
-                <button @click="processSimulatedPayment('Failed')" style="width: 100%; padding: 10px; border-radius: 6px; border: none; background: var(--red); color: white; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 0.85rem;">
-                  ❌ Decline Transaction (Failure)
-                </button>
+              <div class="ts-modal-title" style="margin-bottom: 2px;">Secure Checkout</div>
+              <div class="pay-sim-badge">
+                <svg viewBox="0 0 24 24" style="width: 10px; height: 10px; fill: none; stroke: currentColor; stroke-width: 3;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                Sandbox Mode
               </div>
             </div>
+            <button class="modal-close" @click="dismissPaymentModal(false)">✕</button>
           </div>
-          <div class="ts-modal-footer">
-            <button class="btn-modal-cancel" @click="showPaymentModal = false">Cancel Payment</button>
+
+          <!-- Body -->
+          <div class="ts-modal-body" style="padding: 1.5rem;" v-if="paymentTrekBatch">
+            
+            <!-- STATE 1: Interactive form -->
+            <template v-if="!paymentProcessing && !paymentResultState">
+              <!-- Itemized Receipt -->
+              <div class="pay-sim-receipt">
+                <div class="pay-sim-receipt-title">{{ paymentTrekBatch.name }}</div>
+                <div class="pay-sim-row">
+                  <span>Location</span>
+                  <strong>📍 {{ paymentTrekBatch.location }}</strong>
+                </div>
+                <div class="pay-sim-row" v-if="paymentTrekBatch.batchCode">
+                  <span>Batch ID</span>
+                  <strong class="mono" style="color: var(--gold-dark);">{{ paymentTrekBatch.batchCode }}</strong>
+                </div>
+                <div class="pay-sim-row">
+                  <span>Booking Reference</span>
+                  <span class="mono" style="font-size: 0.75rem;">TS-{{ Math.floor(100000 + Math.random() * 900000) }}</span>
+                </div>
+                <div class="pay-sim-row total">
+                  <span>Total Amount</span>
+                  <span>₹{{ paymentTrekBatch.price.toLocaleString() }}</span>
+                </div>
+              </div>
+
+              <!-- Payment Method Tabs -->
+              <div style="margin-bottom: 1.25rem;">
+                <label style="font-weight: 700; font-size: 0.78rem; color: var(--forest); display: block; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.03em;">Select Payment Method</label>
+                <div class="pay-sim-methods">
+                  <div class="pay-sim-method-card" :class="{ active: selectedPaymentMethod === 'UPI' }" @click="selectedPaymentMethod = 'UPI'">
+                    <div style="font-size: 1.1rem; margin-bottom: 3px;">⚡</div>
+                    <div>UPI</div>
+                  </div>
+                  <div class="pay-sim-method-card" :class="{ active: selectedPaymentMethod === 'Card' }" @click="selectedPaymentMethod = 'Card'">
+                    <div style="font-size: 1.1rem; margin-bottom: 3px;">💳</div>
+                    <div>Card</div>
+                  </div>
+                  <div class="pay-sim-method-card" :class="{ active: selectedPaymentMethod === 'Netbanking' }" @click="selectedPaymentMethod = 'Netbanking'">
+                    <div style="font-size: 1.1rem; margin-bottom: 3px;">🏦</div>
+                    <div>Bank</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Interactive Fields: UPI -->
+              <div v-if="selectedPaymentMethod === 'UPI'" class="pay-sim-card-view">
+                <label style="font-size: 0.72rem; color: var(--stone); display: block; margin-bottom: 6px; font-weight: 600;">UPI Virtual Payment Address (VPA)</label>
+                <div class="position-relative">
+                  <input type="text" class="pay-sim-input" placeholder="e.g. trekker@upi" v-model="paymentDetails.upiId" style="padding-right: 6.5rem;" />
+                  <div style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); display: flex; gap: 4px;">
+                    <button class="btn btn-sm" @click="paymentDetails.upiId = 'trek@okaxis'" style="padding: 2px 6px; font-size: 0.65rem; background: var(--cream); color: var(--forest); border: 1px solid rgba(26,46,26,0.15); font-weight: 600; cursor: pointer;">Demo VPA</button>
+                  </div>
+                </div>
+                <div style="font-size: 0.68rem; color: var(--stone); margin-top: 5px;">Enter any simulated UPI ID to authorize payments.</div>
+              </div>
+
+              <!-- Interactive Fields: Card -->
+              <div v-if="selectedPaymentMethod === 'Card'" class="pay-sim-card-view">
+                <div style="margin-bottom: 10px;">
+                  <label style="font-size: 0.72rem; color: var(--stone); display: block; margin-bottom: 3px; font-weight: 600;">Cardholder Name</label>
+                  <input type="text" class="pay-sim-input" placeholder="e.g. Priyavart Jakhar" v-model="paymentDetails.cardName" />
+                </div>
+                <div style="margin-bottom: 10px;">
+                  <label style="font-size: 0.72rem; color: var(--stone); display: block; margin-bottom: 3px; font-weight: 600;">Card Number</label>
+                  <input type="text" class="pay-sim-input" placeholder="4111 2222 3333 4444" :value="paymentDetails.cardNumber" @input="onCardNumberInput" />
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                  <div>
+                    <label style="font-size: 0.72rem; color: var(--stone); display: block; margin-bottom: 3px; font-weight: 600;">Expiry Date</label>
+                    <input type="text" class="pay-sim-input" placeholder="MM/YY" :value="paymentDetails.cardExpiry" @input="onCardExpiryInput" />
+                  </div>
+                  <div>
+                    <label style="font-size: 0.72rem; color: var(--stone); display: block; margin-bottom: 3px; font-weight: 600;">CVV Code</label>
+                    <input type="password" class="pay-sim-input" placeholder="•••" :value="paymentDetails.cardCvv" @input="onCardCvvInput" />
+                  </div>
+                </div>
+              </div>
+
+              <!-- Interactive Fields: Netbanking -->
+              <div v-if="selectedPaymentMethod === 'Netbanking'" class="pay-sim-card-view">
+                <label style="font-size: 0.72rem; color: var(--stone); display: block; margin-bottom: 6px; font-weight: 600;">Select Bank Account</label>
+                <select class="pay-sim-input" v-model="paymentDetails.bank">
+                  <option>State Bank of India</option>
+                  <option>HDFC Bank</option>
+                  <option>ICICI Bank</option>
+                  <option>Axis Bank</option>
+                  <option>Kotak Mahindra Bank</option>
+                </select>
+                <div style="font-size: 0.68rem; color: var(--stone); margin-top: 5px;">You will be redirected to a simulated bank login page.</div>
+              </div>
+
+              <!-- Action Buttons -->
+              <div>
+                <div style="font-size: 0.78rem; font-weight: 700; color: var(--stone); text-align: center; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.03em;">Sandbox Testing Outcomes</div>
+                <div class="pay-sim-btn-group">
+                  <button @click="processSimulatedPayment('Paid')" class="pay-sim-btn success">
+                    <span>✓</span> Authorize Payment (Simulation Success)
+                  </button>
+                  <button @click="processSimulatedPayment('Pending')" class="pay-sim-btn pending">
+                    <span>⏳</span> Pay Later / Offline (Simulation Pending)
+                  </button>
+                  <button @click="processSimulatedPayment('Failed')" class="pay-sim-btn failure">
+                    <span>✕</span> Decline Transaction (Simulation Failure)
+                  </button>
+                </div>
+              </div>
+            </template>
+
+            <!-- STATE 2: Processing Loader Screen -->
+            <template v-if="paymentProcessing">
+              <div class="pay-sim-loader-wrap">
+                <div class="pay-sim-spinner"></div>
+                <div style="font-weight: 700; color: var(--forest); font-size: 1.05rem; margin-bottom: 6px;">Processing Transaction</div>
+                <div style="font-size: 0.82rem; color: var(--stone); height: 24px;">{{ paymentProcessingMsg }}</div>
+                <div class="pay-sim-progress-track">
+                  <div class="pay-sim-progress-fill" :style="{ width: paymentProcessingProgress + '%' }"></div>
+                </div>
+              </div>
+            </template>
+
+            <!-- STATE 3: Success Screen -->
+            <template v-if="paymentResultState === 'Paid'">
+              <div class="pay-sim-result-wrap">
+                <div class="pay-sim-icon-circle success">✓</div>
+                <div class="pay-sim-result-title">Payment Successful!</div>
+                <div class="pay-sim-result-text">Your transaction has been processed securely. Your trek booking is confirmed, and your permit is being initialized.</div>
+                
+                <div class="pay-sim-receipt-summary">
+                  <div class="pay-sim-row" style="margin-bottom: 4px;">
+                    <span>Trek Booking</span>
+                    <strong>{{ paymentTrekBatch.name }}</strong>
+                  </div>
+                  <div class="pay-sim-row" style="margin-bottom: 4px;">
+                    <span>Transaction ID</span>
+                    <span class="mono">TXN{{ Math.floor(100000000 + Math.random() * 900000000) }}</span>
+                  </div>
+                  <div class="pay-sim-row" style="margin-bottom: 4px;">
+                    <span>Method</span>
+                    <strong style="text-transform: uppercase;">{{ selectedPaymentMethod }}</strong>
+                  </div>
+                  <div class="pay-sim-row" style="margin-bottom: 4px; border-top: 1px dashed rgba(0,0,0,0.1); padding-top: 4px; margin-top: 4px;">
+                    <span>Amount Charged</span>
+                    <strong style="color: #10b981;">₹{{ paymentTrekBatch.price.toLocaleString() }}</strong>
+                  </div>
+                </div>
+
+                <button class="btn-primary-ts w-100" @click="dismissPaymentModal(true)">Go to My Bookings</button>
+              </div>
+            </template>
+
+            <!-- STATE 4: Pending Screen -->
+            <template v-if="paymentResultState === 'Pending'">
+              <div class="pay-sim-result-wrap">
+                <div class="pay-sim-icon-circle pending">⏳</div>
+                <div class="pay-sim-result-title">Offline / Pending Booking</div>
+                <div class="pay-sim-result-text">Your booking state has been saved as pending. You can complete the payment simulation later under the "Bookings" tab.</div>
+                
+                <div class="pay-sim-receipt-summary">
+                  <div class="pay-sim-row" style="margin-bottom: 4px;">
+                    <span>Trek Booking</span>
+                    <strong>{{ paymentTrekBatch.name }}</strong>
+                  </div>
+                  <div class="pay-sim-row" style="margin-bottom: 4px;">
+                    <span>Booking Status</span>
+                    <strong style="color: #f59e0b;">Pending Payment</strong>
+                  </div>
+                  <div class="pay-sim-row" style="margin-bottom: 4px; border-top: 1px dashed rgba(0,0,0,0.1); padding-top: 4px; margin-top: 4px;">
+                    <span>Amount Due</span>
+                    <strong>₹{{ paymentTrekBatch.price.toLocaleString() }}</strong>
+                  </div>
+                </div>
+
+                <button class="btn-primary-ts w-100" @click="dismissPaymentModal(true)">Go to My Bookings</button>
+              </div>
+            </template>
+
+            <!-- STATE 5: Failure Screen -->
+            <template v-if="paymentResultState === 'Failed'">
+              <div class="pay-sim-result-wrap">
+                <div class="pay-sim-icon-circle failure">✕</div>
+                <div class="pay-sim-result-title">Transaction Declined</div>
+                <div class="pay-sim-result-text">The card network or issuing bank declined the transaction. Check credit limits, card details, or try a different payment method.</div>
+                
+                <div class="w-100 d-flex gap-2" style="margin-top: 1rem;">
+                  <button class="btn btn-outline flex-grow-1" @click="dismissPaymentModal(true)" style="padding: 10px; border-radius: 8px;">Cancel</button>
+                  <button class="btn-primary-ts flex-grow-1" @click="resetPaymentForm" style="padding: 10px; border-radius: 8px; font-weight: 700;">Try Again</button>
+                </div>
+              </div>
+            </template>
+
+          </div>
+
+          <!-- Footer (Only on selection state) -->
+          <div class="ts-modal-footer" v-if="!paymentProcessing && !paymentResultState">
+            <button class="btn-modal-cancel" @click="dismissPaymentModal(false)">Cancel Payment</button>
           </div>
         </div>
       </div>

@@ -2190,3 +2190,283 @@ body {
 .cat-feedback { background: rgba(111, 66, 193, 0.1) !important; color: #6f42c1 !important; border: 1px solid rgba(111, 66, 193, 0.2) !important; }
 .cat-inquiry { background: rgba(108, 117, 125, 0.1) !important; color: #495057 !important; border: 1px solid rgba(108, 117, 125, 0.2) !important; }
 
+/* ── SIMULATED PAYMENT GATEWAY MODAL ── */
+.pay-sim-modal-header {
+  background: linear-gradient(135deg, var(--forest) 0%, #1e3f20 100%);
+  color: white;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.pay-sim-badge {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--gold);
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  padding: 2px 8px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  border-radius: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pay-sim-receipt {
+  background: linear-gradient(to bottom, var(--cream) 0%, rgba(245, 240, 230, 0.6) 100%);
+  border: 1px dashed rgba(26, 46, 26, 0.15);
+  border-radius: 8px;
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+  position: relative;
+}
+
+.pay-sim-receipt-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--forest);
+  margin-bottom: 0.5rem;
+}
+
+.pay-sim-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.82rem;
+  color: var(--stone);
+  margin-bottom: 0.25rem;
+}
+
+.pay-sim-row.total {
+  border-top: 1px dashed rgba(26, 46, 26, 0.15);
+  padding-top: 0.6rem;
+  margin-top: 0.6rem;
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--forest);
+}
+
+.pay-sim-methods {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 1.25rem;
+}
+
+.pay-sim-method-card {
+  border: 2px solid var(--stone-light);
+  background: #fff;
+  border-radius: 8px;
+  padding: 12px 6px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--stone);
+}
+
+.pay-sim-method-card:hover {
+  border-color: var(--forest);
+  background: var(--snow);
+}
+
+.pay-sim-method-card.active {
+  border-color: var(--gold);
+  background: var(--cream);
+  color: var(--forest);
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(212, 175, 55, 0.15);
+}
+
+.pay-sim-card-view {
+  background: var(--snow);
+  border: 1px solid var(--stone-light);
+  border-radius: 8px;
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.pay-sim-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--stone-light);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  background: #fff;
+  color: var(--forest);
+  transition: border-color 0.2s ease;
+}
+
+.pay-sim-input:focus {
+  outline: none;
+  border-color: var(--forest);
+  box-shadow: 0 0 0 3px rgba(26, 46, 26, 0.1);
+}
+
+.pay-sim-input::placeholder {
+  color: #a0a0a0;
+}
+
+.pay-sim-btn-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pay-sim-btn {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.pay-sim-btn.success {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+}
+
+.pay-sim-btn.success:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.3);
+}
+
+.pay-sim-btn.pending {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2);
+}
+
+.pay-sim-btn.pending:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(245, 158, 11, 0.3);
+}
+
+.pay-sim-btn.failure {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+}
+
+.pay-sim-btn.failure:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(239, 68, 68, 0.3);
+}
+
+/* Loader stage */
+.pay-sim-loader-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1.5rem;
+  text-align: center;
+}
+
+.pay-sim-spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid rgba(26, 46, 26, 0.1);
+  border-top-color: var(--forest);
+  border-radius: 50%;
+  animation: paySpinner 1s linear infinite;
+  margin-bottom: 1.5rem;
+}
+
+@keyframes paySpinner {
+  to { transform: rotate(360deg); }
+}
+
+.pay-sim-progress-track {
+  width: 100%;
+  max-width: 280px;
+  height: 6px;
+  background: rgba(26, 46, 26, 0.08);
+  border-radius: 10px;
+  margin-top: 1.25rem;
+  overflow: hidden;
+}
+
+.pay-sim-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--gold) 0%, var(--forest) 100%);
+  border-radius: 10px;
+  transition: width 0.4s ease;
+}
+
+/* Result screens */
+.pay-sim-result-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 2.5rem 1.5rem;
+}
+
+.pay-sim-icon-circle {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+  font-size: 2.2rem;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+}
+
+.pay-sim-icon-circle.success {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+  border: 2px solid rgba(16, 185, 129, 0.2);
+}
+
+.pay-sim-icon-circle.pending {
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+  border: 2px solid rgba(245, 158, 11, 0.2);
+}
+
+.pay-sim-icon-circle.failure {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border: 2px solid rgba(239, 68, 68, 0.2);
+}
+
+.pay-sim-result-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--forest);
+  margin-bottom: 0.75rem;
+}
+
+.pay-sim-result-text {
+  font-size: 0.88rem;
+  color: var(--stone);
+  margin-bottom: 1.5rem;
+  max-width: 340px;
+  line-height: 1.6;
+}
+
+.pay-sim-receipt-summary {
+  background: var(--snow);
+  border: 1px solid var(--stone-light);
+  border-radius: 8px;
+  padding: 1rem;
+  width: 100%;
+  margin-bottom: 2rem;
+  text-align: left;
+  font-size: 0.8rem;
+}
+

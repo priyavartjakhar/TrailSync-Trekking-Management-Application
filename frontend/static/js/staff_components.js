@@ -1310,7 +1310,7 @@ const TsStaffLayout = {
 
             <!-- Actions -->
             <div class="tsc-actions-grid">
-              <div class="tsc-btn-row tsc-btn-row-pair">
+              <div class="tsc-btn-row tsc-btn-row-pair tsc-btn-row-manage">
                 <button class="btn-ghost btn-sm tsc-icon-btn tsc-btn-participants" @click="selectTrekForParticipants(t, { inline: true })">
                   <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M2 19c0-3 3-5 7-5"/><circle cx="16" cy="10" r="3"/><path d="M13 19c0-3 2.7-5 6-5"/></svg>
                   Manage Participants
@@ -1320,7 +1320,7 @@ const TsStaffLayout = {
                   Mark Attendance
                 </button>
               </div>
-              <div class="tsc-btn-row tsc-btn-row-pair">
+              <div class="tsc-btn-row tsc-btn-row-pair tsc-btn-row-prep">
                 <button class="btn-ghost btn-sm tsc-icon-btn tsc-btn-slots" @click="openSlotModal(t)">
                   <svg viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5m-1.414-9.414a2 2 0 1 1 2.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                   Edit Slots
@@ -1330,7 +1330,7 @@ const TsStaffLayout = {
                   Checklist
                 </button>
               </div>
-              <div class="tsc-btn-row tsc-btn-row-status">
+              <div class="tsc-btn-row tsc-btn-row-status tsc-btn-row-launch">
                 <button v-if="t.status !== 'Started' && t.status !== 'Completed'" class="btn-forest btn-sm tsc-icon-btn tsc-btn-start" @click="markStarted(t)">
                   <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                   Mark as Started

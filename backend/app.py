@@ -2087,16 +2087,44 @@ def admin_trigger_job():
     data = request.get_json() or {}
     job_name = data.get('name')
     
-    if 'Reminder' in job_name:
+    if 'Reminder' in job_name or 'Prep' in job_name:
         from backend.tasks import send_daily_reminders, update_job_run
-        update_job_run('Daily Reminder Emails', 'Running')
+        update_job_run('Daily Prep Reminders', 'Running')
         send_daily_reminders.delay(is_manual=True)
     elif 'Report' in job_name:
         from backend.tasks import generate_monthly_report, update_job_run
         update_job_run('Monthly Activity Report', 'Running')
         generate_monthly_report.delay(is_manual=True)
+    elif 'Marketing' in job_name or 'Campaign' in job_name:
+        from backend.tasks import send_marketing_campaign, update_job_run
+        update_job_run('Daily Marketing Campaign', 'Running')
+        send_marketing_campaign.delay(is_manual=True)
         
     return jsonify({'success': True, 'message': f'Job "{job_name}" triggered successfully.'})
+
+@app.route('/api/admin/jobs/test_welcome', methods=['POST'])
+@login_required
+def admin_test_welcome_email():
+    if current_user.role != 'admin':
+        return jsonify({'error': 'Unauthorized'}), 403
+        
+    data = request.get_json() or {}
+    email_type = data.get('type')  # 'user' or 'staff'
+    email_address = data.get('email')
+    
+    if not email_address:
+        return jsonify({'error': 'Recipient email address is required'}), 400
+        
+    if email_type == 'user':
+        from backend.tasks import send_test_user_welcome
+        send_test_user_welcome.delay(email_address)
+    elif email_type == 'staff':
+        from backend.tasks import send_test_staff_welcome
+        send_test_staff_welcome.delay(email_address)
+    else:
+        return jsonify({'error': 'Invalid welcome email type'}), 400
+        
+    return jsonify({'success': True, 'message': f'Test welcome email ({email_type}) triggered successfully to {email_address}.'})
 
 @app.route('/api/admin/export', methods=['POST'])
 @login_required

@@ -27,6 +27,10 @@ celery_app.conf.beat_schedule = {
     'generate-monthly-report-every-month': {
         'task': 'backend.tasks.generate_monthly_report',
         'schedule': crontab(day_of_month=1, hour=9, minute=0),
+    },
+    'send-marketing-campaign-every-day': {
+        'task': 'backend.tasks.send_marketing_campaign',
+        'schedule': crontab(hour=11, minute=50),
     }
 }
 celery_app.conf.timezone = 'Asia/Kolkata'
@@ -37,18 +41,19 @@ def get_job_runs():
         try:
             with open(filepath, 'r') as f:
                 data = json.load(f)
-                # Ensure structure is consistent
                 res = []
                 for k, v in data.items():
+                    if 'history' not in v:
+                        v['history'] = []
                     res.append(v)
                 return res
         except Exception:
             pass
     # Fallback default values (as a list)
     return [
-        {'name': 'Daily Reminder Emails', 'schedule': 'Every day at 09:00', 'lastRun': '2026-06-10 09:00:00', 'status': 'Success'},
-        {'name': 'Monthly Activity Report', 'schedule': '1st of every month at 09:00', 'lastRun': '2026-06-01 09:00:00', 'status': 'Success'},
-        {'name': 'Cache Refresh Job', 'schedule': 'Every 15 min', 'lastRun': '2026-06-13 14:45:00', 'status': 'Success'}
+        {'name': 'Daily Prep Reminders', 'schedule': 'Every day at 09:00', 'lastRun': '2026-06-10 09:00:00', 'status': 'Success', 'history': ['2026-06-10 09:00:00', '2026-06-09 09:00:00']},
+        {'name': 'Monthly Activity Report', 'schedule': '1st of every month at 09:00', 'lastRun': '2026-06-01 09:00:00', 'status': 'Success', 'history': ['2026-06-01 09:00:00', '2026-05-01 09:00:00']},
+        {'name': 'Daily Marketing Campaign', 'schedule': 'Every day at 11:50', 'lastRun': '2026-06-13 11:50:00', 'status': 'Success', 'history': ['2026-06-13 11:50:00', '2026-06-12 11:50:00']}
     ]
 
 def update_job_run(name, status):
@@ -64,20 +69,27 @@ def update_job_run(name, status):
     if not runs:
         # Seed initial values
         runs = {
-            'Daily Reminder Emails': {'name': 'Daily Reminder Emails', 'schedule': 'Every day at 09:00', 'lastRun': '2026-06-10 09:00:00', 'status': 'Success'},
-            'Monthly Activity Report': {'name': 'Monthly Activity Report', 'schedule': '1st of every month at 09:00', 'lastRun': '2026-06-01 09:00:00', 'status': 'Success'},
-            'Cache Refresh Job': {'name': 'Cache Refresh Job', 'schedule': 'Every 15 min', 'lastRun': '2026-06-13 14:45:00', 'status': 'Success'}
+            'Daily Prep Reminders': {'name': 'Daily Prep Reminders', 'schedule': 'Every day at 09:00', 'lastRun': '2026-06-10 09:00:00', 'status': 'Success', 'history': ['2026-06-10 09:00:00', '2026-06-09 09:00:00']},
+            'Monthly Activity Report': {'name': 'Monthly Activity Report', 'schedule': '1st of every month at 09:00', 'lastRun': '2026-06-01 09:00:00', 'status': 'Success', 'history': ['2026-06-01 09:00:00', '2026-05-01 09:00:00']},
+            'Daily Marketing Campaign': {'name': 'Daily Marketing Campaign', 'schedule': 'Every day at 11:50', 'lastRun': '2026-06-13 11:50:00', 'status': 'Success', 'history': ['2026-06-13 11:50:00', '2026-06-12 11:50:00']}
         }
     
+    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     if name in runs:
-        runs[name]['lastRun'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        runs[name]['lastRun'] = timestamp
         runs[name]['status'] = status
+        if 'history' not in runs[name]:
+            runs[name]['history'] = []
+        if status == 'Success':
+            runs[name]['history'].append(timestamp)
+            runs[name]['history'] = runs[name]['history'][-20:] # Keep last 20 runs
     else:
         runs[name] = {
             'name': name,
-            'schedule': 'Manual' if 'Monthly' not in name and 'Daily' not in name else ('1st of every month at 09:00' if 'Monthly' in name else 'Every day at 09:00'),
-            'lastRun': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            'status': status
+            'schedule': 'Every day at 11:50' if 'Marketing' in name else ('1st of every month at 09:00' if 'Monthly' in name else 'Every day at 09:00'),
+            'lastRun': timestamp,
+            'status': status,
+            'history': [timestamp] if status == 'Success' else []
         }
         
     os.makedirs(os.path.dirname(filepath), exist_ok=True)
@@ -92,8 +104,10 @@ def send_email_helper(subject, recipient, body, is_html=False, attachment_path=N
     Helper function to send emails via Gmail SMTP using provided app credentials.
     Falls back to writing to local scratch/emails directory if SMTP is offline.
     """
+    from email.utils import formataddr
     sender_email = "23f2005399@ds.study.iitm.ac.in"
     sender_password = "fvmj mlwu aabm wmxq"
+    from_addr = formataddr(("TrailSync", sender_email))
     
     # Ensure fallback directory exists
     email_dir = os.path.join(os.path.dirname(__file__), '../scratch/emails')
@@ -104,7 +118,7 @@ def send_email_helper(subject, recipient, body, is_html=False, attachment_path=N
         if attachment_path:
             msg = MIMEMultipart()
             msg["Subject"] = subject
-            msg["From"] = sender_email
+            msg["From"] = from_addr
             msg["To"] = recipient
             
             # Attach body
@@ -128,7 +142,7 @@ def send_email_helper(subject, recipient, body, is_html=False, attachment_path=N
             else:
                 msg = MIMEText(body, 'plain')
             msg["Subject"] = subject
-            msg["From"] = sender_email
+            msg["From"] = from_addr
             msg["To"] = recipient
             
         # Send via Gmail SMTP
@@ -164,7 +178,7 @@ def send_daily_reminders(is_manual=False):
     from backend.models.models import db, Booking, Trek
     
     if is_manual:
-        update_job_run('Daily Reminder Emails', 'Running')
+        update_job_run('Daily Prep Reminders', 'Running')
         
     TIPS = [
         "Stay hydrated: Drink at least 4-5 liters of water daily to prevent AMS (Acute Mountain Sickness).",
@@ -330,11 +344,11 @@ def send_daily_reminders(is_manual=False):
                 count += 1
                 
             if is_manual:
-                update_job_run('Daily Reminder Emails', 'Success')
+                update_job_run('Daily Prep Reminders', 'Success')
             return f"Dispatched {count} daily reminders."
     except Exception as e:
         if is_manual:
-            update_job_run('Daily Reminder Emails', 'Failed')
+            update_job_run('Daily Prep Reminders', 'Failed')
         raise e
 
 @celery_app.task
@@ -471,6 +485,38 @@ def generate_monthly_report(is_manual=False):
             else:
                 total_participants = 0
                 
+            # Analytics: 1. Total Revenue Generated
+            total_revenue = db.session.query(db.func.sum(Booking.amount_paid)).filter(
+                Booking.booked_on.between(start_date, end_date),
+                Booking.status == 'Booked',
+                (Booking.payment_status != 'Failed') | (Booking.payment_status == None)
+            ).scalar() or 0
+            
+            # Analytics: 2. New Registered Users
+            # We filter by registered_at
+            # registered_at is a DateTime field, so we convert start_date/end_date to datetime
+            start_datetime = datetime.combine(start_date, datetime.min.time())
+            end_datetime = datetime.combine(end_date, datetime.max.time())
+            new_users = User.query.filter(
+                User.registered_at.between(start_datetime, end_datetime),
+                User.role == 'user'
+            ).count()
+            
+            # Analytics: 3. Active Staff Guide count
+            active_staff = User.query.filter_by(role='staff', active=True).count()
+            
+            # Analytics: 4. Difficulty breakdown of bookings
+            difficulty_counts = {'Easy': 0, 'Moderate': 0, 'Hard': 0}
+            difficulty_breakdown = db.session.query(Trek.difficulty, db.func.count(Booking.id)).join(Trek).filter(
+                Booking.booked_on.between(start_date, end_date),
+                Booking.status == 'Booked',
+                (Booking.payment_status != 'Failed') | (Booking.payment_status == None)
+            ).group_by(Trek.difficulty).all()
+            
+            for diff, cnt in difficulty_breakdown:
+                if diff in difficulty_counts:
+                    difficulty_counts[diff] = cnt
+            
             # Compute trek stats (bookings count)
             trek_stats = []
             for t in conducted_treks:
@@ -540,21 +586,42 @@ def generate_monthly_report(is_manual=False):
             story.append(Spacer(1, 10))
             
             # KPI Metrics Table
-            story.append(Paragraph("Key Metrics", heading_style))
+            story.append(Paragraph("Key Metrics & Financials", heading_style))
             kpi_data = [
                 [Paragraph("Metric", body_style), Paragraph("Value", body_style)],
                 [Paragraph("Treks Conducted", body_style), Paragraph(str(len(conducted_treks)), body_style)],
                 [Paragraph("Total Participants", body_style), Paragraph(str(total_participants), body_style)],
-                [Paragraph("Average Participants Per Trek", body_style), Paragraph(f"{total_participants / len(conducted_treks):.1f}" if conducted_treks else "0.0", body_style)]
+                [Paragraph("Average Participants Per Trek", body_style), Paragraph(f"{total_participants / len(conducted_treks):.1f}" if conducted_treks else "0.0", body_style)],
+                [Paragraph("Total Revenue Generated", body_style), Paragraph(f"INR {total_revenue:,}", body_style)],
+                [Paragraph("New Users Registered", body_style), Paragraph(str(new_users), body_style)],
+                [Paragraph("Active Guides on Duty", body_style), Paragraph(str(active_staff), body_style)]
             ]
             t_kpi = Table(kpi_data, colWidths=[200, 100])
             t_kpi.setStyle(TableStyle([
                 ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#f7faf7')),
                 ('GRID', (0,0), (-1,-1), 1, colors.HexColor('#e2e8f0')),
                 ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-                ('PADDING', (0,0), (-1,-1), 8),
+                ('PADDING', (0,0), (-1,-1), 6),
             ]))
             story.append(t_kpi)
+            story.append(Spacer(1, 10))
+            
+            # Difficulty Breakdown Table
+            story.append(Paragraph("Participation by Difficulty Level", heading_style))
+            diff_data = [
+                [Paragraph("Difficulty", body_style), Paragraph("Bookings Count", body_style)],
+                [Paragraph("Easy", body_style), Paragraph(str(difficulty_counts['Easy']), body_style)],
+                [Paragraph("Moderate", body_style), Paragraph(str(difficulty_counts['Moderate']), body_style)],
+                [Paragraph("Hard", body_style), Paragraph(str(difficulty_counts['Hard']), body_style)]
+            ]
+            t_diff = Table(diff_data, colWidths=[200, 100])
+            t_diff.setStyle(TableStyle([
+                ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#f7faf7')),
+                ('GRID', (0,0), (-1,-1), 1, colors.HexColor('#e2e8f0')),
+                ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+                ('PADDING', (0,0), (-1,-1), 6),
+            ]))
+            story.append(t_diff)
             story.append(Spacer(1, 15))
             
             # Conducted Treks Table
@@ -600,7 +667,37 @@ def generate_monthly_report(is_manual=False):
                 
             doc.build(story)
             
-            # 2. HTML Email Body
+            # 2. HTML Email Body with charts & visual analytics
+            # Difficulty stats visual bars
+            total_b = max(1, sum(difficulty_counts.values()))
+            easy_pct = int((difficulty_counts['Easy'] / total_b) * 100)
+            mod_pct = int((difficulty_counts['Moderate'] / total_b) * 100)
+            hard_pct = int((difficulty_counts['Hard'] / total_b) * 100)
+            
+            difficulty_bars_html = f"""
+            <div style="margin: 15px 0;">
+                <div style="font-size: 0.88rem; color: #4a5568; margin-bottom: 3px;">
+                    <strong>🟢 Easy difficulty:</strong> {difficulty_counts['Easy']} bookings ({easy_pct}%)
+                </div>
+                <div style="background-color: #edf2f7; border-radius: 4px; height: 10px; overflow: hidden; margin-bottom: 12px;">
+                    <div style="background-color: #4ade80; width: {easy_pct}%; height: 100%;"></div>
+                </div>
+                
+                <div style="font-size: 0.88rem; color: #4a5568; margin-bottom: 3px;">
+                    <strong>🟡 Moderate difficulty:</strong> {difficulty_counts['Moderate']} bookings ({mod_pct}%)
+                </div>
+                <div style="background-color: #edf2f7; border-radius: 4px; height: 10px; overflow: hidden; margin-bottom: 12px;">
+                    <div style="background-color: #facc15; width: {mod_pct}%; height: 100%;"></div>
+                </div>
+                
+                <div style="font-size: 0.88rem; color: #4a5568; margin-bottom: 3px;">
+                    <strong>🔴 Hard difficulty:</strong> {difficulty_counts['Hard']} bookings ({hard_pct}%)
+                </div>
+                <div style="background-color: #edf2f7; border-radius: 4px; height: 10px; overflow: hidden;">
+                    <div style="background-color: #f87171; width: {hard_pct}%; height: 100%;"></div>
+                </div>
+            </div>"""
+            
             report_html = f"""<!DOCTYPE html>
 <html>
 <head>
@@ -610,10 +707,10 @@ def generate_monthly_report(is_manual=False):
         .header {{ background: linear-gradient(135deg, #1e3f20, #0f2411); padding: 35px 20px; text-align: center; color: #ffffff; }}
         .header h1 {{ margin: 0; font-size: 2.0rem; font-weight: 700; color: #f3e5ab; }}
         .content {{ padding: 30px 25px; }}
-        .kpi-row {{ display: flex; gap: 15px; margin: 20px 0; justify-content: space-between; }}
-        .kpi-card {{ flex: 1; background-color: #f7faf7; border: 1px solid #edf2f7; padding: 15px; border-radius: 8px; text-align: center; }}
-        .kpi-val {{ font-size: 1.8rem; font-weight: bold; color: #1e3f20; }}
-        .kpi-lbl {{ font-size: 0.8rem; color: #718096; text-transform: uppercase; margin-top: 4px; }}
+        .kpi-row {{ display: flex; flex-wrap: wrap; gap: 12px; margin: 20px 0; }}
+        .kpi-card {{ flex: 1; min-width: 130px; background-color: #f7faf7; border: 1px solid #edf2f7; padding: 12px; border-radius: 8px; text-align: center; }}
+        .kpi-val {{ font-size: 1.5rem; font-weight: bold; color: #1e3f20; }}
+        .kpi-lbl {{ font-size: 0.75rem; color: #718096; text-transform: uppercase; margin-top: 4px; }}
         .list-item {{ padding: 10px; border-bottom: 1px solid #edf2f7; font-size: 0.95rem; }}
         .footer {{ background-color: #f7faf7; padding: 20px; text-align: center; font-size: 0.8rem; color: #718096; border-top: 1px solid #edf2f7; }}
     </style>
@@ -628,20 +725,36 @@ def generate_monthly_report(is_manual=False):
             <p>Hello Admin,</p>
             <p>The monthly trekking activity report has been compiled successfully. Below is a high-level summary of operations and participation. A detailed PDF version is attached to this email.</p>
             
+            <h3 style="color: #1e3f20; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; margin-top: 20px;">📊 Key Metrics</h3>
             <div class="kpi-row">
-                <div class="kpi-row">
-                    <div class="kpi-card">
-                        <div class="kpi-val">{len(conducted_treks)}</div>
-                        <div class="kpi-lbl">Treks Conducted</div>
-                    </div>
-                    <div class="kpi-card">
-                        <div class="kpi-val">{total_participants}</div>
-                        <div class="kpi-lbl">Participants</div>
-                    </div>
+                <div class="kpi-card">
+                    <div class="kpi-val">{len(conducted_treks)}</div>
+                    <div class="kpi-lbl">Treks Run</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-val">{total_participants}</div>
+                    <div class="kpi-lbl">Total Trekkers</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-val">₹{total_revenue:,}</div>
+                    <div class="kpi-lbl">Revenue Generated</div>
+                </div>
+            </div>
+            <div class="kpi-row" style="margin-top: 0;">
+                <div class="kpi-card">
+                    <div class="kpi-val">+{new_users}</div>
+                    <div class="kpi-lbl">New Accounts</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-val">{active_staff}</div>
+                    <div class="kpi-lbl">Active Guides</div>
                 </div>
             </div>
             
-            <h3 style="color: #1e3f20; margin-top: 25px; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px;">🔥 Top Popular Treks:</h3>
+            <h3 style="color: #1e3f20; margin-top: 25px; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px;">🧭 Difficulty Analytics</h3>
+            {difficulty_bars_html}
+            
+            <h3 style="color: #1e3f20; margin-top: 25px; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px;">🔥 Top Popular Treks</h3>
             <div style="margin-top: 10px;">
                 {"".join([f'<div class="list-item"><strong>{idx+1}. {t[0].name}</strong> - {t[1]} bookings ({t[0].location})</div>' for idx, t in enumerate(popular_treks)]) if popular_treks else '<div class="list-item">No bookings recorded.</div>'}
             </div>
@@ -672,6 +785,262 @@ def generate_monthly_report(is_manual=False):
         if is_manual:
             update_job_run('Monthly Activity Report', 'Failed')
         raise e
+
+@celery_app.task
+def send_marketing_campaign(is_manual=False):
+    from backend.app import app
+    from backend.models.models import db, User, Trek
+    
+    if is_manual:
+        update_job_run('Daily Marketing Campaign', 'Running')
+        
+    try:
+        with app.app_context():
+            # Query all active users
+            users = User.query.filter_by(role='user').all()
+            
+            # Fetch some upcoming treks to feature
+            upcoming_treks = Trek.query.filter(
+                Trek.start_date > date.today(),
+                Trek.status == 'Open'
+            ).order_by(Trek.start_date.asc()).limit(3).all()
+            
+            # If fewer than 3 open treks, get any future treks
+            if len(upcoming_treks) < 3:
+                more = Trek.query.filter(
+                    Trek.start_date > date.today(),
+                    Trek.id.notin_([t.id for t in upcoming_treks])
+                ).limit(3 - len(upcoming_treks)).all()
+                upcoming_treks.extend(more)
+                
+            trek_items_html = ""
+            for t in upcoming_treks:
+                price_str = f"₹{t.price:,}"
+                start_date_str = t.start_date.strftime('%b %d, %Y') if t.start_date else 'N/A'
+                trek_items_html += f"""
+                <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
+                    <h4 style="margin: 0 0 5px 0; color: #1e3f20; font-size: 1.1rem;">{t.name}</h4>
+                    <p style="margin: 3px 0; font-size: 0.88rem; color: #4a5568;"><strong>📍 Location:</strong> {t.location} | <strong>🧭 Difficulty:</strong> {t.difficulty}</p>
+                    <p style="margin: 3px 0; font-size: 0.88rem; color: #4a5568;"><strong>📅 Start Date:</strong> {start_date_str} | <strong>Price:</strong> {price_str}</p>
+                </div>"""
+                
+            newsletter_html = f"""<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {{ font-family: 'Outfit', 'DM Sans', Arial, sans-serif; line-height: 1.6; color: #2d3748; background-color: #f4f7f4; padding: 20px 10px; margin: 0; }}
+        .email-container {{ max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; }}
+        .header {{ background: linear-gradient(135deg, #1e3f20, #0c200d); padding: 40px 20px; text-align: center; color: #ffffff; }}
+        .header h1 {{ margin: 0; font-size: 2.0rem; font-weight: 700; color: #f3e5ab; }}
+        .header p {{ margin: 5px 0 0 0; color: #c8922a; font-size: 1.05rem; font-weight: 600; }}
+        .content {{ padding: 30px 25px; }}
+        .hero-text {{ font-size: 1.1rem; color: #2d3748; font-weight: 500; text-align: center; margin-bottom: 25px; }}
+        .feature-box {{ background-color: #f7faf7; border-radius: 8px; padding: 20px; border: 1px solid #edf2f7; margin-top: 25px; }}
+        .footer {{ background-color: #f7faf7; padding: 20px; text-align: center; font-size: 0.8rem; color: #718096; border-top: 1px solid #edf2f7; }}
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <h1>TrailSync Explorer</h1>
+            <p>Your Next Adventure Awaits 🏔️</p>
+        </div>
+        <div class="content">
+            <p class="hero-text">"Jobs fill your pocket, but adventures fill your soul." – Join TrailSync on our featured treks and explore the magnificent trails with expert guiding, premium safety protocols, and a vibrant community of trekkers!</p>
+            
+            <h3 style="color: #1e3f20; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; margin-top: 20px;">🔥 Trending Upcoming Treks</h3>
+            <div style="margin-top: 15px;">
+                {trek_items_html if trek_items_html else "<p>Check our dashboard for upcoming trek batches!</p>"}
+            </div>
+            
+            <div class="feature-box">
+                <h4 style="margin: 0 0 10px 0; color: #1e3f20;">🌟 Why Trek with TrailSync?</h4>
+                <ul style="margin: 0; padding-left: 20px; font-size: 0.9rem; color: #4a5568;">
+                    <li style="margin-bottom: 6px;">Certified Wilderness First Responder (WFR) guides.</li>
+                    <li style="margin-bottom: 6px;">Small batch sizes for safety and personalized attention.</li>
+                    <li style="margin-bottom: 6px;">Eco-friendly trekking: We practice Leave No Trace principles.</li>
+                </ul>
+            </div>
+            
+            <p style="margin-top: 25px; text-align: center;">
+                <a href="http://localhost:8000" style="display: inline-block; background-color: #1e3f20; color: #ffffff; text-decoration: none; padding: 12px 25px; border-radius: 6px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">Book Your Trek Now</a>
+            </p>
+        </div>
+        <div class="footer">
+            <p>You received this newsletter because you are a registered explorer at TrailSync.</p>
+            <p>&copy; 2026 TrailSync. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>"""
+            
+            # Send to all users
+            count = 0
+            for u in users:
+                send_email_helper(
+                    subject="TrailSync Explorer: Discover Upcoming Wilderness Treks! 🥾",
+                    recipient=u.email,
+                    body=newsletter_html,
+                    is_html=True
+                )
+                count += 1
+                
+            if is_manual:
+                update_job_run('Daily Marketing Campaign', 'Success')
+            return f"Marketing campaign sent to {count} users."
+    except Exception as e:
+        if is_manual:
+            update_job_run('Daily Marketing Campaign', 'Failed')
+        raise e
+
+@celery_app.task
+def send_test_user_welcome(recipient_email):
+    from backend.app import app
+    from backend.models.models import Trek
+    
+    with app.app_context():
+        today = date.today()
+        # Recommend 3 upcoming treks
+        recommended_treks = Trek.query.filter_by(status='Open').filter(
+            Trek.start_date > today
+        ).order_by(Trek.start_date.asc()).limit(3).all()
+        
+        if len(recommended_treks) < 3:
+            more_treks = Trek.query.limit(3).all()
+            recommended_treks = list(set(recommended_treks + more_treks))[:3]
+            
+        trek_cards_html = ""
+        for t in recommended_treks:
+            price_str = f"₹{t.price:,}"
+            start_date_str = t.start_date.strftime('%b %d, %Y') if t.start_date else 'N/A'
+            trek_cards_html += f"""
+            <div class="trek-item" style="border: 1px solid #edf2f7; border-radius: 8px; padding: 15px; margin-bottom: 15px; background-color: #ffffff;">
+                <h4 style="margin: 0 0 5px 0; color: #1e3f20; font-size: 1.1rem;">{t.name}</h4>
+                <p style="margin: 3px 0; font-size: 0.88rem; color: #4a5568;"><strong>📍 Location:</strong> {t.location} | <strong>🧭 Duration:</strong> {t.duration} Days</p>
+                <p style="margin: 3px 0; font-size: 0.88rem; color: #4a5568;"><strong>📅 Starts:</strong> {start_date_str} | <strong>Difficulty:</strong> {t.difficulty}</p>
+                <div style="margin-top: 10px; display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: 700; color: #c8922a; font-size: 1.05rem;">{price_str}</span>
+                    <a href="http://localhost:8000" style="background-color: #1e3f20; color: #ffffff; text-decoration: none; padding: 5px 12px; border-radius: 4px; font-size: 0.82rem; font-weight: 600;">View Details</a>
+                </div>
+            </div>"""
+
+        body_html = f"""<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {{ font-family: 'Outfit', 'DM Sans', Arial, sans-serif; line-height: 1.6; color: #2d3748; background-color: #f4f7f4; padding: 20px 10px; margin: 0; }}
+        .container {{ max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; }}
+        .header {{ background: linear-gradient(135deg, #1e3f20, #0f2411); padding: 40px 20px; text-align: center; color: #ffffff; }}
+        .header h2 {{ margin: 0; color: #f3e5ab; font-size: 1.8rem; font-weight: 700; letter-spacing: -0.5px; }}
+        .content {{ padding: 30px 25px; }}
+        .welcome-msg {{ font-size: 1.2rem; font-weight: 600; color: #1e3f20; margin-top: 0; }}
+        .promo-box {{ background-color: #fcf8eb; border: 1px dashed #c8922a; padding: 15px; border-radius: 8px; text-align: center; margin: 20px 0; }}
+        .promo-code {{ font-family: monospace; font-size: 1.4rem; font-weight: bold; color: #c8922a; margin: 5px 0; letter-spacing: 1px; }}
+        .footer {{ background-color: #f7faf7; padding: 20px; text-align: center; font-size: 0.8rem; color: #718096; border-top: 1px solid #edf2f7; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>Welcome to TrailSync!</h2>
+        </div>
+        <div class="content">
+            <p class="welcome-msg">Hi Explorer,</p>
+            <p>Welcome to TrailSync, the ultimate platform for trekkers and mountain enthusiasts. We are thrilled to have you join our community! Whether you are a beginner looking for a weekend hike or a seasoned trekker seeking high-altitude challenges, we have the perfect trail for you.</p>
+            
+            <div class="promo-box">
+                <p style="margin: 0; font-size: 0.95rem; color: #78350f; font-weight: 600;">🎒 Get 10% Off Your First Booking!</p>
+                <p style="margin: 5px 0; font-size: 0.85rem; color: #4a5568;">Use this exclusive coupon code during checkout:</p>
+                <div class="promo-code">FIRSTTRAIL10</div>
+            </div>
+            
+            <h3 style="color: #1e3f20; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; margin-top: 30px;">🏔️ Recommended Treks for You</h3>
+            <div class="trek-list" style="margin-top: 15px;">
+                {trek_cards_html if trek_cards_html else "<p>No treks currently available. Check back soon!</p>"}
+            </div>
+            
+            <p style="margin-top: 25px;">Ready to start your journey? Log in to your dashboard to complete your profile, explore more destinations, and book your next adventure.</p>
+            
+            <p>See you on the trail,<br><strong>The TrailSync Team</strong></p>
+        </div>
+        <div class="footer">
+            <p>You received this email because you registered an account on TrailSync.</p>
+            <p>&copy; 2026 TrailSync Trekking. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>"""
+        
+        send_email_helper(
+            subject="Welcome to TrailSync! Your mountain adventure awaits 🏔️",
+            recipient=recipient_email,
+            body=body_html,
+            is_html=True
+        )
+        return f"Test user welcome email sent to {recipient_email}."
+
+@celery_app.task
+def send_test_staff_welcome(recipient_email):
+    body_html = f"""<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {{ font-family: 'Outfit', 'DM Sans', Arial, sans-serif; line-height: 1.6; color: #2d3748; padding: 20px 10px; margin: 0; background-color: #f4f7f4; }}
+        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }}
+        .header {{ background: linear-gradient(135deg, #102a11, #1e3f20); color: #f3e5ab; padding: 30px 20px; border-radius: 8px 8px 0 0; text-align: center; }}
+        .header h2 {{ margin: 0; color: #f3e5ab; font-size: 1.7rem; font-weight: 700; }}
+        .content {{ padding: 25px 15px; }}
+        .footer {{ font-size: 0.8rem; text-align: center; color: #718096; margin-top: 20px; border-top: 1px solid #edf2f7; padding-top: 15px; }}
+        .credential-box {{ background-color: #f7fafc; border: 1px solid #edf2f7; padding: 15px; border-radius: 8px; margin: 15px 0; font-family: monospace; font-size: 0.95rem; }}
+        .warning-text {{ color: #e53e3e; font-weight: bold; font-size: 0.95rem; margin: 15px 0; }}
+        .cta-title {{ font-weight: 700; color: #1e3f20; font-size: 1.1rem; margin-top: 20px; margin-bottom: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; }}
+        .welcome-msg {{ font-size: 1.1rem; font-weight: 600; color: #1e3f20; margin-bottom: 15px; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>Welcome to TrailSync!</h2>
+        </div>
+        <div class="content">
+            <p class="welcome-msg">Hi Guide,</p>
+            
+            <p>Welcome to the TrailSync Trek Operations Team! We are thrilled to have you join our community of professional guides and outdoor leaders. Your expertise is what keeps our trekkers safe and inspired in the mountains.</p>
+            
+            <p>A staff account has been set up for you. Below are your temporary login details:</p>
+            
+            <div class="credential-box">
+                <div><strong>Login Email:</strong> {recipient_email}</div>
+                <div><strong>Temporary Password:</strong> [TEMPORARY_SECURE_PASSWORD]</div>
+            </div>
+            
+            <p class="warning-text">⚠️ IMPORTANT: This is a temporary password. Please log in and change your password immediately in your profile settings for account security.</p>
+            
+            <div class="cta-title">📋 Mandatory Action Items</div>
+            <ul style="margin: 0; padding-left: 20px; font-size: 0.9rem; color: #4a5568;">
+                <li style="margin-bottom: 8px;">Log in and change your temporary password immediately.</li>
+                <li style="margin-bottom: 8px;">Upload wilderness medical / rescue certifications.</li>
+                <li style="margin-bottom: 8px;">Specify your language and rescue specialties in profile settings.</li>
+            </ul>
+            
+            <p style="margin-top: 20px;">If you have any questions, feel free to reply directly to this mail.</p>
+            
+            <p>Best regards,<br><strong>TrailSync Operations Desk</strong></p>
+        </div>
+        <div class="footer">
+            &copy; 2026 TrailSync Trekking. All rights reserved.
+        </div>
+    </div>
+</body>
+</html>"""
+    
+    send_email_helper(
+        subject="Welcome to the TrailSync Staff Team! 🏔️",
+        recipient=recipient_email,
+        body=body_html,
+        is_html=True
+    )
+    return f"Test staff welcome email sent to {recipient_email}."
 
 @celery_app.task
 def export_booking_history_csv(user_id, email):

@@ -29,7 +29,8 @@ const TsStaffLayout = {
       participantSearch: '',
       selectedTrekId: null,
       participantTrekId: null,
-      participantStatusFilter: 'All',
+      participantsInTreksTab: false,
+      attendanceInTreksTab: false,
 
       // ── COUNTDOWN ─────────────────────────────────
       countdownTimer: null,
@@ -182,9 +183,9 @@ const TsStaffLayout = {
       return this.participants.filter(p => {
         const matchTrek = p.trekId === this.participantTrekId;
         const q = this.participantSearch.toLowerCase();
-        const matchSearch = !q || p.name.toLowerCase().includes(q) || p.email.toLowerCase().includes(q);
-        const matchStatus = this.participantStatusFilter === 'All' || p.status === this.participantStatusFilter;
-        return matchTrek && matchSearch && matchStatus;
+        const trekkerId = this.displayTrekkerId(p).toLowerCase();
+        const matchSearch = !q || p.name.toLowerCase().includes(q) || p.email.toLowerCase().includes(q) || trekkerId.includes(q);
+        return matchTrek && matchSearch;
       });
     },
 
@@ -266,7 +267,15 @@ const TsStaffLayout = {
 
   methods: {
     // ── NAV ────────────────────────────────────────
-    goTab(tab) { this.activeTab = tab; this.sidebarOpen = false; localStorage.setItem('staffActiveTab', tab); },
+    goTab(tab, options = {}) {
+      if (tab !== 'treks' || (!options.keepParticipantsInline && !options.keepAttendanceInline)) {
+        this.participantsInTreksTab = false;
+        this.attendanceInTreksTab = false;
+      }
+      this.activeTab = tab;
+      this.sidebarOpen = false;
+      localStorage.setItem('staffActiveTab', tab);
+    },
 
     // ── DATA FETCH ────────────────────────────────
     async fetchStaffData() {
@@ -303,6 +312,21 @@ const TsStaffLayout = {
       const d = new Date(dateStr);
       if (isNaN(d)) return dateStr;
       return String(d.getUTCDate()).padStart(2,'0') + ' ' + months[d.getUTCMonth()] + ' ' + d.getUTCFullYear();
+    },
+
+    displayTrekkerId(p) {
+      if (!p) return '—';
+      return p.trekkerId || (p.userId ? `#${p.userId}` : (p.id ? `#${p.id}` : '—'));
+    },
+
+    paymentStatusLabel(p) {
+      const raw = (p && p.paymentStatus) || (p && p.paid === false ? 'Pending' : 'Paid');
+      const normalized = String(raw).trim() || 'Paid';
+      return normalized.charAt(0).toUpperCase() + normalized.slice(1).toLowerCase();
+    },
+
+    paymentStatusClass(p) {
+      return 'pay-pill pay-' + this.paymentStatusLabel(p).toLowerCase();
     },
 
     getProgressStep(status) {
@@ -381,13 +405,50 @@ const TsStaffLayout = {
     },
 
     toggleAttendance(p) {
-      p.attendance = !p.attendance;
-      const action = p.attendance ? 'marked present' : 'marked absent';
+      this.setAttendance(p, !p.attendance);
+    },
+
+    setAttendance(p, present) {
+      const alreadySet = p.attendance === present;
+      p.attendance = present;
+      const action = present ? 'marked present' : 'marked absent';
+      if (alreadySet) {
+        this.showToast(`${p.name} already ${present ? 'present' : 'absent'}`);
+        return;
+      }
       this.activityLog.unshift({ id: Date.now(), text: `<strong>${p.name}</strong> ${action} for ${this.selectedTrek?.name}`, type: 'attendance', time: 'just now' });
       this.showToast(`${p.name} ${action}`);
     },
 
-    selectTrekForParticipants(t) { this.participantTrekId = t.id; this.goTab('participants'); },
+    selectTrekForParticipants(t, options = {}) {
+      if (!t) return;
+      this.participantTrekId = t.id;
+      this.participantSearch = '';
+      this.trekSearchQuery = '';
+      this.participantsInTreksTab = Boolean(options.inline);
+      this.attendanceInTreksTab = false;
+      this.goTab(options.inline ? 'treks' : 'participants', { keepParticipantsInline: options.inline });
+    },
+
+    backFromParticipantTrek() {
+      this.participantTrekId = null;
+      this.trekSearchQuery = '';
+      this.participantSearch = '';
+      this.participantsInTreksTab = false;
+    },
+
+    selectTrekForAttendance(t) {
+      if (!t) return;
+      this.selectedTrekId = t.id;
+      this.participantsInTreksTab = false;
+      this.attendanceInTreksTab = true;
+      this.goTab('treks', { keepAttendanceInline: true });
+    },
+
+    backFromAttendanceTrek() {
+      this.selectedTrekId = null;
+      this.attendanceInTreksTab = false;
+    },
 
     // ── CHECKLIST MODAL ───────────────────────────
     async openChecklistModal(trek) {
@@ -711,7 +772,8 @@ const TsStaffLayout = {
         const trek = this.assignedTreks.find(t => t.id === p.trekId);
         if (trek) this.openStatusModal(trek);
       } else if (p.actionType === 'attendance') {
-        this.goTab('attendance');
+        const trek = this.assignedTreks.find(t => t.id === p.trekId) || this.assignedTreks[0];
+        if (trek) this.selectTrekForAttendance(trek);
       } else if (p.actionType === 'participants') {
         this.goTab('participants');
       } else if (p.actionType === 'checklist') {
@@ -729,7 +791,7 @@ const TsStaffLayout = {
 
   mounted() {
     const savedTab = localStorage.getItem('staffActiveTab');
-    if (savedTab) this.activeTab = savedTab;
+    if (savedTab) this.activeTab = savedTab === 'attendance' ? 'treks' : savedTab;
     this.fetchStaffData();
     this.startCountdown();
   },
@@ -779,10 +841,6 @@ const TsStaffLayout = {
         <a class="nav-item" :class="{ active: activeTab === 'participants' }" @click="goTab('participants')">
           <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M2 19c0-3 3-5 7-5"/><circle cx="16" cy="10" r="3"/><path d="M13 19c0-3 2.7-5 6-5"/></svg>
           Participants
-        </a>
-        <a class="nav-item" :class="{ active: activeTab === 'attendance' }" @click="goTab('attendance')">
-          <svg viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-          Attendance
         </a>
         <a class="nav-item" :class="{ active: activeTab === 'analytics' }" @click="goTab('analytics')">
           <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
@@ -1053,7 +1111,7 @@ const TsStaffLayout = {
                       <button class="console-btn" @click="goTab('participants')">
                         <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M2 19c0-3 3-5 7-5"/></svg> View Participants
                       </button>
-                      <button class="console-btn" @click="goTab('attendance')">
+                      <button class="console-btn" @click="selectTrekForAttendance(nextTrek || assignedTreks[0])" :disabled="!assignedTreks.length">
                         <svg viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/></svg> Mark Attendance
                       </button>
                       <button class="console-btn" @click="exportCSV(selectedTrekId)" :disabled="!assignedTreks.length">
@@ -1176,7 +1234,7 @@ const TsStaffLayout = {
       <!-- ════════════════════════════════════════════
            ASSIGNED TREKS TAB
       ════════════════════════════════════════════ -->
-      <div v-if="activeTab === 'treks'" class="tab-content">
+      <div v-if="activeTab === 'treks' && !participantsInTreksTab && !attendanceInTreksTab" class="tab-content">
         <div class="page-header">
           <div>
             <div class="section-eyebrow">Staff Panel</div>
@@ -1250,19 +1308,34 @@ const TsStaffLayout = {
               <div class="slot-bar-fill" :style="{ width: slotPct(t) + '%', background: slotColor(t) }"></div>
             </div>
 
-            <!-- Actions — 2-row themed button layout -->
+            <!-- Actions -->
             <div class="tsc-actions-grid">
-              <!-- Row 1: Primary action buttons -->
-              <div class="tsc-btn-row tsc-btn-row-primary">
-                <button class="btn-ghost btn-sm tsc-icon-btn" @click="openSlotModal(t)">
+              <div class="tsc-btn-row tsc-btn-row-pair">
+                <button class="btn-ghost btn-sm tsc-icon-btn tsc-btn-participants" @click="selectTrekForParticipants(t, { inline: true })">
+                  <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M2 19c0-3 3-5 7-5"/><circle cx="16" cy="10" r="3"/><path d="M13 19c0-3 2.7-5 6-5"/></svg>
+                  Manage Participants
+                </button>
+                <button class="btn-ghost btn-sm tsc-icon-btn tsc-btn-attendance" @click="selectTrekForAttendance(t)">
+                  <svg viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                  Mark Attendance
+                </button>
+              </div>
+              <div class="tsc-btn-row tsc-btn-row-pair">
+                <button class="btn-ghost btn-sm tsc-icon-btn tsc-btn-slots" @click="openSlotModal(t)">
                   <svg viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5m-1.414-9.414a2 2 0 1 1 2.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                   Edit Slots
                 </button>
-                <button v-if="t.status !== 'Started' && t.status !== 'Completed'" class="btn-forest btn-sm tsc-icon-btn" @click="markStarted(t)">
+                <button class="btn-ghost btn-sm tsc-icon-btn tsc-btn-checklist" @click="openChecklistModal(t)">
+                  <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                  Checklist
+                </button>
+              </div>
+              <div class="tsc-btn-row tsc-btn-row-status">
+                <button v-if="t.status !== 'Started' && t.status !== 'Completed'" class="btn-forest btn-sm tsc-icon-btn tsc-btn-start" @click="markStarted(t)">
                   <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                   Mark as Started
                 </button>
-                <button v-if="t.status === 'Started'" class="btn-primary-ts btn-sm tsc-icon-btn" @click="openCompletionModal(t)">
+                <button v-if="t.status === 'Started'" class="btn-primary-ts btn-sm tsc-icon-btn tsc-btn-complete" @click="openCompletionModal(t)">
                   <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
                   Mark as Completed
                 </button>
@@ -1271,26 +1344,15 @@ const TsStaffLayout = {
                   Completed
                 </div>
               </div>
-              <!-- Row 2: Secondary detail buttons -->
-              <div class="tsc-btn-row tsc-btn-row-secondary">
-                <button class="btn-ghost btn-sm tsc-icon-btn" @click="selectTrekForParticipants(t)">
-                  <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M2 19c0-3 3-5 7-5"/><circle cx="16" cy="10" r="3"/><path d="M13 19c0-3 2.7-5 6-5"/></svg>
-                  Manage Participants
-                </button>
-                <button class="btn-ghost btn-sm tsc-icon-btn" @click="openChecklistModal(t)">
-                  <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-                  Checklist
-                </button>
-              </div>
             </div>
           </div>
         </div>
       </div>
 
       <!-- ════════════════════════════════════════════
-           PARTICIPANTS TAB
+           PARTICIPANTS VIEW
       ════════════════════════════════════════════ -->
-      <div v-if="activeTab === 'participants'" class="tab-content">
+      <div v-if="activeTab === 'participants' || (activeTab === 'treks' && participantsInTreksTab)" class="tab-content">
         <div class="page-header">
           <div>
             <div class="section-eyebrow">Participant Management</div>
@@ -1346,9 +1408,9 @@ const TsStaffLayout = {
 
         <template v-else>
           <!-- Back link -->
-          <button class="ptab-back-btn" @click="participantTrekId = null; trekSearchQuery = ''">
+          <button class="ptab-back-btn" @click="backFromParticipantTrek">
             <svg viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-            All Treks
+            {{ participantsInTreksTab ? 'Assigned Treks' : 'All Treks' }}
           </button>
           <!-- Selected Trek Banner -->
           <div class="ptab-trek-banner">
@@ -1381,14 +1443,11 @@ const TsStaffLayout = {
             </div>
           </div>
 
-          <!-- Participant filter + search -->
+          <!-- Participant search -->
           <div style="display:flex; gap:0.5rem; margin-bottom:1.25rem; flex-wrap:wrap; align-items:center">
-            <button v-for="f in ['All','Booked','Completed','Cancelled']" :key="f"
-              class="filter-btn" :class="{ active: participantStatusFilter === f }"
-              @click="participantStatusFilter = f">{{ f }}</button>
             <div class="search-bar-inline" style="margin-left:auto; min-width:200px">
               <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-              <input v-model="participantSearch" type="text" placeholder="Search name, email…" />
+              <input v-model="participantSearch" type="text" placeholder="Search name, email, trekker ID…" />
             </div>
             <span style="font-size:0.75rem; color:var(--stone); font-family:'Space Mono',monospace; white-space:nowrap">
               {{ filteredParticipants.length }} trekker{{ filteredParticipants.length !== 1 ? 's' : '' }}
@@ -1410,7 +1469,7 @@ const TsStaffLayout = {
               <tbody>
                 <tr v-for="(p, i) in filteredParticipants" :key="p.id">
                   <td>
-                    <span class="trekker-id-badge">#{{ p.id }}</span>
+                    <span class="trekker-id-badge">{{ displayTrekkerId(p) }}</span>
                   </td>
                   <td>
                     <div class="user-cell">
@@ -1431,7 +1490,7 @@ const TsStaffLayout = {
                     </div>
                   </td>
                   <td>
-                    <span :class="'pay-pill pay-' + (p.paymentStatus || 'paid')">{{ p.paymentStatus || 'Paid' }}</span>
+                    <span :class="paymentStatusClass(p)">{{ paymentStatusLabel(p) }}</span>
                   </td>
 
                   <td>
@@ -1467,9 +1526,9 @@ const TsStaffLayout = {
       </div>
 
       <!-- ════════════════════════════════════════════
-           ATTENDANCE TAB
+           ATTENDANCE VIEW
       ════════════════════════════════════════════ -->
-      <div v-if="activeTab === 'attendance'" class="tab-content">
+      <div v-if="activeTab === 'treks' && attendanceInTreksTab" class="tab-content">
         <div class="page-header">
           <div>
             <div class="section-eyebrow">Trek Management</div>
@@ -1477,28 +1536,34 @@ const TsStaffLayout = {
           </div>
         </div>
 
-        <div class="trek-selector-bar">
-          <button v-for="t in assignedTreks" :key="t.id"
-            class="filter-btn" :class="{ active: selectedTrekId === t.id }"
-            @click="selectedTrekId = t.id">{{ t.name }}</button>
-        </div>
+        <button class="ptab-back-btn" @click="backFromAttendanceTrek">
+          <svg viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+          Assigned Treks
+        </button>
 
-        <div class="attendance-legend" style="margin-bottom:1.25rem">
-          <div class="legend-item"><div class="legend-dot" style="background:#22c55e"></div> Present</div>
-          <div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div> Absent / Not marked</div>
-          <span style="margin-left:auto; font-size:0.78rem; color:var(--stone)">
-            {{ attendanceParticipants.filter(p=>p.attendance).length }} / {{ attendanceParticipants.length }} present
-          </span>
-        </div>
-
-        <!-- Attendance summary bar -->
-        <div style="margin-bottom:1.5rem">
-          <div style="display:flex; justify-content:space-between; font-size:0.78rem; color:var(--stone); margin-bottom:5px">
-            <span>Attendance Rate</span>
-            <span>{{ attendanceParticipants.length > 0 ? Math.round((attendanceParticipants.filter(p=>p.attendance).length / attendanceParticipants.length) * 100) : 0 }}%</span>
+        <div v-if="selectedTrek" class="ptab-trek-banner">
+          <div class="ptab-banner-info">
+            <div class="ptab-batch-label">{{ selectedTrek.batchCode }}</div>
+            <div class="ptab-trek-name">{{ selectedTrek.name }}</div>
+            <div class="ptab-trek-meta">
+              <span>📍 {{ selectedTrek.location }}</span>
+              <span class="ptab-date-sep">·</span>
+              <span>
+                <svg viewBox="0 0 24 24" style="width:11px;height:11px;stroke:var(--gold);fill:none;stroke-width:2;vertical-align:middle;margin-right:2px"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                {{ formatDate(selectedTrek.startDate) }} — {{ formatDate(selectedTrek.endDate) }}
+              </span>
+            </div>
           </div>
-          <div class="progress-track" style="height:8px">
-            <div class="progress-fill" :style="{ width: (attendanceParticipants.length > 0 ? Math.round((attendanceParticipants.filter(p=>p.attendance).length / attendanceParticipants.length) * 100) : 0) + '%' }"></div>
+          <div class="ptab-banner-right">
+            <div class="ptab-occ-bar-wrap">
+              <div class="ptab-occ-label">
+                <span style="font-size:0.72rem;color:var(--gold-light);font-weight:600;letter-spacing:0.04em">Attendance</span>
+                <span style="font-family:'Space Mono',monospace;font-size:0.72rem;color:var(--gold-light);font-weight:700">{{ attendanceParticipants.filter(p=>p.attendance).length }}/{{ attendanceParticipants.length }}</span>
+              </div>
+              <div class="slot-bar-wrap" style="height:8px;background:rgba(255,255,255,0.12)">
+                <div class="slot-bar-fill" :style="{ width: (attendanceParticipants.length > 0 ? Math.round((attendanceParticipants.filter(p=>p.attendance).length / attendanceParticipants.length) * 100) : 0) + '%', background: 'var(--gold)' }"></div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -1510,25 +1575,36 @@ const TsStaffLayout = {
         <div class="ts-table-wrap">
           <table class="ts-table" v-if="attendanceParticipants.length">
             <thead>
-              <tr><th>#</th><th>Participant</th><th>Email</th><th>Blood Group</th><th>Attendance</th></tr>
+              <tr>
+                <th>Trekker ID</th>
+                <th>Name</th>
+                <th>Contact Number</th>
+                <th>Attendance</th>
+              </tr>
             </thead>
             <tbody>
               <tr v-for="(p, i) in attendanceParticipants" :key="p.id">
-                <td class="mono">{{ i + 1 }}</td>
+                <td><span class="trekker-id-badge">{{ displayTrekkerId(p) }}</span></td>
                 <td>
                   <div class="user-cell">
                     <div class="user-mini-avatar">{{ p.name[0] }}</div>
                     <span class="cell-name">{{ p.name }}</span>
                   </div>
                 </td>
-                <td class="mono">{{ p.email }}</td>
                 <td>
-                  <span style="background:#fee2e2; color:#dc2626; font-family:'Space Mono',monospace; font-size:0.62rem; font-weight:700; padding:2px 6px; border-radius:3px">{{ p.bloodGroup }}</span>
+                  <div style="display:flex;align-items:center;gap:5px">
+                    <span class="mono" style="font-size:0.78rem">{{ p.phone || '—' }}</span>
+                    <a v-if="p.phone" :href="'tel:' + p.phone" class="ptab-btn ptab-btn-call" title="Call">
+                      <svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.44 2 2 0 0 1 3.6 1.28h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                      Call
+                    </a>
+                  </div>
                 </td>
                 <td>
-                  <button class="att-toggle" :class="p.attendance ? 'present' : 'absent'" @click="toggleAttendance(p)" :title="p.attendance ? 'Mark Absent' : 'Mark Present'">
-                    {{ p.attendance ? '✓' : '✕' }}
-                  </button>
+                  <div class="attendance-choice-group">
+                    <button class="att-choice-btn present" :class="{ active: p.attendance }" @click="setAttendance(p, true)">Present</button>
+                    <button class="att-choice-btn absent" :class="{ active: !p.attendance }" @click="setAttendance(p, false)">Absent</button>
+                  </div>
                 </td>
               </tr>
             </tbody>
@@ -1853,14 +1929,19 @@ const TsStaffLayout = {
             <div>
               <div class="pmodal-name">{{ participantTarget.name }}</div>
               <div class="pmodal-email">{{ participantTarget.email }}</div>
+              <div class="pmodal-trekker-id">Trekker ID {{ displayTrekkerId(participantTarget) }}</div>
               <div style="margin-top:4px;display:flex;gap:6px;align-items:center">
                 <span :class="'status-pill status-' + participantTarget.status.toLowerCase()">{{ participantTarget.status }}</span>
-                <span :class="'pay-pill pay-' + (participantTarget.paymentStatus || 'paid')">{{ participantTarget.paymentStatus || 'Paid' }}</span>
+                <span :class="paymentStatusClass(participantTarget)">{{ paymentStatusLabel(participantTarget) }}</span>
               </div>
             </div>
           </div>
           <!-- Info grid -->
           <div class="pmodal-grid">
+            <div class="pmodal-field">
+              <div class="pmodal-field-label">Trekker ID</div>
+              <div class="pmodal-field-val mono">{{ displayTrekkerId(participantTarget) }}</div>
+            </div>
             <div class="pmodal-field">
               <div class="pmodal-field-label">Phone</div>
               <div class="pmodal-field-val">{{ participantTarget.phone || '—' }}</div>
@@ -1880,7 +1961,7 @@ const TsStaffLayout = {
             <div class="pmodal-field">
               <div class="pmodal-field-label">Payment</div>
               <div class="pmodal-field-val">
-                <span :class="'pay-pill pay-' + (participantTarget.paymentStatus || 'paid')">{{ participantTarget.paymentStatus || 'Paid' }}</span>
+                <span :class="paymentStatusClass(participantTarget)">{{ paymentStatusLabel(participantTarget) }}</span>
               </div>
             </div>
           </div>
@@ -2071,7 +2152,7 @@ const TsStaffLayout = {
         </div>
         <div class="ts-modal-footer">
           <button class="btn-ghost" @click="showTrekDetailModal = false">Close</button>
-          <button class="btn-primary-ts" @click="selectTrekForParticipants(detailTrek); showTrekDetailModal = false">
+          <button class="btn-primary-ts" @click="selectTrekForParticipants(detailTrek, { inline: activeTab === 'treks' }); showTrekDetailModal = false">
             <svg viewBox="0 0 24 24" style="width:14px;height:14px"><circle cx="9" cy="8" r="3"/><path d="M2 19c0-3 3-5 7-5"/><circle cx="16" cy="10" r="3"/><path d="M13 19c0-3 2.7-5 6-5"/></svg>
             Manage Participants
           </button>

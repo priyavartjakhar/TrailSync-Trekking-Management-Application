@@ -2269,8 +2269,12 @@ def staff_dashboard_data():
         
         bookings_query = Booking.query.filter_by(trek_id=t.id).all()
         for b in bookings_query:
+            user_data = b.user.to_json()
             participants.append({
                 'id': b.id,
+                'bookingId': b.unique_booking_id,
+                'userId': b.user_id,
+                'trekkerId': user_data.get('memberId'),
                 'trekId': t.id,
                 'name': b.user.name,
                 'email': b.user.email,
@@ -2279,8 +2283,9 @@ def staff_dashboard_data():
                 'status': b.status,
                 'emergencyContact': 'Emergency Contact',
                 'emergencyPhone': b.user.emergency or '',
-                'bloodGroup': 'B+',
-                'attendance': False
+                'bloodGroup': b.user.blood_group or '—',
+                'attendance': False,
+                'paymentStatus': b.payment_status or ('Paid' if b.paid else 'Pending')
             })
             
     profile = current_user.staff_profile
@@ -2409,9 +2414,9 @@ def staff_export(trek_id):
     bookings = Booking.query.filter_by(trek_id=trek_id).all()
     with open(filepath, 'w', newline='') as f:
         writer = csv.writer(f)
-        writer.writerow(['Booking ID', 'Participant Name', 'Participant Email', 'Booked On', 'Status'])
+        writer.writerow(['Booking ID', 'Trekker ID', 'Participant Name', 'Participant Email', 'Booked On', 'Status'])
         for b in bookings:
-            writer.writerow([b.id, b.user.name, b.user.email, b.booked_on.strftime('%Y-%m-%d'), b.status])
+            writer.writerow([b.unique_booking_id, b.user.to_json()['memberId'], b.user.name, b.user.email, b.booked_on.strftime('%Y-%m-%d'), b.status])
             
     return jsonify({'message': f'CSV export triggered. File generated: {filename}'})
 

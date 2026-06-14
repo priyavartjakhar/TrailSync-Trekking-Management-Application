@@ -158,6 +158,43 @@ const TsAdminLayout = {
       hoveredPaymentStatus: null,
       hoveredRevDifficulty: null,
       hoveredLossStatus: null,
+      // Reports Generator States
+      selectedReportType: 'monthly_activity',
+      selectedReportMonth: 'Jun',
+      selectedReportTrek: '',
+      selectedReportTrekSubtype: 'summary',
+      selectedReportBatch: '',
+      selectedReportUser: '',
+      selectedReportUserSubtype: 'active',
+      selectedReportStaff: '',
+      selectedReportStaffSubtype: 'performance',
+      reportStartDate: '',
+      reportEndDate: '',
+      reportsList: [
+        {
+          id: 1,
+          title: 'Monthly Activity Report - May 2026',
+          type: 'monthly_activity',
+          generatedAt: '2026-06-01 10:00:00',
+          parameters: 'Month: May',
+        },
+        {
+          id: 2,
+          title: 'Trek Route Report - Everest Base Camp',
+          type: 'trek_route',
+          generatedAt: '2026-06-05 14:30:00',
+          parameters: 'Trek: Everest Base Camp',
+        },
+        {
+          id: 3,
+          title: 'User Participation & Engagement Report',
+          type: 'user_participation',
+          generatedAt: '2026-06-10 09:15:00',
+          parameters: 'Filters: Active Trekkers',
+        }
+      ],
+      reportPreviewData: null,
+      showReportPreviewModal: false,
     };
   },
 
@@ -1995,6 +2032,553 @@ const TsAdminLayout = {
           method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ type })
         });
       } catch (_) {}
+    },
+
+    compileReport(type = null) {
+      const rType = type || this.selectedReportType;
+      let headers = [];
+      let rows = [];
+      let title = "";
+      let parameters = "";
+      
+      const monthsNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      
+      if (rType === 'monthly_activity') {
+        title = `Monthly Activity Report - ${this.selectedReportMonth || 'All'}`;
+        parameters = `Month: ${this.selectedReportMonth || 'All'}`;
+        headers = ['Trek Name', 'Batch Code', 'Start Date', 'Booked Slots', 'Total Slots', 'Occupancy %', 'Revenue'];
+        
+        const filterMonth = this.selectedReportMonth;
+        
+        this.treks.forEach(t => {
+          let matches = true;
+          if (filterMonth && t.startDate) {
+            const mIdx = new Date(t.startDate).getMonth();
+            matches = monthsNames[mIdx] === filterMonth;
+          }
+          if (matches) {
+            const booked = t.booked || t.bookedSlots || 0;
+            const total = t.slots || 20;
+            const occ = total > 0 ? Math.round((booked / total) * 100) : 0;
+            const price = t.price || 5000;
+            const rev = booked * price;
+            rows.push([
+              t.name,
+              t.batchCode || `TID${String(t.id).padStart(3, '0')}B01`,
+              t.startDate,
+              booked,
+              total,
+              `${occ}%`,
+              `₹${rev}`
+            ]);
+          }
+        });
+      }
+      else if (rType === 'trek_route') {
+        const trekName = this.selectedReportTrek;
+        const subTrek = this.selectedReportTrekSubtype || 'summary';
+        
+        parameters = `Trek: ${trekName || 'All'} | Aspect: ${subTrek}`;
+        if (this.reportStartDate || this.reportEndDate) {
+          parameters += ` | Range: ${this.reportStartDate || 'Any'} to ${this.reportEndDate || 'Any'}`;
+        }
+        
+        if (subTrek === 'summary') {
+          title = `Trek Route Summary - ${trekName || 'All'}`;
+          headers = ['Batch Code', 'Start Date', 'End Date', 'Status', 'Booked', 'Slots', 'Revenue', 'Assigned Staff'];
+          
+          this.treks.forEach(t => {
+            if (!trekName || t.name === trekName) {
+              if (this.reportStartDate && t.startDate < this.reportStartDate) return;
+              if (this.reportEndDate && t.startDate > this.reportEndDate) return;
+              
+              const booked = t.booked || t.bookedSlots || 0;
+              const total = t.slots || 20;
+              const price = t.price || 5000;
+              const rev = booked * price;
+              const staffName = t.staffName || t.staff || 'Unassigned';
+              rows.push([
+                t.batchCode || `TID${String(t.id).padStart(3, '0')}B01`,
+                t.startDate,
+                t.endDate,
+                t.status,
+                booked,
+                total,
+                `₹${rev}`,
+                staffName
+              ]);
+            }
+          });
+        }
+        else if (subTrek === 'participants') {
+          title = `Trek Route Participants - ${trekName || 'All'}`;
+          headers = ['Booking ID', 'Batch Code', 'Trekker Name', 'Email', 'Phone', 'Booking Date', 'Status', 'Amount Paid'];
+          
+          this.allBookings.forEach(b => {
+            if (!trekName || b.trek === trekName) {
+              if (this.reportStartDate && b.date < this.reportStartDate) return;
+              if (this.reportEndDate && b.date > this.reportEndDate) return;
+              
+              const userObj = this.users.find(u => u.id === b.userId || u.name === b.user);
+              const email = b.email || (userObj ? userObj.email : '—');
+              const phone = b.phone || (userObj ? userObj.phone : '—');
+              rows.push([
+                b.bookingId || `#${b.id}`,
+                b.batchCode || '—',
+                b.user,
+                email,
+                phone,
+                b.date,
+                b.status,
+                `₹${b.amountPaid}`
+              ]);
+            }
+          });
+        }
+        else if (subTrek === 'staff') {
+          title = `Trek Route Staff Details - ${trekName || 'All'}`;
+          headers = ['Batch Code', 'Start Date', 'End Date', 'Staff Name', 'Email', 'Phone', 'Designation'];
+          
+          this.treks.forEach(t => {
+            if (!trekName || t.name === trekName) {
+              if (this.reportStartDate && t.startDate < this.reportStartDate) return;
+              if (this.reportEndDate && t.startDate > this.reportEndDate) return;
+              
+              const staffName = t.staffName || t.staff;
+              if (!staffName || staffName === 'Unassigned') {
+                rows.push([
+                  t.batchCode || `TID${String(t.id).padStart(3, '0')}B01`,
+                  t.startDate,
+                  t.endDate,
+                  'Unassigned',
+                  '—',
+                  '—',
+                  '—'
+                ]);
+              } else {
+                const sObj = this.staffList.find(s => s.name === staffName || s.id === t.staff_id);
+                const email = sObj ? sObj.contact : '—';
+                const phone = sObj ? sObj.phone : '—';
+                const des = sObj ? sObj.designation : 'Guide';
+                rows.push([
+                  t.batchCode || `TID${String(t.id).padStart(3, '0')}B01`,
+                  t.startDate,
+                  t.endDate,
+                  staffName,
+                  email,
+                  phone,
+                  des
+                ]);
+              }
+            }
+          });
+        }
+        else if (subTrek === 'all') {
+          title = `Trek Route Compiled Performance - ${trekName || 'All'}`;
+          headers = ['Period (Month)', 'Trek Route', 'Total Batches', 'Total Bookings', 'Occupancy %', 'Total Revenue'];
+          
+          const groups = {};
+          this.treks.forEach(t => {
+            if (!trekName || t.name === trekName) {
+              if (this.reportStartDate && t.startDate < this.reportStartDate) return;
+              if (this.reportEndDate && t.startDate > this.reportEndDate) return;
+              
+              const mIdx = new Date(t.startDate).getMonth();
+              const mName = monthsNames[mIdx] || 'Unknown';
+              const key = `${mName}`;
+              
+              if (!groups[key]) {
+                groups[key] = { trek: t.name, batches: 0, booked: 0, slots: 0, revenue: 0 };
+              }
+              const booked = t.booked || t.bookedSlots || 0;
+              groups[key].batches += 1;
+              groups[key].booked += booked;
+              groups[key].slots += (t.slots || 20);
+              groups[key].revenue += booked * (t.price || 5000);
+            }
+          });
+          
+          Object.entries(groups).forEach(([period, data]) => {
+            const avgOcc = data.slots > 0 ? Math.round((data.booked / data.slots) * 100) : 0;
+            rows.push([
+              period,
+              data.trek,
+              data.batches,
+              data.booked,
+              `${avgOcc}%`,
+              `₹${data.revenue}`
+            ]);
+          });
+        }
+      }
+      else if (rType === 'all_treks_combined') {
+        title = `All Treks Combined Performance Report`;
+        parameters = `Date Range: ${this.reportStartDate || 'Any'} to ${this.reportEndDate || 'Any'}`;
+        headers = ['Trek Route', 'Total Batches', 'Total Bookings', 'Average Occupancy %', 'Total Revenue'];
+        
+        const trekMap = {};
+        this.treks.forEach(t => {
+          if (this.reportStartDate && t.startDate < this.reportStartDate) return;
+          if (this.reportEndDate && t.startDate > this.reportEndDate) return;
+          
+          if (!trekMap[t.name]) {
+            trekMap[t.name] = { batches: 0, booked: 0, slots: 0, revenue: 0 };
+          }
+          const booked = t.booked || t.bookedSlots || 0;
+          trekMap[t.name].batches += 1;
+          trekMap[t.name].booked += booked;
+          trekMap[t.name].slots += (t.slots || 20);
+          trekMap[t.name].revenue += booked * (t.price || 5000);
+        });
+        
+        Object.entries(trekMap).forEach(([name, data]) => {
+          const avgOcc = data.slots > 0 ? Math.round((data.booked / data.slots) * 100) : 0;
+          rows.push([
+            name,
+            data.batches,
+            data.booked,
+            `${avgOcc}%`,
+            `₹${data.revenue}`
+          ]);
+        });
+      }
+      else if (rType === 'batch_wise') {
+        const targetBatch = this.selectedReportBatch;
+        title = `Batch Wise Performance Report`;
+        parameters = targetBatch ? `Batch: ${targetBatch}` : `Date Range: ${this.reportStartDate || 'Any'} to ${this.reportEndDate || 'Any'}`;
+        headers = ['Batch ID', 'Trek Route', 'Start Date', 'Status', 'Total Bookings', 'Revenue', 'Staff Assigned'];
+        
+        this.treks.forEach(t => {
+          const bCode = t.batchCode || `TID${String(t.id).padStart(3, '0')}B01`;
+          if (targetBatch && bCode !== targetBatch) return;
+          if (this.reportStartDate && t.startDate < this.reportStartDate) return;
+          if (this.reportEndDate && t.startDate > this.reportEndDate) return;
+          
+          const booked = t.booked || t.bookedSlots || 0;
+          const rev = booked * (t.price || 5000);
+          const staffName = t.staffName || t.staff || 'Unassigned';
+          rows.push([
+            bCode,
+            t.name,
+            t.startDate,
+            t.status,
+            booked,
+            `₹${rev}`,
+            staffName
+          ]);
+        });
+      }
+      else if (rType === 'batch_users') {
+        const targetBatch = this.selectedReportBatch;
+        title = `Batch User List - ${targetBatch || 'None'}`;
+        parameters = `Batch: ${targetBatch || 'None'}`;
+        headers = ['Booking ID', 'Member ID', 'Name', 'Email', 'Phone', 'Booking Status', 'Amount Paid', 'Payment Status'];
+        
+        if (targetBatch) {
+          this.allBookings.forEach(b => {
+            const bCode = b.batchCode || '';
+            if (bCode === targetBatch) {
+              const userObj = this.users.find(u => u.id === b.userId || u.name === b.user);
+              const email = b.email || (userObj ? userObj.email : '—');
+              const phone = userObj ? userObj.phone : '—';
+              rows.push([
+                b.bookingId || `#${b.id}`,
+                b.trekkerId || '—',
+                b.user,
+                email,
+                phone,
+                b.status,
+                `₹${b.amountPaid}`,
+                b.paymentStatus
+              ]);
+            }
+          });
+        }
+      }
+      else if (rType === 'user_participation') {
+        const subUser = this.selectedReportUserSubtype || 'active';
+        title = `User Participation Report - ${subUser.toUpperCase()}`;
+        parameters = `Filters: Aspect ${subUser}`;
+        
+        if (subUser === 'active') {
+          headers = ['Trekker Name', 'Email', 'Phone', 'Member ID', 'Total Bookings', 'Total Spent', 'Last Booking Date'];
+          const userMap = {};
+          this.allBookings.forEach(b => {
+            const name = b.user;
+            if (!userMap[name]) {
+              const uObj = this.users.find(u => u.id === b.userId || u.name === name);
+              userMap[name] = {
+                email: b.email || (uObj ? uObj.email : '—'),
+                phone: uObj ? uObj.phone : '—',
+                memberId: b.trekkerId || (uObj ? uObj.memberId : '—'),
+                bookings: 0,
+                spent: 0,
+                lastDate: '2026-06-01'
+              };
+            }
+            userMap[name].bookings += 1;
+            if (b.status !== 'Cancelled' && b.paymentStatus === 'Paid') {
+              userMap[name].spent += Number(b.amountPaid) || 0;
+            }
+            if (b.date && b.date > userMap[name].lastDate) {
+              userMap[name].lastDate = b.date;
+            }
+          });
+          
+          Object.entries(userMap).forEach(([name, data]) => {
+            rows.push([
+              name,
+              data.email,
+              data.phone,
+              data.memberId,
+              data.bookings,
+              `₹${data.spent}`,
+              data.lastDate
+            ]);
+          });
+          rows.sort((a, b) => b[4] - a[4]); // Sort by bookings descending
+        }
+        else if (subUser === 'difficulty') {
+          headers = ['Trekker Name', 'Email', 'Easy Bookings', 'Moderate Bookings', 'Hard Bookings', 'Total Bookings'];
+          const userMap = {};
+          this.allBookings.forEach(b => {
+            const name = b.user;
+            if (!userMap[name]) {
+              const uObj = this.users.find(u => u.id === b.userId || u.name === name);
+              userMap[name] = {
+                email: b.email || (uObj ? uObj.email : '—'),
+                easy: 0,
+                moderate: 0,
+                hard: 0,
+                total: 0
+              };
+            }
+            userMap[name].total += 1;
+            const diff = (b.difficulty || 'moderate').toLowerCase();
+            if (diff === 'easy') userMap[name].easy += 1;
+            else if (diff === 'hard') userMap[name].hard += 1;
+            else userMap[name].moderate += 1;
+          });
+          
+          Object.entries(userMap).forEach(([name, data]) => {
+            rows.push([
+              name,
+              data.email,
+              data.easy,
+              data.moderate,
+              data.hard,
+              data.total
+            ]);
+          });
+          rows.sort((a, b) => b[5] - a[5]);
+        }
+        else if (subUser === 'trends') {
+          headers = ['Month', 'Total Bookings', 'Paid Bookings', 'Cancelled Bookings', 'Total Revenue'];
+          const monthlyMap = {};
+          this.allBookings.forEach(b => {
+            if (!b.date) return;
+            const mIdx = new Date(b.date).getMonth();
+            const mName = monthsNames[mIdx] || 'Unknown';
+            if (!monthlyMap[mName]) {
+              monthlyMap[mName] = { total: 0, paid: 0, cancelled: 0, rev: 0 };
+            }
+            monthlyMap[mName].total += 1;
+            if (b.status === 'Cancelled') {
+              monthlyMap[mName].cancelled += 1;
+            } else {
+              monthlyMap[mName].paid += 1;
+              if (b.paymentStatus === 'Paid') {
+                monthlyMap[mName].rev += Number(b.amountPaid) || 0;
+              }
+            }
+          });
+          
+          monthsNames.forEach(m => {
+            if (monthlyMap[m]) {
+              const data = monthlyMap[m];
+              rows.push([
+                m,
+                data.total,
+                data.paid,
+                data.cancelled,
+                `₹${data.rev}`
+              ]);
+            }
+          });
+        }
+        else if (subUser === 'history') {
+          headers = ['Booking ID', 'Member ID', 'Trekker Name', 'Trek Route', 'Batch Code', 'Booking Date', 'Status', 'Paid Amount'];
+          this.allBookings.forEach(b => {
+            rows.push([
+              b.bookingId || `#${b.id}`,
+              b.trekkerId || '—',
+              b.user,
+              b.trek,
+              b.batchCode || '—',
+              b.date,
+              b.status,
+              `₹${b.amountPaid}`
+            ]);
+          });
+        }
+      }
+      else if (rType === 'staff_performance') {
+        const subStaff = this.selectedReportStaffSubtype || 'performance';
+        title = `Staff Performance Report - ${subStaff.toUpperCase()}`;
+        parameters = `Filters: Aspect ${subStaff}`;
+        
+        if (subStaff === 'performance') {
+          headers = ['Guide Name', 'Email', 'Phone', 'Treks Managed', 'Total Participants Led', 'Avg Occupancy %', 'Avg Rating'];
+          
+          this.staffLeaderboard.forEach(s => {
+            const sObj = this.staffList.find(st => st.name === s.name);
+            const phone = sObj ? sObj.phone : '—';
+            rows.push([
+              s.name,
+              s.email || (sObj ? sObj.contact : '—'),
+              phone,
+              s.treks,
+              s.participants,
+              `${s.avgOccupancy}%`,
+              `★ ${s.rating}`
+            ]);
+          });
+        }
+        else if (subStaff === 'assignments') {
+          headers = ['Guide Name', 'Batch Code', 'Trek Route', 'Start Date', 'End Date', 'Status'];
+          
+          this.treks.forEach(t => {
+            const staffName = t.staffName || t.staff || 'Unassigned';
+            rows.push([
+              staffName,
+              t.batchCode || `TID${String(t.id).padStart(3, '0')}B01`,
+              t.name,
+              t.startDate,
+              t.endDate,
+              t.status
+            ]);
+          });
+        }
+      }
+      
+      return { title, headers, rows, parameters };
+    },
+
+    generateReport() {
+      const { title, headers, rows, parameters } = this.compileReport();
+      if (rows.length === 0) {
+        this.showToast('No records found matching these parameters.');
+        return;
+      }
+      
+      const newReport = {
+        id: Date.now(),
+        title: title,
+        type: this.selectedReportType,
+        generatedAt: new Date().toLocaleString(),
+        parameters: parameters,
+        headers: headers,
+        rows: rows
+      };
+      
+      this.reportsList.unshift(newReport);
+      this.showToast('Report generated successfully!');
+    },
+
+    previewCurrentReport() {
+      const compiled = this.compileReport();
+      if (compiled.rows.length === 0) {
+        this.showToast('No records found matching these parameters.');
+        return;
+      }
+      this.reportPreviewData = compiled;
+      this.showReportPreviewModal = true;
+    },
+
+    viewReport(report) {
+      if (report.headers && report.rows) {
+        this.reportPreviewData = report;
+      } else {
+        const prevType = this.selectedReportType;
+        const prevMonth = this.selectedReportMonth;
+        const prevTrek = this.selectedReportTrek;
+        const prevBatch = this.selectedReportBatch;
+        
+        this.selectedReportType = report.type;
+        if (report.type === 'monthly_activity') this.selectedReportMonth = 'May';
+        if (report.type === 'trek_route') this.selectedReportTrek = 'Everest Base Camp';
+        
+        const compiled = this.compileReport();
+        this.reportPreviewData = {
+          title: report.title,
+          headers: compiled.headers,
+          rows: compiled.rows,
+          parameters: report.parameters
+        };
+        
+        this.selectedReportType = prevType;
+        this.selectedReportMonth = prevMonth;
+        this.selectedReportTrek = prevTrek;
+        this.selectedReportBatch = prevBatch;
+      }
+      this.showReportPreviewModal = true;
+    },
+
+    downloadReport(report) {
+      let headers = [];
+      let rows = [];
+      let title = report.title;
+      
+      if (report.headers && report.rows) {
+        headers = report.headers;
+        rows = report.rows;
+      } else {
+        const prevType = this.selectedReportType;
+        const prevMonth = this.selectedReportMonth;
+        const prevTrek = this.selectedReportTrek;
+        const prevBatch = this.selectedReportBatch;
+        
+        this.selectedReportType = report.type;
+        if (report.type === 'monthly_activity') this.selectedReportMonth = 'May';
+        if (report.type === 'trek_route') this.selectedReportTrek = 'Everest Base Camp';
+        
+        const compiled = this.compileReport();
+        headers = compiled.headers;
+        rows = compiled.rows;
+        
+        this.selectedReportType = prevType;
+        this.selectedReportMonth = prevMonth;
+        this.selectedReportTrek = prevTrek;
+        this.selectedReportBatch = prevBatch;
+      }
+      
+      this.exportReportCSV(title, headers, rows);
+    },
+
+    exportReportCSV(title, headers, dataRows) {
+      const escapeCSV = val => {
+        if (val === null || val === undefined) return '';
+        let str = String(val).replace(/"/g, '""');
+        if (str.includes(',') || str.includes('\n') || str.includes('"')) {
+          str = `"${str}"`;
+        }
+        return str;
+      };
+      
+      const headerRow = headers.map(escapeCSV).join(',');
+      const bodyRows = dataRows.map(row => row.map(escapeCSV).join(','));
+      const csvContent = [headerRow, ...bodyRows].join('\n');
+      
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `${title.replace(/\s+/g, '_')}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      this.showToast('CSV download started');
     },
 
     // ── Notifications ──────────────────────────────────────
@@ -5062,6 +5646,47 @@ const TsAdminLayout = {
         <div class="ts-modal-footer" style="display: flex; justify-content: flex-end; gap: 0.5rem; padding: 1rem 1.5rem;">
           <button class="btn-primary-ts" @click="closeTicketDetails" style="background: #e2e8f0; border-color: #cbd5e0; color: #4a5568;">Close</button>
           <button class="btn-primary-ts" v-if="selectedTicketDetails.status === 'Open'" @click="resolveTicket(selectedTicketDetails)">Resolve Ticket</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════ REPORT PREVIEW MODAL ════════ -->
+    <div v-if="showReportPreviewModal && reportPreviewData" class="ts-modal-overlay" @click.self="showReportPreviewModal = false">
+      <div class="ts-modal large" style="max-width: 900px; width: 95%;">
+        <div class="ts-modal-header">
+          <h3 class="ts-modal-title">{{ reportPreviewData.title }}</h3>
+          <button class="modal-close" @click="showReportPreviewModal = false">✕</button>
+        </div>
+        <div class="ts-modal-body" style="padding: 1.5rem; max-height: 520px; overflow-y: auto;">
+          <div style="margin-bottom: 1rem; padding: 0.75rem 1rem; background: var(--snow); border: 1px solid rgba(26,46,26,0.06); border-radius: var(--radius); font-size: 0.82rem; color: var(--stone); display: flex; justify-content: space-between; align-items: center;">
+            <div><strong>Configuration Parameters:</strong> <span class="mono">{{ reportPreviewData.parameters }}</span></div>
+            <div><span class="mono" style="font-weight: 700; color: var(--forest);">{{ reportPreviewData.rows.length }} records found</span></div>
+          </div>
+          
+          <div class="table-responsive" style="max-height: 380px; overflow-y: auto; border: 1px solid rgba(26,46,26,0.08); border-radius: var(--radius);">
+            <table class="ts-table" style="width: 100%; border-collapse: collapse; text-align: left;">
+              <thead>
+                <tr style="position: sticky; top: 0; background: var(--cream); z-index: 10;">
+                  <th v-for="h in reportPreviewData.headers" :key="h" style="padding: 0.75rem 1rem; font-size: 0.8rem; font-weight: 700; text-transform: uppercase; color: var(--forest); border-bottom: 1px solid rgba(26,46,26,0.08);">
+                    {{ h }}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(row, rIdx) in reportPreviewData.rows" :key="rIdx" style="border-bottom: 1px solid rgba(26,46,26,0.04);">
+                  <td v-for="(col, cIdx) in row" :key="cIdx" style="padding: 0.75rem 1rem; font-size: 0.85rem; color: var(--bark);">
+                    {{ col }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="ts-modal-footer" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem;">
+          <button class="btn-primary-ts" @click="exportReportCSV(reportPreviewData.title, reportPreviewData.headers, reportPreviewData.rows)" style="background: var(--gold); border-color: var(--gold); color: #fff;">
+            ↓ Download CSV
+          </button>
+          <button class="btn-primary-ts" @click="showReportPreviewModal = false" style="background: #e2e8f0; border-color: #cbd5e0; color: #4a5568;">Close</button>
         </div>
       </div>
     </div>

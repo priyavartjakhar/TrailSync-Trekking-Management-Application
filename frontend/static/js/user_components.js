@@ -1558,7 +1558,7 @@ const TsUserLayout = {
                     <span class="pin-author-name" style="font-size:0.8rem; font-weight:600; color:var(--forest);">{{ p.author }}</span>
                   </div>
                   <h4 class="pin-card-title" style="font-family:'Playfair Display',serif; font-size:1.1rem; font-weight:700; color:var(--forest); margin:0;">{{ p.title }}</h4>
-                  <div class="pin-trek-tag" style="font-family:'Space Mono',monospace; font-size:0.65rem; color:var(--gold); font-weight:600;">📍 {{ p.trekName }}</div>
+                  <div class="pin-trek-tag" style="font-family:'Space Mono',monospace; font-size:0.65rem; color:var(--gold); font-weight:600;"><i class="bi bi-geo-alt-fill"></i> {{ p.trekName }}</div>
 
                   <!-- CSS stylized quotes on start and end of story -->
                   <div class="story-text-container" style="position:relative; padding:0.5rem 1rem 0.5rem; margin-top:0.25rem; flex-grow:1;">
@@ -1761,13 +1761,13 @@ const TsUserLayout = {
                     <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem; width: 100%;">
                       <div style="display: flex; gap: 0.5rem; width: 100%;">
                         <button class="btn-cancel" @click="cancelBooking(b)" style="flex: 1;">Cancel</button>
-                        <button class="btn-outline" @click="openChecklistModal(b)" style="flex: 1.5; padding: 0.35rem 0.5rem; font-size: 0.72rem; border-radius: 4px; border: 1px solid var(--forest); color: var(--forest); background: transparent; cursor: pointer; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 2px;">📋 Checklist</button>
+                        <button class="btn-outline" @click="openChecklistModal(b)" style="flex: 1.5; padding: 0.35rem 0.5rem; font-size: 0.72rem; border-radius: 4px; border: 1px solid var(--forest); color: var(--forest); background: transparent; cursor: pointer; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 2px;"><i class="bi bi-list-check"></i> Checklist</button>
                       </div>
                       <button v-if="b.paymentStatus === 'Pending'" class="btn-book" @click="payPendingBooking(b)" style="width: 100%; padding: 6px; font-size: 0.78rem; background: var(--gold); border-radius: 4px; border: none; font-weight: 700; color: var(--forest); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;">
-                        💳 Pay Now
+                        <i class="bi bi-credit-card"></i> Pay Now
                       </button>
                       <button v-else-if="b.paymentStatus === 'Failed'" class="btn-book" @click="payPendingBooking(b)" style="width: 100%; padding: 6px; font-size: 0.78rem; background: var(--red); border-radius: 4px; border: none; font-weight: 700; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;">
-                        🔄 Retry Payment
+                        <i class="bi bi-arrow-repeat"></i> Retry Payment
                       </button>
                     </div>
                   </div>
@@ -2373,7 +2373,7 @@ const TsUserLayout = {
                 Sandbox Mode
               </div>
             </div>
-            <button class="modal-close" @click="dismissPaymentModal(false)">✕</button>
+            <button class="modal-close" @click="dismissPaymentModal(false)"><i class="bi bi-x-lg"></i></button>
           </div>
 
           <!-- Body -->
@@ -2386,7 +2386,7 @@ const TsUserLayout = {
                 <div class="pay-sim-receipt-title">{{ paymentTrekBatch.name }}</div>
                 <div class="pay-sim-row">
                   <span>Location</span>
-                  <strong>📍 {{ paymentTrekBatch.location }}</strong>
+                  <strong><i class="bi bi-geo-alt-fill"></i> {{ paymentTrekBatch.location }}</strong>
                 </div>
                 <div class="pay-sim-row" v-if="paymentTrekBatch.batchCode">
                   <span>Batch ID</span>
@@ -2407,15 +2407,15 @@ const TsUserLayout = {
                 <label style="font-weight: 700; font-size: 0.78rem; color: var(--forest); display: block; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.03em;">Select Payment Method</label>
                 <div class="pay-sim-methods">
                   <div class="pay-sim-method-card" :class="{ active: selectedPaymentMethod === 'UPI' }" @click="selectedPaymentMethod = 'UPI'">
-                    <div style="font-size: 1.1rem; margin-bottom: 3px;">⚡</div>
+                    <div style="font-size: 1.1rem; margin-bottom: 3px;"><i class="bi bi-lightning-charge-fill"></i></div>
                     <div>UPI</div>
                   </div>
                   <div class="pay-sim-method-card" :class="{ active: selectedPaymentMethod === 'Card' }" @click="selectedPaymentMethod = 'Card'">
-                    <div style="font-size: 1.1rem; margin-bottom: 3px;">💳</div>
+                    <div style="font-size: 1.1rem; margin-bottom: 3px;"><i class="bi bi-credit-card-2-front-fill"></i></div>
                     <div>Card</div>
                   </div>
                   <div class="pay-sim-method-card" :class="{ active: selectedPaymentMethod === 'Netbanking' }" @click="selectedPaymentMethod = 'Netbanking'">
-                    <div style="font-size: 1.1rem; margin-bottom: 3px;">🏦</div>
+                    <div style="font-size: 1.1rem; margin-bottom: 3px;"><i class="bi bi-bank"></i></div>
                     <div>Bank</div>
                   </div>
                 </div>
@@ -2473,13 +2473,13 @@ const TsUserLayout = {
                 <div style="font-size: 0.78rem; font-weight: 700; color: var(--stone); text-align: center; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.03em;">Sandbox Testing Outcomes</div>
                 <div class="pay-sim-btn-group">
                   <button @click="processSimulatedPayment('Paid')" class="pay-sim-btn success">
-                    <span>✓</span> Authorize Payment (Simulation Success)
+                    <span><i class="bi bi-check2-circle"></i></span> Authorize Payment (Simulation Success)
                   </button>
                   <button @click="processSimulatedPayment('Pending')" class="pay-sim-btn pending">
-                    <span>⏳</span> Pay Later / Offline (Simulation Pending)
+                    <span><i class="bi bi-hourglass-split"></i></span> Pay Later / Offline (Simulation Pending)
                   </button>
                   <button @click="processSimulatedPayment('Failed')" class="pay-sim-btn failure">
-                    <span>✕</span> Decline Transaction (Simulation Failure)
+                    <span><i class="bi bi-x-circle"></i></span> Decline Transaction (Simulation Failure)
                   </button>
                 </div>
               </div>
@@ -2500,7 +2500,7 @@ const TsUserLayout = {
             <!-- STATE 3: Success Screen -->
             <template v-if="paymentResultState === 'Paid'">
               <div class="pay-sim-result-wrap">
-                <div class="pay-sim-icon-circle success">✓</div>
+                <div class="pay-sim-icon-circle success"><i class="bi bi-check-lg"></i></div>
                 <div class="pay-sim-result-title">Payment Successful!</div>
                 <div class="pay-sim-result-text">Your transaction has been processed securely. Your trek booking is confirmed, and your permit is being initialized.</div>
                 
@@ -2530,7 +2530,7 @@ const TsUserLayout = {
             <!-- STATE 4: Pending Screen -->
             <template v-if="paymentResultState === 'Pending'">
               <div class="pay-sim-result-wrap">
-                <div class="pay-sim-icon-circle pending">⏳</div>
+                <div class="pay-sim-icon-circle pending"><i class="bi bi-hourglass-split"></i></div>
                 <div class="pay-sim-result-title">Offline / Pending Booking</div>
                 <div class="pay-sim-result-text">Your booking state has been saved as pending. You can complete the payment simulation later under the "Bookings" tab.</div>
                 
@@ -2556,7 +2556,7 @@ const TsUserLayout = {
             <!-- STATE 5: Failure Screen -->
             <template v-if="paymentResultState === 'Failed'">
               <div class="pay-sim-result-wrap">
-                <div class="pay-sim-icon-circle failure">✕</div>
+                <div class="pay-sim-icon-circle failure"><i class="bi bi-x-lg"></i></div>
                 <div class="pay-sim-result-title">Transaction Declined</div>
                 <div class="pay-sim-result-text">The card network or issuing bank declined the transaction. Check credit limits, card details, or try a different payment method.</div>
                 

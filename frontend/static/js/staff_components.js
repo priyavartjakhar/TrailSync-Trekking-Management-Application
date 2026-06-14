@@ -1228,7 +1228,8 @@ const TsStaffLayout = {
             <div class="section-title">Trek <em>Participants</em></div>
           </div>
           <button v-if="participantTrekId" class="btn-primary-ts btn-sm" @click="exportCSV(participantTrekId)" :disabled="exportPending && exportTrekId === participantTrekId">
-            {{ exportPending && exportTrekId === participantTrekId ? '⏳ Exporting…' : '⬇ Export CSV' }}
+            <i class="bi" :class="exportPending && exportTrekId === participantTrekId ? 'bi-hourglass-split' : 'bi-download'"></i>
+            {{ exportPending && exportTrekId === participantTrekId ? 'Exporting…' : 'Export CSV' }}
           </button>
         </div>
 
@@ -1253,7 +1254,7 @@ const TsStaffLayout = {
             >
               <div class="ptab-tc-batch">{{ t.batchCode }}</div>
               <div class="ptab-tc-name">{{ t.name }}</div>
-              <div class="ptab-tc-loc">📍 {{ t.location }}</div>
+              <div class="ptab-tc-loc"><i class="bi bi-geo-alt-fill"></i> {{ t.location }}</div>
               <div class="ptab-tc-dates">
                 <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                 {{ formatDate(t.startDate) }} — {{ formatDate(t.endDate) }}
@@ -1287,7 +1288,7 @@ const TsStaffLayout = {
               <div class="ptab-batch-label">{{ participantTrek.batchCode }}</div>
               <div class="ptab-trek-name">{{ participantTrek.name }}</div>
               <div class="ptab-trek-meta">
-                <span>📍 {{ participantTrek.location }}</span>
+                <span><i class="bi bi-geo-alt-fill"></i> {{ participantTrek.location }}</span>
                 <span class="ptab-date-sep">·</span>
                 <span>
                   <svg viewBox="0 0 24 24" style="width:11px;height:11px;stroke:var(--gold);fill:none;stroke-width:2;vertical-align:middle;margin-right:2px"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
@@ -1415,7 +1416,7 @@ const TsStaffLayout = {
             <div class="ptab-batch-label">{{ selectedTrek.batchCode }}</div>
             <div class="ptab-trek-name">{{ selectedTrek.name }}</div>
             <div class="ptab-trek-meta">
-              <span>📍 {{ selectedTrek.location }}</span>
+              <span><i class="bi bi-geo-alt-fill"></i> {{ selectedTrek.location }}</span>
               <span class="ptab-date-sep">·</span>
               <span>
                 <svg viewBox="0 0 24 24" style="width:11px;height:11px;stroke:var(--gold);fill:none;stroke-width:2;vertical-align:middle;margin-right:2px"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
@@ -1505,8 +1506,8 @@ const TsStaffLayout = {
                 Export includes: participant name, email, phone, booking status, booking date, blood group, emergency contact.
               </div>
               <div style="display:flex; justify-content:space-between; gap:0.5rem; margin-top:0.5rem">
-                <button class="btn-ghost btn-sm" @click="openExportDetailModal(t)" style="flex:1; text-align:center">👁 View</button>
-                <button class="btn-primary-ts btn-sm" @click="openDownloadPromptModal(t)" style="flex:1; text-align:center">⬇ Download</button>
+                <button class="btn-ghost btn-sm" @click="openExportDetailModal(t)" style="flex:1; text-align:center"><i class="bi bi-eye"></i> View</button>
+                <button class="btn-primary-ts btn-sm" @click="openDownloadPromptModal(t)" style="flex:1; text-align:center"><i class="bi bi-download"></i> Download</button>
               </div>
             </div>
           </div>
@@ -1814,7 +1815,7 @@ const TsStaffLayout = {
     <div v-if="showChecklistModal" class="ts-modal-overlay" @click.self="showChecklistModal = false">
       <div class="ts-modal ts-modal-lg">
         <div class="ts-modal-header">
-          <h3 class="ts-modal-title">📋 Gear Checklist — {{ checklistTrek?.name }}</h3>
+          <h3 class="ts-modal-title"><i class="bi bi-list-check"></i> Gear Checklist — {{ checklistTrek?.name }}</h3>
           <button class="modal-close" @click="showChecklistModal = false">✕</button>
         </div>
         <div class="ts-modal-body">
@@ -2037,7 +2038,7 @@ const TsStaffLayout = {
       <div v-if="showExportDetailModal" class="ts-modal-overlay" @click.self="showExportDetailModal = false">
         <div class="ts-modal" style="max-width: 800px; width: 95%;">
           <div class="ts-modal-header">
-            <span class="ts-modal-title">📊 Batch Detailed Overview</span>
+            <span class="ts-modal-title"><i class="bi bi-bar-chart-fill"></i> Batch Detailed Overview</span>
             <button class="modal-close" @click="showExportDetailModal = false">✕</button>
           </div>
           <div class="ts-modal-body" v-if="exportDetailTrek" style="padding: 1.5rem; max-height: 70vh; overflow-y: auto;">
@@ -2047,7 +2048,7 @@ const TsStaffLayout = {
               <div>
                 <span class="mono" style="background: rgba(200,146,42,0.13); color: var(--forest); font-size: 0.68rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.05em; display: inline-block; margin-bottom: 4px;">{{ exportDetailTrek.batchCode }}</span>
                 <h4 style="font-family: 'Playfair Display', serif; font-size: 1.3rem; font-weight: 800; color: var(--forest); margin: 0;">{{ exportDetailTrek.name }}</h4>
-                <div style="font-size: 0.82rem; color: var(--stone); margin-top: 4px;">📍 {{ exportDetailTrek.location }}</div>
+                <div style="font-size: 0.82rem; color: var(--stone); margin-top: 4px;"><i class="bi bi-geo-alt-fill"></i> {{ exportDetailTrek.location }}</div>
               </div>
               <div style="text-align: right;">
                 <span :class="'status-pill status-' + exportDetailTrek.status.toLowerCase()">{{ exportDetailTrek.status }}</span>
@@ -2132,11 +2133,11 @@ const TsStaffLayout = {
       <div v-if="showDownloadPromptModal" class="ts-modal-overlay" @click.self="showDownloadPromptModal = false">
         <div class="ts-modal" style="max-width: 420px; width: 90%;">
           <div class="ts-modal-header">
-            <span class="ts-modal-title">⬇ Export Document Report</span>
+            <span class="ts-modal-title"><i class="bi bi-file-earmark-arrow-down"></i> Export Document Report</span>
             <button class="modal-close" @click="showDownloadPromptModal = false">✕</button>
           </div>
           <div class="ts-modal-body" v-if="downloadPromptTrek" style="padding: 1.5rem; text-align: center;">
-            <div style="font-size: 2.2rem; margin-bottom: 0.85rem;">📄</div>
+            <div style="margin-bottom: 0.85rem;"><i class="bi bi-file-earmark-pdf" style="font-size: 2.5rem; color: var(--gold);"></i></div>
             <h5 style="font-family: 'Playfair Display', serif; font-weight: 800; color: var(--forest); margin-bottom: 6px;">Download PDF Report</h5>
             <div style="font-size: 0.8rem; color: var(--stone); margin-bottom: 1.5rem; line-height: 1.5;">
               Select the type of report you want to export as a formatted PDF for <strong style="color: var(--forest);">{{ downloadPromptTrek.name }} ({{ downloadPromptTrek.batchCode }})</strong>.
@@ -2151,11 +2152,11 @@ const TsStaffLayout = {
             <!-- Options -->
             <div v-else style="display: flex; flex-direction: column; gap: 10px;">
               <button class="btn-primary-ts d-flex justify-content-between align-items-center" @click="generatePDFReport(downloadPromptTrek, 'list')" style="padding: 12px; font-size: 0.85rem; text-align: left; font-weight: 700; width: 100%;">
-                <span>📋 Participants List Only</span>
+                <span><i class="bi bi-people-fill"></i> Participants List Only</span>
                 <span style="font-size: 0.7rem; background: rgba(255,255,255,0.2); padding: 2px 6px; border-radius: 4px;">PDF</span>
               </button>
               <button class="btn-forest d-flex justify-content-between align-items-center" @click="generatePDFReport(downloadPromptTrek, 'full')" style="padding: 12px; font-size: 0.85rem; text-align: left; font-weight: 700; background: var(--forest); border: none; color: white; width: 100%;">
-                <span>📊 Full Detailed Information</span>
+                <span><i class="bi bi-file-earmark-bar-graph"></i> Full Detailed Information</span>
                 <span style="font-size: 0.7rem; background: rgba(255,255,255,0.2); padding: 2px 6px; border-radius: 4px;">PDF</span>
               </button>
             </div>

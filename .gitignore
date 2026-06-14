@@ -29,4 +29,5 @@ yarn-error.log*
 backend/tma.db
 scratch/
 flask.log
+celery.log
 

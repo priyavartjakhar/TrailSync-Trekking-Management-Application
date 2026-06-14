@@ -150,6 +150,14 @@ const TsAdminLayout = {
       ticketStatusFilter: 'All',
       showTicketDetailsModal: false,
       selectedTicketDetails: null,
+      // Hover interaction states
+      hoveredMonthlyBooking: null,
+      hoveredRevenueGrowth: null,
+      hoveredDifficulty: null,
+      hoveredBookingStatus: null,
+      hoveredPaymentStatus: null,
+      hoveredRevDifficulty: null,
+      hoveredLossStatus: null,
     };
   },
 
@@ -3121,14 +3129,79 @@ const TsAdminLayout = {
               <line v-for="i in 4" :key="'g'+i" :x1="30" :y1="30 + (i-1)*35" :x2="670" :y2="30+(i-1)*35" class="chart-grid-line"/>
               <path :d="buildAreaPath(monthlyBookings,'count',700,180,30)" class="chart-area-fill"/>
               <path :d="buildLinePath(monthlyBookings,'count',700,180,30)" class="chart-line-path"/>
+              
+              <!-- Hover Guide Line -->
+              <line
+                v-if="hoveredMonthlyBooking"
+                :x1="hoveredMonthlyBooking.x"
+                y1="30"
+                :x2="hoveredMonthlyBooking.x"
+                y2="150"
+                stroke="var(--gold)"
+                stroke-width="1.2"
+                stroke-dasharray="3,3"
+              />
+
+              <!-- Render dots and axis labels -->
               <g v-for="(m,i) in monthlyBookings" :key="'dot'+i">
                 <circle
                   :cx="30 + (i/(monthlyBookings.length-1))*(700-60)"
                   :cy="180 - 30 - (m.count/maxMonthly)*(180-60)"
-                  r="3.5" class="chart-dot"/>
+                  :r="hoveredMonthlyBooking && hoveredMonthlyBooking.index === i ? 5.5 : 3.5"
+                  :style="{ fill: hoveredMonthlyBooking && hoveredMonthlyBooking.index === i ? 'var(--gold-light)' : 'var(--gold)' }"
+                  class="chart-dot"
+                />
+                <!-- Invisible hover capture target -->
+                <circle
+                  :cx="30 + (i/(monthlyBookings.length-1))*(700-60)"
+                  :cy="180 - 30 - (m.count/maxMonthly)*(180-60)"
+                  r="16"
+                  fill="transparent"
+                  style="cursor: pointer;"
+                  @mouseenter="hoveredMonthlyBooking = { x: 30 + (i/(monthlyBookings.length-1))*(700-60), y: 180 - 30 - (m.count/maxMonthly)*(180-60), data: m, index: i }"
+                  @mouseleave="hoveredMonthlyBooking = null"
+                />
                 <text
                   :x="30 + (i/(monthlyBookings.length-1))*(700-60)"
                   y="172" text-anchor="middle" class="chart-axis-label">{{ m.month }} ({{ m.count }})</text>
+              </g>
+
+              <!-- Line Chart Tooltip -->
+              <g v-if="hoveredMonthlyBooking" style="pointer-events: none;">
+                <rect
+                  :x="Math.max(10, Math.min(570, hoveredMonthlyBooking.x - 60))"
+                  :y="Math.max(10, hoveredMonthlyBooking.y - 45)"
+                  width="120"
+                  height="36"
+                  rx="5"
+                  fill="var(--forest)"
+                  stroke="var(--gold)"
+                  stroke-width="1.5"
+                  opacity="0.95"
+                  style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.15));"
+                />
+                <text
+                  :x="Math.max(10, Math.min(570, hoveredMonthlyBooking.x - 60)) + 60"
+                  :y="Math.max(10, hoveredMonthlyBooking.y - 45) + 14"
+                  text-anchor="middle"
+                  fill="white"
+                  font-size="8.5"
+                  font-weight="700"
+                  font-family="'DM Sans', sans-serif"
+                >
+                  {{ hoveredMonthlyBooking.data.month }}
+                </text>
+                <text
+                  :x="Math.max(10, Math.min(570, hoveredMonthlyBooking.x - 60)) + 60"
+                  :y="Math.max(10, hoveredMonthlyBooking.y - 45) + 27"
+                  text-anchor="middle"
+                  fill="var(--gold)"
+                  font-size="9"
+                  font-weight="800"
+                  font-family="'Space Mono', monospace"
+                >
+                  {{ hoveredMonthlyBooking.data.count }} Bookings
+                </text>
               </g>
             </svg>
           </div>
@@ -3152,20 +3225,50 @@ const TsAdminLayout = {
                 <circle cx="18" cy="18" r="15.915" fill="none" stroke="var(--stone-light)" stroke-width="3.5"></circle>
                 <!-- Easy Segment -->
                 <circle cx="18" cy="18" r="15.915" fill="none" stroke="var(--green)" stroke-width="3.5"
-                  :stroke-dasharray="diffDonutData.easy + ' ' + (100 - diffDonutData.easy)" stroke-dashoffset="0" transform="rotate(-90 18 18)"></circle>
+                  :stroke-dasharray="diffDonutData.easy + ' ' + (100 - diffDonutData.easy)" stroke-dashoffset="0" transform="rotate(-90 18 18)"
+                  class="interactive-segment"
+                  :style="{ strokeWidth: hoveredDifficulty && hoveredDifficulty.name === 'Easy' ? '4.5px' : '3.5' }"
+                  @mouseenter="hoveredDifficulty = { name: 'Easy', pct: diffDonutData.easy }"
+                  @mouseleave="hoveredDifficulty = null"
+                ></circle>
                 <!-- Moderate Segment -->
                 <circle cx="18" cy="18" r="15.915" fill="none" stroke="var(--gold)" stroke-width="3.5"
-                  :stroke-dasharray="diffDonutData.mod + ' ' + (100 - diffDonutData.mod)" :stroke-dashoffset="diffDonutData.offsetMod" transform="rotate(-90 18 18)"></circle>
+                  :stroke-dasharray="diffDonutData.mod + ' ' + (100 - diffDonutData.mod)" :stroke-dashoffset="diffDonutData.offsetMod" transform="rotate(-90 18 18)"
+                  class="interactive-segment"
+                  :style="{ strokeWidth: hoveredDifficulty && hoveredDifficulty.name === 'Moderate' ? '4.5px' : '3.5' }"
+                  @mouseenter="hoveredDifficulty = { name: 'Moderate', pct: diffDonutData.mod }"
+                  @mouseleave="hoveredDifficulty = null"
+                ></circle>
                 <!-- Hard Segment -->
                 <circle cx="18" cy="18" r="15.915" fill="none" stroke="var(--red)" stroke-width="3.5"
-                  :stroke-dasharray="diffDonutData.hard + ' ' + (100 - diffDonutData.hard)" :stroke-dashoffset="diffDonutData.offsetHard" transform="rotate(-90 18 18)"></circle>
+                  :stroke-dasharray="diffDonutData.hard + ' ' + (100 - diffDonutData.hard)" :stroke-dashoffset="diffDonutData.offsetHard" transform="rotate(-90 18 18)"
+                  class="interactive-segment"
+                  :style="{ strokeWidth: hoveredDifficulty && hoveredDifficulty.name === 'Hard' ? '4.5px' : '3.5' }"
+                  @mouseenter="hoveredDifficulty = { name: 'Hard', pct: diffDonutData.hard }"
+                  @mouseleave="hoveredDifficulty = null"
+                ></circle>
                 
-                <text x="18" y="20.5" text-anchor="middle" font-size="5.5" font-weight="700" fill="var(--forest)">SHARE</text>
+                <text x="18" y="18" text-anchor="middle" fill="var(--forest)">
+                  <tspan x="18" dy="-1" font-size="2.8" font-weight="800">{{ hoveredDifficulty ? hoveredDifficulty.name : 'SHARE' }}</tspan>
+                  <tspan x="18" dy="3.8" font-size="3.5" font-weight="800" fill="var(--gold-dark)">{{ hoveredDifficulty ? hoveredDifficulty.pct + '%' : 'DIFF' }}</tspan>
+                </text>
               </svg>
               <div class="donut-legend">
-                <div class="legend-item"><span class="legend-color" style="background:var(--green)"></span><span>Easy: {{ diffDonutData.easy }}%</span></div>
-                <div class="legend-item"><span class="legend-color" style="background:var(--gold)"></span><span>Moderate: {{ diffDonutData.mod }}%</span></div>
-                <div class="legend-item"><span class="legend-color" style="background:var(--red)"></span><span>Hard: {{ diffDonutData.hard }}%</span></div>
+                <div class="legend-item" 
+                  :style="{ opacity: hoveredDifficulty && hoveredDifficulty.name !== 'Easy' ? 0.4 : 1, transform: hoveredDifficulty && hoveredDifficulty.name === 'Easy' ? 'scale(1.05) translateX(3px)' : 'none', transition: 'all 0.2s' }"
+                  @mouseenter="hoveredDifficulty = { name: 'Easy', pct: diffDonutData.easy }"
+                  @mouseleave="hoveredDifficulty = null"
+                ><span class="legend-color" style="background:var(--green)"></span><span>Easy: {{ diffDonutData.easy }}%</span></div>
+                <div class="legend-item"
+                  :style="{ opacity: hoveredDifficulty && hoveredDifficulty.name !== 'Moderate' ? 0.4 : 1, transform: hoveredDifficulty && hoveredDifficulty.name === 'Moderate' ? 'scale(1.05) translateX(3px)' : 'none', transition: 'all 0.2s' }"
+                  @mouseenter="hoveredDifficulty = { name: 'Moderate', pct: diffDonutData.mod }"
+                  @mouseleave="hoveredDifficulty = null"
+                ><span class="legend-color" style="background:var(--gold)"></span><span>Moderate: {{ diffDonutData.mod }}%</span></div>
+                <div class="legend-item"
+                  :style="{ opacity: hoveredDifficulty && hoveredDifficulty.name !== 'Hard' ? 0.4 : 1, transform: hoveredDifficulty && hoveredDifficulty.name === 'Hard' ? 'scale(1.05) translateX(3px)' : 'none', transition: 'all 0.2s' }"
+                  @mouseenter="hoveredDifficulty = { name: 'Hard', pct: diffDonutData.hard }"
+                  @mouseleave="hoveredDifficulty = null"
+                ><span class="legend-color" style="background:var(--red)"></span><span>Hard: {{ diffDonutData.hard }}%</span></div>
               </div>
             </div>
           </div>
@@ -3186,20 +3289,50 @@ const TsAdminLayout = {
                 <circle cx="18" cy="18" r="15.915" fill="none" stroke="var(--stone-light)" stroke-width="3.5"></circle>
                 <!-- Booked (Paid) Segment -->
                 <circle cx="18" cy="18" r="15.915" fill="none" stroke="var(--green)" stroke-width="3.5"
-                  :stroke-dasharray="statusDonutData.booked + ' ' + (100 - statusDonutData.booked)" stroke-dashoffset="0" transform="rotate(-90 18 18)"></circle>
+                  :stroke-dasharray="statusDonutData.booked + ' ' + (100 - statusDonutData.booked)" stroke-dashoffset="0" transform="rotate(-90 18 18)"
+                  class="interactive-segment"
+                  :style="{ strokeWidth: hoveredBookingStatus && hoveredBookingStatus.name === 'Booked' ? '4.5px' : '3.5' }"
+                  @mouseenter="hoveredBookingStatus = { name: 'Booked', pct: statusDonutData.booked }"
+                  @mouseleave="hoveredBookingStatus = null"
+                ></circle>
                 <!-- Unpaid (Pending) Segment -->
                 <circle cx="18" cy="18" r="15.915" fill="none" stroke="var(--gold)" stroke-width="3.5"
-                  :stroke-dasharray="statusDonutData.pending + ' ' + (100 - statusDonutData.pending)" :stroke-dashoffset="statusDonutData.offsetPending" transform="rotate(-90 18 18)"></circle>
+                  :stroke-dasharray="statusDonutData.pending + ' ' + (100 - statusDonutData.pending)" :stroke-dashoffset="statusDonutData.offsetPending" transform="rotate(-90 18 18)"
+                  class="interactive-segment"
+                  :style="{ strokeWidth: hoveredBookingStatus && hoveredBookingStatus.name === 'Pending' ? '4.5px' : '3.5' }"
+                  @mouseenter="hoveredBookingStatus = { name: 'Pending', pct: statusDonutData.pending }"
+                  @mouseleave="hoveredBookingStatus = null"
+                ></circle>
                 <!-- Cancelled Segment -->
                 <circle cx="18" cy="18" r="15.915" fill="none" stroke="var(--red)" stroke-width="3.5"
-                  :stroke-dasharray="statusDonutData.cancelled + ' ' + (100 - statusDonutData.cancelled)" :stroke-dashoffset="statusDonutData.offsetCancelled" transform="rotate(-90 18 18)"></circle>
+                  :stroke-dasharray="statusDonutData.cancelled + ' ' + (100 - statusDonutData.cancelled)" :stroke-dashoffset="statusDonutData.offsetCancelled" transform="rotate(-90 18 18)"
+                  class="interactive-segment"
+                  :style="{ strokeWidth: hoveredBookingStatus && hoveredBookingStatus.name === 'Cancelled' ? '4.5px' : '3.5' }"
+                  @mouseenter="hoveredBookingStatus = { name: 'Cancelled', pct: statusDonutData.cancelled }"
+                  @mouseleave="hoveredBookingStatus = null"
+                ></circle>
                 
-                <text x="18" y="20.5" text-anchor="middle" font-size="5" font-weight="700" fill="var(--forest)">STATUS</text>
+                <text x="18" y="18" text-anchor="middle" fill="var(--forest)">
+                  <tspan x="18" dy="-1" font-size="2.6" font-weight="800">{{ hoveredBookingStatus ? hoveredBookingStatus.name : 'STATUS' }}</tspan>
+                  <tspan x="18" dy="3.8" font-size="3.5" font-weight="800" fill="var(--gold-dark)">{{ hoveredBookingStatus ? hoveredBookingStatus.pct + '%' : 'DIST' }}</tspan>
+                </text>
               </svg>
               <div class="donut-legend">
-                <div class="legend-item"><span class="legend-color" style="background:var(--green)"></span><span>Booked: {{ statusDonutData.booked }}%</span></div>
-                <div class="legend-item"><span class="legend-color" style="background:var(--gold)"></span><span>Pending: {{ statusDonutData.pending }}%</span></div>
-                <div class="legend-item"><span class="legend-color" style="background:var(--red)"></span><span>Cancelled: {{ statusDonutData.cancelled }}%</span></div>
+                <div class="legend-item"
+                  :style="{ opacity: hoveredBookingStatus && hoveredBookingStatus.name !== 'Booked' ? 0.4 : 1, transform: hoveredBookingStatus && hoveredBookingStatus.name === 'Booked' ? 'scale(1.05) translateX(3px)' : 'none', transition: 'all 0.2s' }"
+                  @mouseenter="hoveredBookingStatus = { name: 'Booked', pct: statusDonutData.booked }"
+                  @mouseleave="hoveredBookingStatus = null"
+                ><span class="legend-color" style="background:var(--green)"></span><span>Booked: {{ statusDonutData.booked }}%</span></div>
+                <div class="legend-item"
+                  :style="{ opacity: hoveredBookingStatus && hoveredBookingStatus.name !== 'Pending' ? 0.4 : 1, transform: hoveredBookingStatus && hoveredBookingStatus.name === 'Pending' ? 'scale(1.05) translateX(3px)' : 'none', transition: 'all 0.2s' }"
+                  @mouseenter="hoveredBookingStatus = { name: 'Pending', pct: statusDonutData.pending }"
+                  @mouseleave="hoveredBookingStatus = null"
+                ><span class="legend-color" style="background:var(--gold)"></span><span>Pending: {{ statusDonutData.pending }}%</span></div>
+                <div class="legend-item"
+                  :style="{ opacity: hoveredBookingStatus && hoveredBookingStatus.name !== 'Cancelled' ? 0.4 : 1, transform: hoveredBookingStatus && hoveredBookingStatus.name === 'Cancelled' ? 'scale(1.05) translateX(3px)' : 'none', transition: 'all 0.2s' }"
+                  @mouseenter="hoveredBookingStatus = { name: 'Cancelled', pct: statusDonutData.cancelled }"
+                  @mouseleave="hoveredBookingStatus = null"
+                ><span class="legend-color" style="background:var(--red)"></span><span>Cancelled: {{ statusDonutData.cancelled }}%</span></div>
                 <div style="font-size: 0.72rem; color: var(--stone); border-top: 1px solid var(--stone-light); padding-top: 4px; margin-top: 4px;">
                   Cancel Rate: {{ bookingStatusDist.cancelRate }}%
                   <br><span style="font-size:0.6rem;">(Cancelled / Total × 100)</span>
@@ -3223,12 +3356,12 @@ const TsAdminLayout = {
               </div>
             </div>
             <div class="chart-bars" style="margin-top: 1rem;">
-              <div v-for="t in popularTreksWithMock" :key="t.name" class="chart-bar-item" style="margin-bottom: 0.75rem;">
+              <div v-for="t in popularTreksWithMock" :key="t.name" class="chart-bar-item interactive-bar-item" style="margin-bottom: 0.75rem;">
                 <div class="chart-bar-label" style="font-size:0.8rem; font-weight:600;">{{ t.name }}</div>
                 <div class="chart-bar-track" style="height: 12px; border-radius: 6px;">
                   <div class="chart-bar-fill" :style="{ width: (t.bookings/maxPopularBookings*100)+'%', background: 'var(--gold)' }" style="border-radius: 6px;"></div>
                 </div>
-                <div class="chart-bar-value" style="font-size:0.78rem;">{{ t.bookings }} bookings</div>
+                <div class="chart-bar-value" style="font-size:0.78rem; width: auto; min-width: 60px;">{{ t.bookings }} pax</div>
               </div>
             </div>
           </div>
@@ -3245,12 +3378,12 @@ const TsAdminLayout = {
               </div>
             </div>
             <div class="chart-bars" style="margin-top: 1rem;">
-              <div v-for="l in locationDemand" :key="l.state" class="chart-bar-item" style="margin-bottom: 0.75rem;">
+              <div v-for="l in locationDemand" :key="l.state" class="chart-bar-item interactive-bar-item" style="margin-bottom: 0.75rem;">
                 <div class="chart-bar-label" style="font-size:0.8rem; font-weight:600;">{{ l.state }}</div>
                 <div class="chart-bar-track" style="height: 12px; border-radius: 6px;">
                   <div class="chart-bar-fill" :style="{ width: (l.count/maxLocationDemand*100)+'%', background: 'var(--forest-mid)' }" style="border-radius: 6px;"></div>
                 </div>
-                <div class="chart-bar-value" style="font-size:0.78rem;">{{ l.count }} pax</div>
+                <div class="chart-bar-value" style="font-size:0.78rem; width: auto; min-width: 60px;">{{ l.count }} pax</div>
               </div>
             </div>
           </div>
@@ -3270,7 +3403,7 @@ const TsAdminLayout = {
               </div>
             </div>
             <div class="occ-list" style="margin-top: 1rem;">
-              <div v-for="s in occupancyRatePerTrek" :key="s.name" class="occ-item" style="margin-bottom:0.75rem;">
+              <div v-for="s in occupancyRatePerTrek" :key="s.name" class="occ-item interactive-bar-item" style="margin-bottom:0.75rem; padding: 4px; border-radius: 4px;">
                 <div class="occ-meta" style="display:flex; justify-content:space-between; font-size:0.8rem; margin-bottom:4px;">
                   <span class="occ-trek" style="font-weight:600; color:var(--forest)">{{ s.name }}</span>
                   <span class="occ-pct font-mono" style="font-weight:700;">{{ s.booked }}/{{ s.total }} ({{ s.pct }}%)</span>
@@ -3439,20 +3572,82 @@ const TsAdminLayout = {
               <!-- Dotted line for forecast -->
               <path :d="buildLinePath(revenueGrowthData.slice(5), 'amount', 700, 180, 30)" class="chart-line-path" stroke-dasharray="5,5" style="stroke: var(--gold-dark);"/>
               
+              <!-- Hover Guide Line -->
+              <line
+                v-if="hoveredRevenueGrowth"
+                :x1="hoveredRevenueGrowth.x"
+                y1="30"
+                :x2="hoveredRevenueGrowth.x"
+                y2="150"
+                stroke="var(--gold)"
+                stroke-width="1.2"
+                stroke-dasharray="3,3"
+              />
+
               <!-- Draw circles and labels -->
               <g v-for="(r,i) in revenueGrowthData" :key="'revdot'+i">
                 <circle
                   :cx="30 + (i/(revenueGrowthData.length-1))*(700-60)"
                   :cy="180 - 30 - (r.amount/maxRevenueGrowthAmount)*(180-60)"
-                  :r="r.isForecast ? 4.5 : 3.5" 
+                  :r="hoveredRevenueGrowth && hoveredRevenueGrowth.index === i ? 6.5 : (r.isForecast ? 4.5 : 3.5)" 
                   :style="{
-                    fill: r.isForecast ? 'var(--gold)' : 'var(--forest)',
+                    fill: hoveredRevenueGrowth && hoveredRevenueGrowth.index === i ? 'var(--gold-light)' : (r.isForecast ? 'var(--gold)' : 'var(--forest)'),
                     stroke: r.isForecast ? 'var(--forest)' : 'white',
                     strokeWidth: r.isForecast ? '1.5px' : '1px'
-                  }"/>
+                  }"
+                  class="chart-dot"
+                />
+                <!-- Invisible hover capture target -->
+                <circle
+                  :cx="30 + (i/(revenueGrowthData.length-1))*(700-60)"
+                  :cy="180 - 30 - (r.amount/maxRevenueGrowthAmount)*(180-60)"
+                  r="16"
+                  fill="transparent"
+                  style="cursor: pointer;"
+                  @mouseenter="hoveredRevenueGrowth = { x: 30 + (i/(revenueGrowthData.length-1))*(700-60), y: 180 - 30 - (r.amount/maxRevenueGrowthAmount)*(180-60), data: r, index: i }"
+                  @mouseleave="hoveredRevenueGrowth = null"
+                />
                 <text
                   :x="30 + (i/(revenueGrowthData.length-1))*(700-60)"
                   y="172" text-anchor="middle" class="chart-axis-label">{{ r.month }} (₹{{ (r.amount/1000).toFixed(0) }}k)</text>
+              </g>
+
+              <!-- Line Chart Tooltip -->
+              <g v-if="hoveredRevenueGrowth" style="pointer-events: none;">
+                <rect
+                  :x="Math.max(10, Math.min(570, hoveredRevenueGrowth.x - 65))"
+                  :y="Math.max(10, hoveredRevenueGrowth.y - 45)"
+                  width="130"
+                  height="36"
+                  rx="5"
+                  fill="var(--forest)"
+                  stroke="var(--gold)"
+                  stroke-width="1.5"
+                  opacity="0.95"
+                  style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.15));"
+                />
+                <text
+                  :x="Math.max(10, Math.min(570, hoveredRevenueGrowth.x - 65)) + 65"
+                  :y="Math.max(10, hoveredRevenueGrowth.y - 45) + 14"
+                  text-anchor="middle"
+                  fill="white"
+                  font-size="8.5"
+                  font-weight="700"
+                  font-family="'DM Sans', sans-serif"
+                >
+                  {{ hoveredRevenueGrowth.data.month }} {{ hoveredRevenueGrowth.data.isForecast ? '(Forecast)' : '' }}
+                </text>
+                <text
+                  :x="Math.max(10, Math.min(570, hoveredRevenueGrowth.x - 65)) + 65"
+                  :y="Math.max(10, hoveredRevenueGrowth.y - 45) + 27"
+                  text-anchor="middle"
+                  fill="var(--gold)"
+                  font-size="9"
+                  font-weight="800"
+                  font-family="'Space Mono', monospace"
+                >
+                  ₹{{ hoveredRevenueGrowth.data.amount.toLocaleString() }}
+                </text>
               </g>
             </svg>
           </div>
@@ -3472,12 +3667,12 @@ const TsAdminLayout = {
               </div>
             </div>
             <div class="chart-bars" style="margin-top: 1rem;">
-              <div v-for="t in revenueByTrek" :key="t.name" class="chart-bar-item" style="margin-bottom: 0.75rem;">
+              <div v-for="t in revenueByTrek" :key="t.name" class="chart-bar-item interactive-bar-item" style="margin-bottom: 0.75rem;">
                 <div class="chart-bar-label" style="font-size:0.8rem; font-weight:600;">{{ t.name }}</div>
                 <div class="chart-bar-track" style="height: 12px; border-radius: 6px;">
                   <div class="chart-bar-fill" :style="{ width: (t.amount/maxRevenueByTrek*100)+'%', background: 'var(--gold)' }" style="border-radius: 6px;"></div>
                 </div>
-                <div class="chart-bar-value" style="font-size:0.78rem;">₹{{ t.amount.toLocaleString() }}</div>
+                <div class="chart-bar-value" style="font-size:0.78rem; width: auto; min-width: 80px;">₹{{ t.amount.toLocaleString() }}</div>
               </div>
             </div>
           </div>
@@ -3494,12 +3689,12 @@ const TsAdminLayout = {
               </div>
             </div>
             <div class="chart-bars" style="margin-top: 1rem;">
-              <div v-for="l in revenueByLocation" :key="l.state" class="chart-bar-item" style="margin-bottom: 0.75rem;">
+              <div v-for="l in revenueByLocation" :key="l.state" class="chart-bar-item interactive-bar-item" style="margin-bottom: 0.75rem;">
                 <div class="chart-bar-label" style="font-size:0.8rem; font-weight:600;">{{ l.state }}</div>
                 <div class="chart-bar-track" style="height: 12px; border-radius: 6px;">
                   <div class="chart-bar-fill" :style="{ width: (l.amount/maxRevenueByLocation*100)+'%', background: 'var(--forest-mid)' }" style="border-radius: 6px;"></div>
                 </div>
-                <div class="chart-bar-value" style="font-size:0.78rem;">₹{{ l.amount.toLocaleString() }}</div>
+                <div class="chart-bar-value" style="font-size:0.78rem; width: auto; min-width: 80px;">₹{{ l.amount.toLocaleString() }}</div>
               </div>
             </div>
           </div>
@@ -3523,20 +3718,50 @@ const TsAdminLayout = {
                 <circle cx="18" cy="18" r="15.915" fill="none" stroke="var(--stone-light)" stroke-width="3.5"></circle>
                 <!-- Paid Segment -->
                 <circle cx="18" cy="18" r="15.915" fill="none" stroke="var(--green)" stroke-width="3.5"
-                  :stroke-dasharray="paymentStatusDist.paid + ' ' + (100 - paymentStatusDist.paid)" stroke-dashoffset="0" transform="rotate(-90 18 18)"></circle>
+                  :stroke-dasharray="paymentStatusDist.paid + ' ' + (100 - paymentStatusDist.paid)" stroke-dashoffset="0" transform="rotate(-90 18 18)"
+                  class="interactive-segment"
+                  :style="{ strokeWidth: hoveredPaymentStatus && hoveredPaymentStatus.name === 'Paid' ? '4.5px' : '3.5' }"
+                  @mouseenter="hoveredPaymentStatus = { name: 'Paid', pct: paymentStatusDist.paid }"
+                  @mouseleave="hoveredPaymentStatus = null"
+                ></circle>
                 <!-- Pending Segment -->
                 <circle cx="18" cy="18" r="15.915" fill="none" stroke="var(--gold)" stroke-width="3.5"
-                  :stroke-dasharray="paymentStatusDist.pending + ' ' + (100 - paymentStatusDist.pending)" :stroke-dashoffset="paymentStatusDist.offsetPending" transform="rotate(-90 18 18)"></circle>
+                  :stroke-dasharray="paymentStatusDist.pending + ' ' + (100 - paymentStatusDist.pending)" :stroke-dashoffset="paymentStatusDist.offsetPending" transform="rotate(-90 18 18)"
+                  class="interactive-segment"
+                  :style="{ strokeWidth: hoveredPaymentStatus && hoveredPaymentStatus.name === 'Pending' ? '4.5px' : '3.5' }"
+                  @mouseenter="hoveredPaymentStatus = { name: 'Pending', pct: paymentStatusDist.pending }"
+                  @mouseleave="hoveredPaymentStatus = null"
+                ></circle>
                 <!-- Failed Segment -->
                 <circle cx="18" cy="18" r="15.915" fill="none" stroke="var(--red)" stroke-width="3.5"
-                  :stroke-dasharray="paymentStatusDist.failed + ' ' + (100 - paymentStatusDist.failed)" :stroke-dashoffset="paymentStatusDist.offsetFailed" transform="rotate(-90 18 18)"></circle>
+                  :stroke-dasharray="paymentStatusDist.failed + ' ' + (100 - paymentStatusDist.failed)" :stroke-dashoffset="paymentStatusDist.offsetFailed" transform="rotate(-90 18 18)"
+                  class="interactive-segment"
+                  :style="{ strokeWidth: hoveredPaymentStatus && hoveredPaymentStatus.name === 'Failed' ? '4.5px' : '3.5' }"
+                  @mouseenter="hoveredPaymentStatus = { name: 'Failed', pct: paymentStatusDist.failed }"
+                  @mouseleave="hoveredPaymentStatus = null"
+                ></circle>
                 
-                <text x="18" y="20.5" text-anchor="middle" font-size="5" font-weight="700" fill="var(--forest)">STATUS</text>
+                <text x="18" y="18" text-anchor="middle" fill="var(--forest)">
+                  <tspan x="18" dy="-1" font-size="2.6" font-weight="800">{{ hoveredPaymentStatus ? hoveredPaymentStatus.name : 'STATUS' }}</tspan>
+                  <tspan x="18" dy="3.8" font-size="3.5" font-weight="800" fill="var(--gold-dark)">{{ hoveredPaymentStatus ? hoveredPaymentStatus.pct + '%' : 'SHARE' }}</tspan>
+                </text>
               </svg>
               <div class="donut-legend">
-                <div class="legend-item"><span class="legend-color" style="background:var(--green)"></span><span>Paid: {{ paymentStatusDist.paid }}%</span></div>
-                <div class="legend-item"><span class="legend-color" style="background:var(--gold)"></span><span>Pending: {{ paymentStatusDist.pending }}%</span></div>
-                <div class="legend-item"><span class="legend-color" style="background:var(--red)"></span><span>Failed: {{ paymentStatusDist.failed }}%</span></div>
+                <div class="legend-item"
+                  :style="{ opacity: hoveredPaymentStatus && hoveredPaymentStatus.name !== 'Paid' ? 0.4 : 1, transform: hoveredPaymentStatus && hoveredPaymentStatus.name === 'Paid' ? 'scale(1.05) translateX(3px)' : 'none', transition: 'all 0.2s' }"
+                  @mouseenter="hoveredPaymentStatus = { name: 'Paid', pct: paymentStatusDist.paid }"
+                  @mouseleave="hoveredPaymentStatus = null"
+                ><span class="legend-color" style="background:var(--green)"></span><span>Paid: {{ paymentStatusDist.paid }}%</span></div>
+                <div class="legend-item"
+                  :style="{ opacity: hoveredPaymentStatus && hoveredPaymentStatus.name !== 'Pending' ? 0.4 : 1, transform: hoveredPaymentStatus && hoveredPaymentStatus.name === 'Pending' ? 'scale(1.05) translateX(3px)' : 'none', transition: 'all 0.2s' }"
+                  @mouseenter="hoveredPaymentStatus = { name: 'Pending', pct: paymentStatusDist.pending }"
+                  @mouseleave="hoveredPaymentStatus = null"
+                ><span class="legend-color" style="background:var(--gold)"></span><span>Pending: {{ paymentStatusDist.pending }}%</span></div>
+                <div class="legend-item"
+                  :style="{ opacity: hoveredPaymentStatus && hoveredPaymentStatus.name !== 'Failed' ? 0.4 : 1, transform: hoveredPaymentStatus && hoveredPaymentStatus.name === 'Failed' ? 'scale(1.05) translateX(3px)' : 'none', transition: 'all 0.2s' }"
+                  @mouseenter="hoveredPaymentStatus = { name: 'Failed', pct: paymentStatusDist.failed }"
+                  @mouseleave="hoveredPaymentStatus = null"
+                ><span class="legend-color" style="background:var(--red)"></span><span>Failed: {{ paymentStatusDist.failed }}%</span></div>
               </div>
             </div>
           </div>
@@ -3557,20 +3782,51 @@ const TsAdminLayout = {
                 <circle cx="18" cy="18" r="15.915" fill="none" stroke="var(--stone-light)" stroke-width="3.5"></circle>
                 <!-- Easy Segment -->
                 <circle cx="18" cy="18" r="15.915" fill="none" stroke="var(--green)" stroke-width="3.5"
-                  :stroke-dasharray="revenuePerDifficulty.easyPct + ' ' + (100 - revenuePerDifficulty.easyPct)" stroke-dashoffset="0" transform="rotate(-90 18 18)"></circle>
+                  :stroke-dasharray="revenuePerDifficulty.easyPct + ' ' + (100 - revenuePerDifficulty.easyPct)" stroke-dashoffset="0" transform="rotate(-90 18 18)"
+                  class="interactive-segment"
+                  :style="{ strokeWidth: hoveredRevDifficulty && hoveredRevDifficulty.name === 'Easy' ? '4.5px' : '3.5' }"
+                  @mouseenter="hoveredRevDifficulty = { name: 'Easy', pct: revenuePerDifficulty.easyPct, val: revenuePerDifficulty.easy }"
+                  @mouseleave="hoveredRevDifficulty = null"
+                ></circle>
                 <!-- Moderate Segment -->
                 <circle cx="18" cy="18" r="15.915" fill="none" stroke="var(--gold)" stroke-width="3.5"
-                  :stroke-dasharray="revenuePerDifficulty.modPct + ' ' + (100 - revenuePerDifficulty.modPct)" :stroke-dashoffset="revenuePerDifficulty.offsetMod" transform="rotate(-90 18 18)"></circle>
+                  :stroke-dasharray="revenuePerDifficulty.modPct + ' ' + (100 - revenuePerDifficulty.modPct)" :stroke-dashoffset="revenuePerDifficulty.offsetMod" transform="rotate(-90 18 18)"
+                  class="interactive-segment"
+                  :style="{ strokeWidth: hoveredRevDifficulty && hoveredRevDifficulty.name === 'Moderate' ? '4.5px' : '3.5' }"
+                  @mouseenter="hoveredRevDifficulty = { name: 'Moderate', pct: revenuePerDifficulty.modPct, val: revenuePerDifficulty.moderate }"
+                  @mouseleave="hoveredRevDifficulty = null"
+                ></circle>
                 <!-- Hard Segment -->
                 <circle cx="18" cy="18" r="15.915" fill="none" stroke="var(--red)" stroke-width="3.5"
-                  :stroke-dasharray="revenuePerDifficulty.hardPct + ' ' + (100 - revenuePerDifficulty.hardPct)" :stroke-dashoffset="revenuePerDifficulty.offsetHard" transform="rotate(-90 18 18)"></circle>
+                  :stroke-dasharray="revenuePerDifficulty.hardPct + ' ' + (100 - revenuePerDifficulty.hardPct)" :stroke-dashoffset="revenuePerDifficulty.offsetHard" transform="rotate(-90 18 18)"
+                  class="interactive-segment"
+                  :style="{ strokeWidth: hoveredRevDifficulty && hoveredRevDifficulty.name === 'Hard' ? '4.5px' : '3.5' }"
+                  @mouseenter="hoveredRevDifficulty = { name: 'Hard', pct: revenuePerDifficulty.hardPct, val: revenuePerDifficulty.hard }"
+                  @mouseleave="hoveredRevDifficulty = null"
+                ></circle>
                 
-                <text x="18" y="20.5" text-anchor="middle" font-size="5" font-weight="700" fill="var(--forest)">DIFF</text>
+                <text x="18" y="18" text-anchor="middle" fill="var(--forest)">
+                  <tspan x="18" dy="-1.5" font-size="2.4" font-weight="800">{{ hoveredRevDifficulty ? hoveredRevDifficulty.name : 'DIFF' }}</tspan>
+                  <tspan x="18" dy="3.4" font-size="2.6" font-weight="800" fill="var(--gold-dark)">{{ hoveredRevDifficulty ? hoveredRevDifficulty.pct + '%' : 'REVENUE' }}</tspan>
+                  <tspan x="18" dy="3.0" font-size="1.8" font-weight="600" fill="var(--stone)" v-if="hoveredRevDifficulty">₹{{ (hoveredRevDifficulty.val/100000).toFixed(1) }}L</tspan>
+                </text>
               </svg>
               <div class="donut-legend">
-                <div class="legend-item"><span class="legend-color" style="background:var(--green)"></span><span>Easy: {{ revenuePerDifficulty.easyPct }}% (₹{{ (revenuePerDifficulty.easy/100000).toFixed(1) }}L)</span></div>
-                <div class="legend-item"><span class="legend-color" style="background:var(--gold)"></span><span>Moderate: {{ revenuePerDifficulty.modPct }}% (₹{{ (revenuePerDifficulty.moderate/100000).toFixed(1) }}L)</span></div>
-                <div class="legend-item"><span class="legend-color" style="background:var(--red)"></span><span>Hard: {{ revenuePerDifficulty.hardPct }}% (₹{{ (revenuePerDifficulty.hard/100000).toFixed(1) }}L)</span></div>
+                <div class="legend-item"
+                  :style="{ opacity: hoveredRevDifficulty && hoveredRevDifficulty.name !== 'Easy' ? 0.4 : 1, transform: hoveredRevDifficulty && hoveredRevDifficulty.name === 'Easy' ? 'scale(1.05) translateX(3px)' : 'none', transition: 'all 0.2s' }"
+                  @mouseenter="hoveredRevDifficulty = { name: 'Easy', pct: revenuePerDifficulty.easyPct, val: revenuePerDifficulty.easy }"
+                  @mouseleave="hoveredRevDifficulty = null"
+                ><span class="legend-color" style="background:var(--green)"></span><span>Easy: {{ revenuePerDifficulty.easyPct }}% (₹{{ (revenuePerDifficulty.easy/100000).toFixed(1) }}L)</span></div>
+                <div class="legend-item"
+                  :style="{ opacity: hoveredRevDifficulty && hoveredRevDifficulty.name !== 'Moderate' ? 0.4 : 1, transform: hoveredRevDifficulty && hoveredRevDifficulty.name === 'Moderate' ? 'scale(1.05) translateX(3px)' : 'none', transition: 'all 0.2s' }"
+                  @mouseenter="hoveredRevDifficulty = { name: 'Moderate', pct: revenuePerDifficulty.modPct, val: revenuePerDifficulty.moderate }"
+                  @mouseleave="hoveredRevDifficulty = null"
+                ><span class="legend-color" style="background:var(--gold)"></span><span>Mod: {{ revenuePerDifficulty.modPct }}% (₹{{ (revenuePerDifficulty.moderate/100000).toFixed(1) }}L)</span></div>
+                <div class="legend-item"
+                  :style="{ opacity: hoveredRevDifficulty && hoveredRevDifficulty.name !== 'Hard' ? 0.4 : 1, transform: hoveredRevDifficulty && hoveredRevDifficulty.name === 'Hard' ? 'scale(1.05) translateX(3px)' : 'none', transition: 'all 0.2s' }"
+                  @mouseenter="hoveredRevDifficulty = { name: 'Hard', pct: revenuePerDifficulty.hardPct, val: revenuePerDifficulty.hard }"
+                  @mouseleave="hoveredRevDifficulty = null"
+                ><span class="legend-color" style="background:var(--red)"></span><span>Hard: {{ revenuePerDifficulty.hardPct }}% (₹{{ (revenuePerDifficulty.hard/100000).toFixed(1) }}L)</span></div>
               </div>
             </div>
           </div>
@@ -3629,16 +3885,38 @@ const TsAdminLayout = {
                 <circle cx="18" cy="18" r="15.915" fill="none" stroke="var(--stone-light)" stroke-width="3.5"></circle>
                 <!-- Non-Refunded (Retained) Segment -->
                 <circle cx="18" cy="18" r="15.915" fill="none" stroke="var(--green)" stroke-width="3.5"
-                  :stroke-dasharray="refundAnalytics.nonRefundedPct + ' ' + (100 - refundAnalytics.nonRefundedPct)" stroke-dashoffset="0" transform="rotate(-90 18 18)"></circle>
+                  :stroke-dasharray="refundAnalytics.nonRefundedPct + ' ' + (100 - refundAnalytics.nonRefundedPct)" stroke-dashoffset="0" transform="rotate(-90 18 18)"
+                  class="interactive-segment"
+                  :style="{ strokeWidth: hoveredLossStatus && hoveredLossStatus.name === 'Retained' ? '4.5px' : '3.5' }"
+                  @mouseenter="hoveredLossStatus = { name: 'Retained', pct: refundAnalytics.nonRefundedPct, val: refundAnalytics.nonRefunded }"
+                  @mouseleave="hoveredLossStatus = null"
+                ></circle>
                 <!-- Refunded Segment -->
                 <circle cx="18" cy="18" r="15.915" fill="none" stroke="var(--red)" stroke-width="3.5"
-                  :stroke-dasharray="refundAnalytics.refundedPct + ' ' + (100 - refundAnalytics.refundedPct)" :stroke-dashoffset="-refundAnalytics.nonRefundedPct" transform="rotate(-90 18 18)"></circle>
+                  :stroke-dasharray="refundAnalytics.refundedPct + ' ' + (100 - refundAnalytics.refundedPct)" :stroke-dashoffset="-refundAnalytics.nonRefundedPct" transform="rotate(-90 18 18)"
+                  class="interactive-segment"
+                  :style="{ strokeWidth: hoveredLossStatus && hoveredLossStatus.name === 'Refunded' ? '4.5px' : '3.5' }"
+                  @mouseenter="hoveredLossStatus = { name: 'Refunded', pct: refundAnalytics.refundedPct, val: refundAnalytics.refunded }"
+                  @mouseleave="hoveredLossStatus = null"
+                ></circle>
                 
-                <text x="18" y="20.5" text-anchor="middle" font-size="5" font-weight="700" fill="var(--forest)">LOSS</text>
+                <text x="18" y="18" text-anchor="middle" fill="var(--forest)">
+                  <tspan x="18" dy="-1.5" font-size="2.4" font-weight="800">{{ hoveredLossStatus ? hoveredLossStatus.name : 'LOSS' }}</tspan>
+                  <tspan x="18" dy="3.4" font-size="2.6" font-weight="800" fill="var(--gold-dark)">{{ hoveredLossStatus ? hoveredLossStatus.pct + '%' : 'ANALYTICS' }}</tspan>
+                  <tspan x="18" dy="3.0" font-size="1.8" font-weight="600" fill="var(--stone)" v-if="hoveredLossStatus">₹{{ hoveredLossStatus.val >= 100000 ? (hoveredLossStatus.val/100000).toFixed(1) + 'L' : (hoveredLossStatus.val/1000).toFixed(0) + 'k' }}</tspan>
+                </text>
               </svg>
               <div class="donut-legend">
-                <div class="legend-item"><span class="legend-color" style="background:var(--green)"></span><span>Retained: {{ refundAnalytics.nonRefundedPct }}% (₹{{ (refundAnalytics.nonRefunded/100000).toFixed(1) }}L)</span></div>
-                <div class="legend-item"><span class="legend-color" style="background:var(--red)"></span><span>Refunded: {{ refundAnalytics.refundedPct }}% (₹{{ (refundAnalytics.refunded/1000).toFixed(0) }}k)</span></div>
+                <div class="legend-item"
+                  :style="{ opacity: hoveredLossStatus && hoveredLossStatus.name !== 'Retained' ? 0.4 : 1, transform: hoveredLossStatus && hoveredLossStatus.name === 'Retained' ? 'scale(1.05) translateX(3px)' : 'none', transition: 'all 0.2s' }"
+                  @mouseenter="hoveredLossStatus = { name: 'Retained', pct: refundAnalytics.nonRefundedPct, val: refundAnalytics.nonRefunded }"
+                  @mouseleave="hoveredLossStatus = null"
+                ><span class="legend-color" style="background:var(--green)"></span><span>Retained: {{ refundAnalytics.nonRefundedPct }}% (₹{{ (refundAnalytics.nonRefunded/100000).toFixed(1) }}L)</span></div>
+                <div class="legend-item"
+                  :style="{ opacity: hoveredLossStatus && hoveredLossStatus.name !== 'Refunded' ? 0.4 : 1, transform: hoveredLossStatus && hoveredLossStatus.name === 'Refunded' ? 'scale(1.05) translateX(3px)' : 'none', transition: 'all 0.2s' }"
+                  @mouseenter="hoveredLossStatus = { name: 'Refunded', pct: refundAnalytics.refundedPct, val: refundAnalytics.refunded }"
+                  @mouseleave="hoveredLossStatus = null"
+                ><span class="legend-color" style="background:var(--red)"></span><span>Refunded: {{ refundAnalytics.refundedPct }}% (₹{{ (refundAnalytics.refunded/1000).toFixed(0) }}k)</span></div>
               </div>
             </div>
           </div>

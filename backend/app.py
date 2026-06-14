@@ -1258,7 +1258,9 @@ def admin_dashboard_data():
             'amountPaid': b.amount_paid if b.amount_paid is not None else (b.trek.price if (b.paid and b.trek) else 0),
             'paymentStatus': b.payment_status or ('Paid' if b.paid else 'Pending'),
             'paidOn': b.booked_on.strftime('%Y-%m-%d') if b.paid else '—',
-            'transactionId': f"TXN{b.booked_on.strftime('%y%m%d')}{b.id:04d}" if b.paid else '—'
+            'transactionId': f"TXN{b.booked_on.strftime('%y%m%d')}{b.id:04d}" if b.paid else '—',
+            'difficulty': b.trek.difficulty if b.trek else 'Moderate',
+            'location': b.trek.location if b.trek else ''
         })
         
     popular_treks = []

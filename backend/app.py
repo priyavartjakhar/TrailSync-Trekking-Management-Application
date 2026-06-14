@@ -134,9 +134,10 @@ def invalidate_open_treks_cache():
         except Exception as e:
             print("Redis delete cache error:", e)
 
-def seed_db():
-    db.session.remove()
-    db.drop_all()
+def seed_db(force=False):
+    if force:
+        db.session.remove()
+        db.drop_all()
     db.create_all()
     
     # Seed Admin
@@ -584,7 +585,9 @@ def seed_db():
 
 # Ensure tables are created and seeded
 with app.app_context():
-    seed_db()
+    db.create_all()
+    if User.query.first() is None:
+        seed_db(force=False)
 
 
 @app.route('/api/public/treks', methods=['GET'])

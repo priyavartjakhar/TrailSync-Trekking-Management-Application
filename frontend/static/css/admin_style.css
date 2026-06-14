@@ -1615,6 +1615,183 @@ body { font-family:'DM Sans',sans-serif; background:var(--snow); color:var(--bar
   }
 }
 
+/* ── Celery Scheduled Jobs Upgraded Cards ── */
+.jobs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+
+.job-detail-card {
+  background: var(--snow);
+  border: 1px solid rgba(26, 46, 26, 0.08);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.job-detail-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(26, 46, 26, 0.05);
+  border-color: rgba(26, 46, 26, 0.15);
+}
+
+.job-card-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid rgba(26, 46, 26, 0.05);
+  padding-bottom: 0.75rem;
+}
+
+.job-card-name {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--forest);
+}
+
+.job-meta {
+  font-size: 0.8rem;
+  color: var(--stone);
+  margin-bottom: 1rem;
+}
+
+.job-meta .meta-item {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.4rem;
+}
+
+.job-meta .meta-item span {
+  font-family: 'Space Mono', monospace;
+  color: var(--forest);
+  font-weight: 550;
+}
+
+.job-description {
+  font-size: 0.85rem;
+  color: var(--stone);
+  line-height: 1.5;
+  margin-bottom: 1.25rem;
+  min-height: 50px;
+}
+
+.job-logs-section {
+  flex: 1;
+  background: rgba(26, 46, 26, 0.02);
+  border: 1px solid rgba(26, 46, 26, 0.04);
+  border-radius: 6px;
+  padding: 0.75rem;
+  margin-bottom: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  max-height: 180px;
+}
+
+.logs-header {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--forest);
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;
+  letter-spacing: 0.5px;
+}
+
+.logs-list-box {
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.empty-log-state {
+  font-size: 0.75rem;
+  color: var(--stone);
+  font-style: italic;
+  text-align: center;
+  margin-top: 1.5rem;
+}
+
+.log-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  background: #fff;
+  border-radius: 4px;
+  border: 1px solid rgba(26, 46, 26, 0.03);
+}
+
+.log-time {
+  font-family: 'Space Mono', monospace;
+  color: var(--stone);
+}
+
+.test-job-btn {
+  width: 100%;
+  padding: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  justify-content: center;
+}
+
+/* ── Registration Welcome Email Tester ── */
+.welcome-tester-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 2rem;
+  padding: 1.5rem;
+}
+
+.tester-col {
+  display: flex;
+  flex-direction: column;
+}
+
+.tester-subtitle {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.05rem;
+  color: var(--forest);
+  margin: 0 0 0.5rem 0;
+  font-weight: 700;
+}
+
+.tester-desc {
+  font-size: 0.82rem;
+  color: var(--stone);
+  line-height: 1.5;
+  margin: 0 0 1rem 0;
+  flex: 1;
+}
+
+.tester-form-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: auto;
+}
+
+.tester-input {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid rgba(26, 46, 26, 0.15);
+  border-radius: var(--radius);
+  font-size: 0.85rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.tester-input:focus {
+  border-color: var(--forest);
+}
+
 
 
 

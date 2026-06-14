@@ -2255,6 +2255,7 @@ def staff_dashboard_data():
         booked_count = Booking.query.filter_by(trek_id=t.id, status='Booked').count()
         assigned_treks.append({
             'id': t.id,
+            'batchCode': t.batch_code or f"TID{t.id:03d}B01",
             'name': t.name,
             'location': t.location,
             'difficulty': t.difficulty,

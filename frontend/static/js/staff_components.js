@@ -27,7 +27,8 @@ const TsStaffLayout = {
       // ── SEARCH / FILTER ───────────────────────────
       searchQuery: '',
       participantSearch: '',
-      selectedTrekId: STAFF_ASSIGNED_TREKS[0]?.id || null,
+      selectedTrekId: null,
+      participantTrekId: null,
       participantStatusFilter: 'All',
 
       // ── COUNTDOWN ─────────────────────────────────
@@ -41,15 +42,27 @@ const TsStaffLayout = {
       showChecklistModal: false,
       showEmergencyModal: false,
       showCompletionModal: false,
+      showTrekDetailModal: false,
+      showAddParticipantModal: false,
 
       slotTarget: null,
       statusTarget: null,
       participantTarget: null,
       checklistTrek: null,
       completionTrek: null,
+      detailTrek: null,
 
       newSlots: 0,
       newStatus: '',
+      newParticipantEmail: '',
+      newParticipantTrekId: null,
+      newParticipantName: '',
+      newParticipantPhone: '',
+      newParticipantPayment: 'paid',
+
+      // ── PARTICIPANTS TAB SEARCH ────────────────────
+      trekSearchQuery: '',
+      trekSearchFocused: false,
 
       // ── EXPORT ────────────────────────────────────
       exportPending: false,
@@ -156,13 +169,18 @@ const TsStaffLayout = {
 
     // Selected trek object
     selectedTrek() {
-      return this.assignedTreks.find(t => t.id === this.selectedTrekId) || this.assignedTreks[0];
+      return this.assignedTreks.find(t => t.id === this.selectedTrekId) || null;
+    },
+
+    // Resolved trek for the participants tab
+    participantTrek() {
+      return this.assignedTreks.find(t => t.id === this.participantTrekId) || null;
     },
 
     // Filtered participants for selected trek
     filteredParticipants() {
       return this.participants.filter(p => {
-        const matchTrek = p.trekId === this.selectedTrekId;
+        const matchTrek = p.trekId === this.participantTrekId;
         const q = this.participantSearch.toLowerCase();
         const matchSearch = !q || p.name.toLowerCase().includes(q) || p.email.toLowerCase().includes(q);
         const matchStatus = this.participantStatusFilter === 'All' || p.status === this.participantStatusFilter;
@@ -232,12 +250,23 @@ const TsStaffLayout = {
         booked: t.registered,
         total: t.slots
       }));
-    }
+    },
+
+    // Trek options filtered by search query (name, location, batch code)
+    filteredTrekOptions() {
+      const q = this.trekSearchQuery.toLowerCase().trim();
+      if (!q) return this.assignedTreks;
+      return this.assignedTreks.filter(t =>
+        t.name.toLowerCase().includes(q) ||
+        (t.location && t.location.toLowerCase().includes(q)) ||
+        (t.batchCode && t.batchCode.toLowerCase().includes(q))
+      );
+    },
   },
 
   methods: {
     // ── NAV ────────────────────────────────────────
-    goTab(tab) { this.activeTab = tab; this.sidebarOpen = false; },
+    goTab(tab) { this.activeTab = tab; this.sidebarOpen = false; localStorage.setItem('staffActiveTab', tab); },
 
     // ── DATA FETCH ────────────────────────────────
     async fetchStaffData() {
@@ -267,6 +296,14 @@ const TsStaffLayout = {
     slotPct(t) { return Math.min(100, Math.round((t.registered / t.slots) * 100)); },
     slotsLeft(t) { return t.slots - t.registered; },
     daysUntil(dateStr) { return Math.ceil((new Date(dateStr) - new Date()) / 86400000); },
+
+    formatDate(dateStr) {
+      if (!dateStr) return '';
+      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      const d = new Date(dateStr);
+      if (isNaN(d)) return dateStr;
+      return String(d.getUTCDate()).padStart(2,'0') + ' ' + months[d.getUTCMonth()] + ' ' + d.getUTCFullYear();
+    },
 
     getProgressStep(status) {
       const map = { Pending: 0, Approved: 1, Open: 2, Started: 3, Completed: 4 };
@@ -350,7 +387,7 @@ const TsStaffLayout = {
       this.showToast(`${p.name} ${action}`);
     },
 
-    selectTrekForParticipants(t) { this.selectedTrekId = t.id; this.goTab('participants'); },
+    selectTrekForParticipants(t) { this.participantTrekId = t.id; this.goTab('participants'); },
 
     // ── CHECKLIST MODAL ───────────────────────────
     async openChecklistModal(trek) {
@@ -395,6 +432,83 @@ const TsStaffLayout = {
         console.error(e);
         this.showToast('Error saving checklist', 'error');
       }
+    },
+
+    // ── MARK AS STARTED ───────────────────────────
+    async markStarted(t) {
+      try {
+        const res = await fetch(`/api/staff/treks/status/${t.id}`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'Started' })
+        });
+        if (res.ok) { this.showToast(`${t.name} marked as Started!`); this.fetchStaffData(); }
+        else this.showToast('Failed to update status', 'error');
+      } catch {
+        t.status = 'Started';
+        this.activityLog.unshift({ id: Date.now(), text: `Marked <strong>${t.name}</strong> as Started`, type: 'status', time: 'just now' });
+        this.showToast(`${t.name} marked as Started!`);
+      }
+    },
+
+    // ── TREK DETAIL MODAL ─────────────────────────
+    openTrekDetailModal(t) { this.detailTrek = t; this.showTrekDetailModal = true; },
+
+    // ── ADD PARTICIPANT MODAL ─────────────────────
+    openAddParticipantModal(trekId) {
+      this.newParticipantTrekId = trekId;
+      this.newParticipantEmail = '';
+      this.newParticipantName = '';
+      this.newParticipantPhone = '';
+      this.newParticipantPayment = 'paid';
+      this.showAddParticipantModal = true;
+    },
+    async addParticipant() {
+      if (!this.newParticipantName.trim()) { this.showToast('Please enter a name', 'error'); return; }
+      if (!this.newParticipantEmail.trim()) { this.showToast('Please enter an email', 'error'); return; }
+      try {
+        const res = await fetch(`/api/staff/participants/add`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: this.newParticipantName.trim(),
+            email: this.newParticipantEmail.trim(),
+            phone: this.newParticipantPhone.trim(),
+            paymentStatus: this.newParticipantPayment,
+            trekId: this.newParticipantTrekId
+          })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          this.showToast(data.message || 'Participant added successfully');
+          // Optimistic add
+          this.participants.push({
+            id: Date.now(), trekId: this.newParticipantTrekId,
+            name: this.newParticipantName.trim(),
+            email: this.newParticipantEmail.trim(),
+            phone: this.newParticipantPhone.trim(),
+            bookedOn: new Date().toISOString().slice(0,10),
+            status: 'Booked', attendance: false,
+            bloodGroup: '—', emergencyContact: '—', emergencyPhone: '—',
+            paymentStatus: this.newParticipantPayment
+          });
+          const trek = this.assignedTreks.find(t => t.id === this.newParticipantTrekId);
+          if (trek) trek.registered++;
+        } else this.showToast(data.error || 'Failed to add participant', 'error');
+      } catch {
+        this.participants.push({
+          id: Date.now(), trekId: this.newParticipantTrekId,
+          name: this.newParticipantName.trim(),
+          email: this.newParticipantEmail.trim(),
+          phone: this.newParticipantPhone.trim(),
+          bookedOn: new Date().toISOString().slice(0,10),
+          status: 'Booked', attendance: false,
+          bloodGroup: '—', emergencyContact: '—', emergencyPhone: '—',
+          paymentStatus: this.newParticipantPayment
+        });
+        const trek = this.assignedTreks.find(t => t.id === this.newParticipantTrekId);
+        if (trek) trek.registered++;
+        this.showToast('Participant added successfully');
+      }
+      this.showAddParticipantModal = false;
     },
 
     // ── TREK COMPLETION ───────────────────────────
@@ -614,6 +728,8 @@ const TsStaffLayout = {
   },
 
   mounted() {
+    const savedTab = localStorage.getItem('staffActiveTab');
+    if (savedTab) this.activeTab = savedTab;
     this.fetchStaffData();
     this.startCountdown();
   },
@@ -1066,12 +1182,6 @@ const TsStaffLayout = {
             <div class="section-eyebrow">Staff Panel</div>
             <div class="section-title">Assigned <em>Treks</em></div>
           </div>
-          <div style="display:flex; gap:0.65rem">
-            <div class="search-bar-inline">
-              <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-              <input v-model="searchQuery" type="text" placeholder="Search treks…" />
-            </div>
-          </div>
         </div>
 
         <div v-if="!filteredTreks.length" class="empty-state">
@@ -1081,6 +1191,9 @@ const TsStaffLayout = {
 
         <div class="treks-grid-staff">
           <div v-for="t in filteredTreks" :key="t.id" class="trek-staff-card">
+            <!-- Batch Badge above name -->
+            <div class="tsc-batch-badge">Batch {{ t.batchCode }}</div>
+
             <!-- Header -->
             <div class="tsc-header">
               <div>
@@ -1090,55 +1203,85 @@ const TsStaffLayout = {
                   {{ t.location }}
                 </div>
               </div>
-              <span :class="'status-pill status-' + t.status.toLowerCase()">{{ t.status }}</span>
+              <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+                <span :class="'status-pill status-' + t.status.toLowerCase()">{{ t.status }}</span>
+                <span :class="'diff-pill pill-' + t.difficulty.toLowerCase()" style="font-size:0.68rem">{{ t.difficulty }}</span>
+              </div>
             </div>
 
-            <!-- Stats row -->
-            <div class="tsc-stats">
-              <div class="tsc-stat">
-                <div class="tsc-stat-val">{{ t.duration }}d</div>
-                <div class="tsc-stat-label">Duration</div>
+            <!-- Stats Row 1: Dates + Duration -->
+            <div class="tsc-stats-row">
+              <div class="tsc-stat-cell">
+                <div class="tsc-stat-cell-label">Start Date</div>
+                <div class="tsc-stat-cell-val">{{ formatDate(t.startDate) }}</div>
               </div>
-              <div class="tsc-stat">
-                <div class="tsc-stat-val">{{ t.registered }}</div>
-                <div class="tsc-stat-label">Registered</div>
+              <div class="tsc-stat-divider"></div>
+              <div class="tsc-stat-cell">
+                <div class="tsc-stat-cell-label">End Date</div>
+                <div class="tsc-stat-cell-val">{{ formatDate(t.endDate) }}</div>
               </div>
-              <div class="tsc-stat">
-                <div class="tsc-stat-val">{{ t.slots }}</div>
-                <div class="tsc-stat-label">Total Slots</div>
+              <div class="tsc-stat-divider"></div>
+              <div class="tsc-stat-cell">
+                <div class="tsc-stat-cell-label">Duration</div>
+                <div class="tsc-stat-cell-val">{{ t.duration }}d</div>
               </div>
-              <div class="tsc-stat">
-                <span :class="'diff-pill pill-' + t.difficulty.toLowerCase()">{{ t.difficulty }}</span>
-                <div class="tsc-stat-label" style="margin-top:4px">Level</div>
+            </div>
+
+            <!-- Stats Row 2: Slots + Registered + Occupancy -->
+            <div class="tsc-stats-row tsc-stats-row-2">
+              <div class="tsc-stat-cell">
+                <div class="tsc-stat-cell-label">Total Slots</div>
+                <div class="tsc-stat-cell-val">{{ t.slots }}</div>
+              </div>
+              <div class="tsc-stat-divider"></div>
+              <div class="tsc-stat-cell">
+                <div class="tsc-stat-cell-label">Registered</div>
+                <div class="tsc-stat-cell-val tsc-stat-registered">{{ t.registered }}</div>
+              </div>
+              <div class="tsc-stat-divider"></div>
+              <div class="tsc-stat-cell">
+                <div class="tsc-stat-cell-label">Occupancy</div>
+                <div class="tsc-stat-cell-val" :style="{ color: slotColor(t) }">{{ slotPct(t) }}%</div>
               </div>
             </div>
 
             <!-- Slot bar -->
-            <div class="slot-bar-wrap" style="margin:0.65rem 0 0.25rem">
+            <div class="slot-bar-wrap" style="margin:0.5rem 0 0.2rem">
               <div class="slot-bar-fill" :style="{ width: slotPct(t) + '%', background: slotColor(t) }"></div>
             </div>
-            <div class="slot-bar-label mono">{{ slotsLeft(t) }} of {{ t.slots }} slots available ({{ slotPct(t) }}% filled)</div>
 
-            <!-- Dates -->
-            <div class="tsc-dates mono" style="margin:0.6rem 0">{{ t.startDate }} → {{ t.endDate }}</div>
-
-            <!-- Progress tracker -->
-            <div class="progress-steps">
-              <div v-for="(step, si) in ['Pending','Approved','Open','Started','Completed']" :key="step"
-                class="progress-step"
-                :class="{ done: getProgressStep(t.status) > si, active: getProgressStep(t.status) === si }">
-                <div class="ps-dot">{{ getProgressStep(t.status) > si ? '✓' : si + 1 }}</div>
-                <div class="ps-label">{{ step }}</div>
+            <!-- Actions — 2-row themed button layout -->
+            <div class="tsc-actions-grid">
+              <!-- Row 1: Primary action buttons -->
+              <div class="tsc-btn-row tsc-btn-row-primary">
+                <button class="btn-ghost btn-sm tsc-icon-btn" @click="openSlotModal(t)">
+                  <svg viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5m-1.414-9.414a2 2 0 1 1 2.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                  Edit Slots
+                </button>
+                <button v-if="t.status !== 'Started' && t.status !== 'Completed'" class="btn-forest btn-sm tsc-icon-btn" @click="markStarted(t)">
+                  <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                  Mark as Started
+                </button>
+                <button v-if="t.status === 'Started'" class="btn-primary-ts btn-sm tsc-icon-btn" @click="openCompletionModal(t)">
+                  <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                  Mark as Completed
+                </button>
+                <div v-if="t.status === 'Completed'" class="tsc-completed-chip">
+                  <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                  Completed
+                </div>
               </div>
-            </div>
-
-            <!-- Actions -->
-            <div class="tsc-actions" style="margin-top:0.85rem">
-              <button class="btn-ghost btn-sm" @click="openSlotModal(t)">Edit Slots</button>
-              <button class="btn-ghost btn-sm" @click="openStatusModal(t)">Change Status</button>
-              <button class="btn-ghost btn-sm" @click="openChecklistModal(t)">📋 Checklist</button>
-              <button class="btn-primary-ts btn-sm" @click="selectTrekForParticipants(t)">Participants</button>
-              <button v-if="t.status !== 'Completed'" class="btn-forest btn-sm" @click="openCompletionModal(t)">✓ Complete</button>
+              <!-- Row 2: Secondary detail buttons -->
+              <div class="tsc-btn-row tsc-btn-row-secondary">
+                <button class="btn-ghost btn-sm tsc-icon-btn" @click="selectTrekForParticipants(t)">
+                  <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M2 19c0-3 3-5 7-5"/><circle cx="16" cy="10" r="3"/><path d="M13 19c0-3 2.7-5 6-5"/></svg>
+                  Manage Participants
+                </button>
+                <button class="btn-ghost btn-sm tsc-icon-btn" @click="openChecklistModal(t)">
+                  <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                  Checklist
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1153,93 +1296,174 @@ const TsStaffLayout = {
             <div class="section-eyebrow">Participant Management</div>
             <div class="section-title">Trek <em>Participants</em></div>
           </div>
-          <div style="display:flex; gap:0.65rem; align-items:center; flex-wrap:wrap">
-            <div class="search-bar-inline">
-              <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-              <input v-model="participantSearch" type="text" placeholder="Name, email…" />
-            </div>
-            <button class="btn-primary-ts btn-sm" @click="exportCSV(selectedTrekId)" :disabled="exportPending && exportTrekId === selectedTrekId">
-              {{ exportPending && exportTrekId === selectedTrekId ? '⏳ Exporting…' : '⬇ Export CSV' }}
-            </button>
-          </div>
-        </div>
-
-        <!-- Trek selector tabs -->
-        <div class="trek-selector-bar">
-          <button v-for="t in assignedTreks" :key="t.id"
-            class="filter-btn" :class="{ active: selectedTrekId === t.id }"
-            @click="selectedTrekId = t.id">
-            {{ t.name }}
-            <span style="margin-left:5px; font-family:'Space Mono',monospace; font-size:0.62rem">({{ participants.filter(p=>p.trekId===t.id&&p.status==='Booked').length }})</span>
+          <button v-if="participantTrekId" class="btn-primary-ts btn-sm" @click="exportCSV(participantTrekId)" :disabled="exportPending && exportTrekId === participantTrekId">
+            {{ exportPending && exportTrekId === participantTrekId ? '⏳ Exporting…' : '⬇ Export CSV' }}
           </button>
         </div>
 
-        <!-- Status filter -->
-        <div style="display:flex; gap:0.5rem; margin-bottom:1.25rem; flex-wrap:wrap; align-items:center">
-          <button v-for="f in ['All','Booked','Completed','Cancelled']" :key="f"
-            class="filter-btn" :class="{ active: participantStatusFilter === f }"
-            @click="participantStatusFilter = f">{{ f }}</button>
-          <span style="margin-left:auto; font-size:0.78rem; color:var(--stone); font-family:'Space Mono',monospace">
-            {{ filteredParticipants.length }} participant{{ filteredParticipants.length !== 1 ? 's' : '' }}
-          </span>
-        </div>
+        <!-- No trek selected: search bar + trek card grid -->
+        <template v-if="!participantTrekId">
+          <div class="ptab-search-box" style="margin-bottom:1.1rem">
+            <svg viewBox="0 0 24 24" class="ptab-search-icon"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input
+              v-model="trekSearchQuery"
+              type="text"
+              placeholder="Search treks by name, location or batch…"
+              class="ptab-search-input"
+            />
+            <button v-if="trekSearchQuery" class="ptab-chip-clear" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:1rem" @mousedown.prevent="trekSearchQuery = ''">×</button>
+          </div>
 
-        <!-- Trek context banner -->
-        <div v-if="selectedTrek" style="background:var(--cream); border-radius:6px; padding:0.85rem 1.25rem; margin-bottom:1.25rem; display:flex; align-items:center; gap:1.5rem; flex-wrap:wrap; border:1px solid rgba(26,46,26,0.07)">
-          <div style="font-family:'Playfair Display',serif; font-size:1.05rem; font-weight:700; color:var(--forest)">{{ selectedTrek.name }}</div>
-          <div style="font-size:0.78rem; color:var(--stone)">📍 {{ selectedTrek.location }}</div>
-          <div style="font-family:'Space Mono',monospace; font-size:0.72rem; color:var(--bark)">{{ selectedTrek.startDate }} → {{ selectedTrek.endDate }}</div>
-          <span :class="'status-pill status-' + selectedTrek.status.toLowerCase()">{{ selectedTrek.status }}</span>
-          <div style="margin-left:auto">
-            <div class="slot-bar-wrap" style="width:120px; display:inline-block; vertical-align:middle; margin-right:8px">
-              <div class="slot-bar-fill" :style="{ width: slotPct(selectedTrek) + '%', background: slotColor(selectedTrek) }"></div>
+          <div class="ptab-trek-cards">
+            <div
+              v-for="t in filteredTrekOptions" :key="t.id"
+              class="ptab-trek-card"
+              @click="participantTrekId = t.id; trekSearchQuery = ''"
+            >
+              <div class="ptab-tc-batch">{{ t.batchCode }}</div>
+              <div class="ptab-tc-name">{{ t.name }}</div>
+              <div class="ptab-tc-loc">📍 {{ t.location }}</div>
+              <div class="ptab-tc-dates">
+                <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                {{ formatDate(t.startDate) }} — {{ formatDate(t.endDate) }}
+              </div>
+              <div class="ptab-tc-footer">
+                <span :class="'status-pill status-' + t.status.toLowerCase()">{{ t.status }}</span>
+                <div class="ptab-tc-slots">
+                  <span class="ptab-tc-slot-num">{{ t.registered }}/{{ t.slots }}</span>
+                  <div class="ptab-tc-bar-wrap">
+                    <div class="ptab-tc-bar-fill" :style="{ width: slotPct(t) + '%', background: slotColor(t) }"></div>
+                  </div>
+                </div>
+              </div>
             </div>
-            <span style="font-family:'Space Mono',monospace; font-size:0.68rem; color:var(--stone)">{{ selectedTrek.registered }}/{{ selectedTrek.slots }}</span>
+            <div v-if="!filteredTrekOptions.length" class="ptab-empty-state" style="grid-column:1/-1">
+              <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <p>No treks match your search.</p>
+            </div>
           </div>
-        </div>
+        </template>
 
-        <!-- Participant table -->
-        <div class="ts-table-wrap">
-          <table class="ts-table" v-if="filteredParticipants.length">
-            <thead>
-              <tr><th>#</th><th>Participant</th><th>Contact</th><th>Booked On</th><th>Status</th><th>Actions</th></tr>
-            </thead>
-            <tbody>
-              <tr v-for="(p, i) in filteredParticipants" :key="p.id">
-                <td class="mono">{{ i + 1 }}</td>
-                <td>
-                  <div class="user-cell">
-                    <div class="user-mini-avatar">{{ p.name[0] }}</div>
-                    <div>
-                      <div class="cell-name">{{ p.name }}</div>
-                      <div style="font-size:0.72rem; color:var(--stone)">{{ p.email }}</div>
+        <template v-else>
+          <!-- Back link -->
+          <button class="ptab-back-btn" @click="participantTrekId = null; trekSearchQuery = ''">
+            <svg viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+            All Treks
+          </button>
+          <!-- Selected Trek Banner -->
+          <div class="ptab-trek-banner">
+            <div class="ptab-banner-info">
+              <div class="ptab-batch-label">{{ participantTrek.batchCode }}</div>
+              <div class="ptab-trek-name">{{ participantTrek.name }}</div>
+              <div class="ptab-trek-meta">
+                <span>📍 {{ participantTrek.location }}</span>
+                <span class="ptab-date-sep">·</span>
+                <span>
+                  <svg viewBox="0 0 24 24" style="width:11px;height:11px;stroke:var(--gold);fill:none;stroke-width:2;vertical-align:middle;margin-right:2px"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                  {{ formatDate(participantTrek.startDate) }} — {{ formatDate(participantTrek.endDate) }}
+                </span>
+              </div>
+            </div>
+            <div class="ptab-banner-right">
+              <div class="ptab-occ-bar-wrap">
+                <div class="ptab-occ-label">
+                  <span style="font-size:0.72rem;color:var(--gold-light);font-weight:600;letter-spacing:0.04em">Slot Occupancy</span>
+                  <span style="font-family:'Space Mono',monospace;font-size:0.72rem;color:var(--gold-light);font-weight:700">{{ participantTrek.registered }}/{{ participantTrek.slots }}</span>
+                </div>
+                <div class="slot-bar-wrap" style="height:8px;background:rgba(255,255,255,0.12)">
+                  <div class="slot-bar-fill" :style="{ width: slotPct(participantTrek) + '%', background: 'var(--gold)' }"></div>
+                </div>
+              </div>
+              <button class="ptab-add-btn" @click="openAddParticipantModal(participantTrekId)">
+                <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
+                Add Participant
+              </button>
+            </div>
+          </div>
+
+          <!-- Participant filter + search -->
+          <div style="display:flex; gap:0.5rem; margin-bottom:1.25rem; flex-wrap:wrap; align-items:center">
+            <button v-for="f in ['All','Booked','Completed','Cancelled']" :key="f"
+              class="filter-btn" :class="{ active: participantStatusFilter === f }"
+              @click="participantStatusFilter = f">{{ f }}</button>
+            <div class="search-bar-inline" style="margin-left:auto; min-width:200px">
+              <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input v-model="participantSearch" type="text" placeholder="Search name, email…" />
+            </div>
+            <span style="font-size:0.75rem; color:var(--stone); font-family:'Space Mono',monospace; white-space:nowrap">
+              {{ filteredParticipants.length }} trekker{{ filteredParticipants.length !== 1 ? 's' : '' }}
+            </span>
+          </div>
+
+          <!-- Participant Table -->
+          <div class="ts-table-wrap">
+            <table class="ts-table" v-if="filteredParticipants.length">
+              <thead>
+                <tr>
+                  <th>Trekker ID</th>
+                  <th>Name &amp; Email</th>
+                  <th>Contact</th>
+                  <th>Payment</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(p, i) in filteredParticipants" :key="p.id">
+                  <td>
+                    <span class="trekker-id-badge">#{{ p.id }}</span>
+                  </td>
+                  <td>
+                    <div class="user-cell">
+                      <div class="user-mini-avatar">{{ p.name[0] }}</div>
+                      <div>
+                        <div class="cell-name">{{ p.name }}</div>
+                        <div style="font-size:0.72rem;color:var(--stone)">{{ p.email }}</div>
+                      </div>
                     </div>
-                  </div>
-                </td>
-                <td class="mono">{{ p.phone }}</td>
-                <td class="mono">{{ p.bookedOn }}</td>
-                <td><span :class="'status-pill status-' + p.status.toLowerCase()">{{ p.status }}</span></td>
-                <td>
-                  <div class="action-btns">
-                    <button class="act-btn act-view" @click="openParticipantModal(p)">👁 View</button>
-                    <button class="act-btn act-view" @click="openEmergencyModal(p)" title="Emergency contacts">🚑 SOS</button>
-                    <button v-if="p.status === 'Booked'" class="act-btn act-complete" @click="markParticipantComplete(p)">✔ Done</button>
-                    <button v-if="p.status === 'Booked'" class="act-btn act-cancel" @click="cancelParticipant(p)">✕</button>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-          <div v-else class="empty-state" style="border:none">
-            <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M2 19c0-3 3-5 7-5s7 2 7 5"/></svg>
-            <p>No participants found for this trek.</p>
-          </div>
-        </div>
+                  </td>
+                  <td>
+                    <div style="display:flex;align-items:center;gap:5px">
+                      <span class="mono" style="font-size:0.78rem">{{ p.phone || '—' }}</span>
+                      <a v-if="p.phone" :href="'tel:' + p.phone" class="ptab-btn ptab-btn-call" title="Call">
+                        <svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.44 2 2 0 0 1 3.6 1.28h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                        Call
+                      </a>
+                    </div>
+                  </td>
+                  <td>
+                    <span :class="'pay-pill pay-' + (p.paymentStatus || 'paid')">{{ p.paymentStatus || 'Paid' }}</span>
+                  </td>
 
-        <div v-if="exportPending && exportTrekId === selectedTrekId" class="export-notice">
-          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          CSV export triggered — sent to your email shortly.
-        </div>
+                  <td>
+                    <div class="ptab-action-btns">
+                      <button class="ptab-btn ptab-btn-view" @click="openParticipantModal(p)">
+                        <svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                        View Details
+                      </button>
+                      <button class="ptab-btn ptab-btn-sos" @click="openEmergencyModal(p)">
+                        <svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.44 2 2 0 0 1 3.6 1.28h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                        SOS
+                      </button>
+                      <button v-if="p.status === 'Booked'" class="ptab-btn ptab-btn-remove" @click="cancelParticipant(p)">
+                        <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                        Remove
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <div v-else class="empty-state" style="border:none">
+              <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M2 19c0-3 3-5 7-5s7 2 7 5"/></svg>
+              <p>No participants found for this trek.</p>
+            </div>
+          </div>
+
+          <div v-if="exportPending && exportTrekId === participantTrekId" class="export-notice">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            CSV export triggered — sent to your email shortly.
+          </div>
+        </template>
       </div>
 
       <!-- ════════════════════════════════════════════
@@ -1619,31 +1843,59 @@ const TsStaffLayout = {
     <div v-if="showParticipantModal && participantTarget" class="ts-modal-overlay" @click.self="showParticipantModal = false">
       <div class="ts-modal">
         <div class="ts-modal-header">
-          <h3 class="ts-modal-title">Participant Details</h3>
+          <h3 class="ts-modal-title">Trekker Profile</h3>
           <button class="modal-close" @click="showParticipantModal = false">✕</button>
         </div>
         <div class="ts-modal-body">
-          <div style="display:flex; align-items:center; gap:14px; margin-bottom:1.25rem">
-            <div class="user-mini-avatar" style="width:50px; height:50px; font-size:1.2rem">{{ participantTarget.name[0] }}</div>
+          <!-- Avatar + Name -->
+          <div class="pmodal-hero">
+            <div class="pmodal-avatar">{{ participantTarget.name[0] }}</div>
             <div>
-              <div style="font-family:'Playfair Display',serif; font-size:1.1rem; font-weight:700; color:var(--forest)">{{ participantTarget.name }}</div>
-              <div style="font-size:0.78rem; color:var(--stone)">{{ participantTarget.email }}</div>
+              <div class="pmodal-name">{{ participantTarget.name }}</div>
+              <div class="pmodal-email">{{ participantTarget.email }}</div>
+              <div style="margin-top:4px;display:flex;gap:6px;align-items:center">
+                <span :class="'status-pill status-' + participantTarget.status.toLowerCase()">{{ participantTarget.status }}</span>
+                <span :class="'pay-pill pay-' + (participantTarget.paymentStatus || 'paid')">{{ participantTarget.paymentStatus || 'Paid' }}</span>
+              </div>
             </div>
           </div>
-          <div class="modal-info-row"><span class="modal-info-label">Phone</span><span class="modal-info-val">{{ participantTarget.phone }}</span></div>
-          <div class="modal-info-row"><span class="modal-info-label">Booked On</span><span class="modal-info-val">{{ participantTarget.bookedOn }}</span></div>
-          <div class="modal-info-row"><span class="modal-info-label">Status</span><span :class="'status-pill status-' + participantTarget.status.toLowerCase()">{{ participantTarget.status }}</span></div>
-          <div class="modal-info-row"><span class="modal-info-label">Blood Group</span><span class="modal-info-val" style="background:#fee2e2; color:#dc2626; padding:2px 8px; border-radius:3px">{{ participantTarget.bloodGroup }}</span></div>
-          <div class="modal-info-row"><span class="modal-info-label">Attendance</span><span class="modal-info-val">{{ participantTarget.attendance ? '✓ Present' : 'Not marked' }}</span></div>
-          <div style="margin-top:1rem; background:rgba(239,68,68,0.05); border:1px solid rgba(239,68,68,0.12); border-radius:6px; padding:0.85rem">
-            <div style="font-size:0.72rem; font-weight:600; color:#dc2626; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:0.5rem">🚑 Emergency Contact</div>
-            <div class="modal-info-row" style="border:none; padding:0.2rem 0"><span class="modal-info-label">Name</span><span class="modal-info-val">{{ participantTarget.emergencyContact }}</span></div>
-            <div class="modal-info-row" style="border:none; padding:0.2rem 0"><span class="modal-info-label">Phone</span><span class="modal-info-val">{{ participantTarget.emergencyPhone }}</span></div>
+          <!-- Info grid -->
+          <div class="pmodal-grid">
+            <div class="pmodal-field">
+              <div class="pmodal-field-label">Phone</div>
+              <div class="pmodal-field-val">{{ participantTarget.phone || '—' }}</div>
+            </div>
+            <div class="pmodal-field">
+              <div class="pmodal-field-label">Booked On</div>
+              <div class="pmodal-field-val">{{ participantTarget.bookedOn }}</div>
+            </div>
+            <div class="pmodal-field">
+              <div class="pmodal-field-label">Blood Group</div>
+              <div class="pmodal-field-val" style="color:#dc2626;font-weight:700">{{ participantTarget.bloodGroup || '—' }}</div>
+            </div>
+            <div class="pmodal-field">
+              <div class="pmodal-field-label">Attendance</div>
+              <div class="pmodal-field-val">{{ participantTarget.attendance ? '✓ Present' : 'Not marked' }}</div>
+            </div>
+            <div class="pmodal-field">
+              <div class="pmodal-field-label">Payment</div>
+              <div class="pmodal-field-val">
+                <span :class="'pay-pill pay-' + (participantTarget.paymentStatus || 'paid')">{{ participantTarget.paymentStatus || 'Paid' }}</span>
+              </div>
+            </div>
+          </div>
+          <!-- Emergency box -->
+          <div class="pmodal-emergency">
+            <div class="pmodal-emergency-title">🚑 Emergency Contact</div>
+            <div class="pmodal-grid" style="margin-top:0.5rem">
+              <div class="pmodal-field"><div class="pmodal-field-label">Name</div><div class="pmodal-field-val">{{ participantTarget.emergencyContact || '—' }}</div></div>
+              <div class="pmodal-field"><div class="pmodal-field-label">Phone</div><div class="pmodal-field-val">{{ participantTarget.emergencyPhone || '—' }}</div></div>
+            </div>
           </div>
         </div>
         <div class="ts-modal-footer">
           <button class="btn-ghost" @click="showParticipantModal = false">Close</button>
-          <button v-if="participantTarget.status==='Booked'" class="btn-danger" @click="cancelParticipant(participantTarget); showParticipantModal = false">Cancel Booking</button>
+          <button v-if="participantTarget.status==='Booked'" class="btn-danger" @click="cancelParticipant(participantTarget); showParticipantModal = false">Remove</button>
           <button v-if="participantTarget.status==='Booked'" class="btn-primary-ts" @click="markParticipantComplete(participantTarget); showParticipantModal = false">Mark Completed</button>
         </div>
       </div>
@@ -1703,6 +1955,174 @@ const TsStaffLayout = {
         <div class="ts-modal-footer">
           <button class="btn-ghost" @click="showChecklistModal = false">Cancel</button>
           <button class="btn-primary-ts" @click="saveChecklist">Save &amp; Sync</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Trek Detail Modal -->
+    <div v-if="showTrekDetailModal && detailTrek" class="ts-modal-overlay" @click.self="showTrekDetailModal = false">
+      <div class="ts-modal ts-modal-lg">
+        <div class="ts-modal-header">
+          <h3 class="ts-modal-title">Trek Details</h3>
+          <button class="modal-close" @click="showTrekDetailModal = false">✕</button>
+        </div>
+        <div class="ts-modal-body">
+          <!-- Trek name & status -->
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1.25rem;flex-wrap:wrap;gap:0.75rem">
+            <div>
+              <div style="font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:800;color:var(--forest);line-height:1.2">{{ detailTrek.name }}</div>
+              <div style="font-size:0.82rem;color:var(--stone);margin-top:4px;display:flex;align-items:center;gap:6px">
+                <svg viewBox="0 0 24 24" style="width:13px;height:13px;stroke:var(--gold);fill:none;stroke-width:2"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                {{ detailTrek.location }}
+              </div>
+            </div>
+            <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center">
+              <span :class="'diff-pill pill-' + detailTrek.difficulty.toLowerCase()">{{ detailTrek.difficulty }}</span>
+              <span :class="'status-pill status-' + detailTrek.status.toLowerCase()">{{ detailTrek.status }}</span>
+            </div>
+          </div>
+
+          <!-- Key details grid -->
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:0.85rem;margin-bottom:1.25rem">
+
+            <!-- Trek ID / Batch -->
+            <div class="trek-detail-stat">
+              <div class="trek-detail-stat-icon">
+                <svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
+              </div>
+              <div class="trek-detail-stat-label">Trek ID</div>
+              <div class="trek-detail-stat-val">#{{ detailTrek.id }}</div>
+            </div>
+
+            <!-- Start Date -->
+            <div class="trek-detail-stat">
+              <div class="trek-detail-stat-icon">
+                <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="14" x2="8" y2="14"/></svg>
+              </div>
+              <div class="trek-detail-stat-label">Start Date</div>
+              <div class="trek-detail-stat-val">{{ formatDate(detailTrek.startDate) }}</div>
+            </div>
+
+            <!-- End Date -->
+            <div class="trek-detail-stat">
+              <div class="trek-detail-stat-icon">
+                <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><polyline points="9 16 11 18 15 14"/></svg>
+              </div>
+              <div class="trek-detail-stat-label">End Date</div>
+              <div class="trek-detail-stat-val">{{ formatDate(detailTrek.endDate) }}</div>
+            </div>
+
+            <!-- Duration -->
+            <div class="trek-detail-stat">
+              <div class="trek-detail-stat-icon">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              </div>
+              <div class="trek-detail-stat-label">Duration</div>
+              <div class="trek-detail-stat-val">{{ detailTrek.duration }} Days</div>
+            </div>
+
+            <!-- Registered -->
+            <div class="trek-detail-stat">
+              <div class="trek-detail-stat-icon">
+                <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M2 19c0-3 3-5 7-5"/><circle cx="16" cy="10" r="3"/><path d="M13 19c0-3 2.7-5 6-5"/></svg>
+              </div>
+              <div class="trek-detail-stat-label">Registered</div>
+              <div class="trek-detail-stat-val">{{ detailTrek.registered }} / {{ detailTrek.slots }}</div>
+            </div>
+
+            <!-- Slots Left -->
+            <div class="trek-detail-stat">
+              <div class="trek-detail-stat-icon">
+                <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+              </div>
+              <div class="trek-detail-stat-label">Slots Left</div>
+              <div class="trek-detail-stat-val">{{ slotsLeft(detailTrek) }}</div>
+            </div>
+
+            <!-- Occupancy -->
+            <div class="trek-detail-stat">
+              <div class="trek-detail-stat-icon">
+                <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+              </div>
+              <div class="trek-detail-stat-label">Occupancy</div>
+              <div class="trek-detail-stat-val">{{ slotPct(detailTrek) }}%</div>
+            </div>
+
+          </div>
+
+          <!-- Slot fill bar -->
+          <div style="margin-bottom:1.25rem">
+            <div style="display:flex;justify-content:space-between;font-size:0.75rem;color:var(--stone);margin-bottom:5px">
+              <span>Slot Occupancy</span>
+              <span>{{ detailTrek.registered }}/{{ detailTrek.slots }} filled</span>
+            </div>
+            <div class="slot-bar-wrap" style="height:10px">
+              <div class="slot-bar-fill" :style="{ width: slotPct(detailTrek) + '%', background: slotColor(detailTrek) }"></div>
+            </div>
+          </div>
+
+
+
+          <!-- Description -->
+          <div v-if="detailTrek.description" style="background:var(--cream);border-radius:6px;padding:0.85rem 1rem;font-size:0.83rem;color:var(--bark);line-height:1.6">
+            <div style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--stone);margin-bottom:0.4rem">About this trek</div>
+            {{ detailTrek.description }}
+          </div>
+        </div>
+        <div class="ts-modal-footer">
+          <button class="btn-ghost" @click="showTrekDetailModal = false">Close</button>
+          <button class="btn-primary-ts" @click="selectTrekForParticipants(detailTrek); showTrekDetailModal = false">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px"><circle cx="9" cy="8" r="3"/><path d="M2 19c0-3 3-5 7-5"/><circle cx="16" cy="10" r="3"/><path d="M13 19c0-3 2.7-5 6-5"/></svg>
+            Manage Participants
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Add Participant Modal -->
+    <div v-if="showAddParticipantModal" class="ts-modal-overlay" @click.self="showAddParticipantModal = false">
+      <div class="ts-modal ts-modal-sm">
+        <div class="ts-modal-header">
+          <h3 class="ts-modal-title">Add Participant</h3>
+          <button class="modal-close" @click="showAddParticipantModal = false">✕</button>
+        </div>
+        <div class="ts-modal-body">
+          <div style="background:linear-gradient(120deg,var(--forest),var(--forest-mid));border-radius:8px;padding:0.85rem 1rem;margin-bottom:1.25rem;">
+            <div style="font-family:'Space Mono',monospace;font-size:0.6rem;font-weight:700;color:var(--gold);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:4px">
+              {{ assignedTreks.find(t => t.id === newParticipantTrekId)?.batchCode || '—' }}
+            </div>
+            <div style="font-family:'Playfair Display',serif;font-size:0.95rem;font-weight:700;color:#fff">
+              {{ assignedTreks.find(t => t.id === newParticipantTrekId)?.name || '—' }}
+            </div>
+          </div>
+          <div class="add-p-form">
+            <div class="form-group">
+              <label>Full Name <span style="color:#ef4444">*</span></label>
+              <input v-model="newParticipantName" type="text" placeholder="e.g. Rahul Sharma" />
+            </div>
+            <div class="form-group">
+              <label>Email Address <span style="color:#ef4444">*</span></label>
+              <input v-model="newParticipantEmail" type="email" placeholder="e.g. rahul@example.com" />
+            </div>
+            <div class="form-group">
+              <label>Contact Number</label>
+              <input v-model="newParticipantPhone" type="tel" placeholder="e.g. +91 98765 43210" />
+            </div>
+            <div class="form-group">
+              <label>Payment Status</label>
+              <div class="pay-toggle-row">
+                <button :class="['pay-toggle-btn', newParticipantPayment === 'paid' ? 'active-paid' : '']" @click="newParticipantPayment = 'paid'">✓ Paid</button>
+                <button :class="['pay-toggle-btn', newParticipantPayment === 'pending' ? 'active-pending' : '']" @click="newParticipantPayment = 'pending'">⏳ Pending</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="ts-modal-footer">
+          <button class="btn-ghost" @click="showAddParticipantModal = false">Cancel</button>
+          <button class="btn-primary-ts" @click="addParticipant">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;margin-right:4px;vertical-align:middle"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
+            Add to Trek
+          </button>
         </div>
       </div>
     </div>

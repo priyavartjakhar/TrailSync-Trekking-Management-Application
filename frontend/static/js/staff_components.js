@@ -268,13 +268,86 @@ const TsStaffLayout = {
   methods: {
     // ── NAV ────────────────────────────────────────
     goTab(tab, options = {}) {
-      if (tab !== 'treks' || (!options.keepParticipantsInline && !options.keepAttendanceInline)) {
+      const validTabs = ['dashboard', 'treks', 'participants', 'analytics', 'notifications', 'exports', 'performance', 'profile'];
+      if (!validTabs.includes(tab)) return;
+
+      let targetHash = tab;
+      if (tab === 'treks') {
+        if (options.keepParticipantsInline && this.participantTrekId) {
+          targetHash = `treks/participants/${this.participantTrekId}`;
+        } else if (options.keepAttendanceInline && this.selectedTrekId) {
+          targetHash = `treks/attendance/${this.selectedTrekId}`;
+        }
+      } else if (tab === 'participants' && this.participantTrekId) {
+        targetHash = `participants/trek/${this.participantTrekId}`;
+      }
+
+      if (window.location.hash.slice(1) === targetHash) {
+        this.handleHashChange();
+      } else {
+        window.location.hash = targetHash;
+      }
+    },
+
+    handleHashChange() {
+      const hash = window.location.hash.slice(1);
+      if (!hash) {
+        window.location.hash = 'dashboard';
+        return;
+      }
+
+      // Check sub-routes for treks
+      if (hash.startsWith('treks/participants/')) {
+        const trekId = parseInt(hash.replace('treks/participants/', ''), 10);
+        this.activeTab = 'treks';
+        this.participantsInTreksTab = true;
+        this.attendanceInTreksTab = false;
+        this.participantTrekId = isNaN(trekId) ? null : trekId;
+        this.selectedTrekId = null;
+      } else if (hash.startsWith('treks/attendance/')) {
+        const trekId = parseInt(hash.replace('treks/attendance/', ''), 10);
+        this.activeTab = 'treks';
+        this.participantsInTreksTab = false;
+        this.attendanceInTreksTab = true;
+        this.selectedTrekId = isNaN(trekId) ? null : trekId;
+        this.participantTrekId = null;
+      } else if (hash.startsWith('participants/trek/')) {
+        const trekId = parseInt(hash.replace('participants/trek/', ''), 10);
+        this.activeTab = 'participants';
         this.participantsInTreksTab = false;
         this.attendanceInTreksTab = false;
+        this.participantTrekId = isNaN(trekId) ? null : trekId;
+        this.selectedTrekId = null;
+      } else {
+        const validTabs = ['dashboard', 'treks', 'participants', 'analytics', 'notifications', 'exports', 'performance', 'profile'];
+        if (validTabs.includes(hash)) {
+          this.activeTab = hash;
+          this.participantsInTreksTab = false;
+          this.attendanceInTreksTab = false;
+          this.participantTrekId = null;
+          this.selectedTrekId = null;
+        } else {
+          window.location.hash = 'dashboard';
+          return;
+        }
       }
-      this.activeTab = tab;
+
       this.sidebarOpen = false;
-      localStorage.setItem('staffActiveTab', tab);
+      if (this.activeTab) {
+        localStorage.setItem('staffActiveTab', this.activeTab);
+      }
+      this.resetPageScroll();
+    },
+
+    resetPageScroll() {
+      this.$nextTick(() => {
+        window.scrollTo(0, 0);
+        const el = this.$el ? this.$el.querySelector('.ts-main') : document.querySelector('.ts-main');
+        if (el) {
+          el.scrollTop = 0;
+          requestAnimationFrame(() => { el.scrollTop = 0; });
+        }
+      });
     },
 
     // ── DATA FETCH ────────────────────────────────
@@ -431,10 +504,13 @@ const TsStaffLayout = {
     },
 
     backFromParticipantTrek() {
-      this.participantTrekId = null;
-      this.trekSearchQuery = '';
       this.participantSearch = '';
-      this.participantsInTreksTab = false;
+      this.trekSearchQuery = '';
+      if (this.participantsInTreksTab) {
+        window.location.hash = 'treks';
+      } else {
+        window.location.hash = 'participants';
+      }
     },
 
     selectTrekForAttendance(t) {
@@ -446,8 +522,7 @@ const TsStaffLayout = {
     },
 
     backFromAttendanceTrek() {
-      this.selectedTrekId = null;
-      this.attendanceInTreksTab = false;
+      window.location.hash = 'treks';
     },
 
     // ── CHECKLIST MODAL ───────────────────────────
@@ -790,14 +865,29 @@ const TsStaffLayout = {
   },
 
   mounted() {
-    const savedTab = localStorage.getItem('staffActiveTab');
-    if (savedTab) this.activeTab = savedTab === 'attendance' ? 'treks' : savedTab;
     this.fetchStaffData();
     this.startCountdown();
+
+    this.hashListener = this.handleHashChange.bind(this);
+    window.addEventListener('hashchange', this.hashListener);
+
+    const hash = window.location.hash.slice(1);
+    if (hash) {
+      this.handleHashChange();
+    } else {
+      const savedTab = localStorage.getItem('staffActiveTab');
+      const validTabs = ['dashboard', 'treks', 'participants', 'analytics', 'notifications', 'exports', 'performance', 'profile'];
+      if (savedTab && validTabs.includes(savedTab)) {
+        window.location.hash = savedTab === 'attendance' ? 'treks' : savedTab;
+      } else {
+        window.location.hash = 'dashboard';
+      }
+    }
   },
 
   beforeUnmount() {
     if (this.countdownTimer) clearInterval(this.countdownTimer);
+    window.removeEventListener('hashchange', this.hashListener);
   },
 
   template: `
@@ -1380,7 +1470,7 @@ const TsStaffLayout = {
             <div
               v-for="t in filteredTrekOptions" :key="t.id"
               class="ptab-trek-card"
-              @click="participantTrekId = t.id; trekSearchQuery = ''"
+              @click="selectTrekForParticipants(t, { inline: false })"
             >
               <div class="ptab-tc-batch">{{ t.batchCode }}</div>
               <div class="ptab-tc-name">{{ t.name }}</div>

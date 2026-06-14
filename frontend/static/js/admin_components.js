@@ -195,6 +195,40 @@ const TsAdminLayout = {
       ],
       reportPreviewData: null,
       showReportPreviewModal: false,
+      iframeSrcDoc: '',
+      showReportTypeDropdown: false,
+      showReportMonthDropdown: false,
+      showReportTrekDropdown: false,
+      showReportTrekSubtypeDropdown: false,
+      showReportBatchDropdown: false,
+      showReportUserSubtypeDropdown: false,
+      showReportStaffSubtypeDropdown: false,
+      
+      reportTypeOptions: [
+        { value: 'monthly_activity', label: 'Monthly Activity Report' },
+        { value: 'trek_route', label: 'Trek Route Report' },
+        { value: 'all_treks_combined', label: 'All Treks Combined Performance' },
+        { value: 'batch_wise', label: 'Batch Wise Performance' },
+        { value: 'batch_users', label: 'Batch Participant List (User List)' },
+        { value: 'user_participation', label: 'User Participation Report' },
+        { value: 'staff_performance', label: 'Staff Performance Report' },
+      ],
+      trekSubtypeOptions: [
+        { value: 'summary', label: 'Batches Overview & Summary' },
+        { value: 'participants', label: 'Participants Detailed Booking List' },
+        { value: 'staff', label: 'Staff Assignment & Guide Contacts' },
+        { value: 'all', label: 'Compiled All Report (Month-wise Performance)' },
+      ],
+      userSubtypeOptions: [
+        { value: 'active', label: 'Most Active Users & Spent Totals' },
+        { value: 'difficulty', label: 'Participation by Difficulty Level' },
+        { value: 'trends', label: 'Monthly Booking Trends' },
+        { value: 'history', label: 'Comprehensive Booking History' },
+      ],
+      staffSubtypeOptions: [
+        { value: 'performance', label: 'Staff Leaderboard & Ratings' },
+        { value: 'assignments', label: 'Detailed Batch Guide Assignments' },
+      ],
     };
   },
 
@@ -1011,6 +1045,14 @@ const TsAdminLayout = {
       this.showStateFilterDropdown = false;
       this.showDistFilterDropdown = false;
       this.showFormDiffDropdown = false;
+      
+      this.showReportTypeDropdown = false;
+      this.showReportMonthDropdown = false;
+      this.showReportTrekDropdown = false;
+      this.showReportTrekSubtypeDropdown = false;
+      this.showReportBatchDropdown = false;
+      this.showReportUserSubtypeDropdown = false;
+      this.showReportStaffSubtypeDropdown = false;
     },
     calculateEndDate() {
       const duration = this.selectedRouteDuration;
@@ -2485,6 +2527,324 @@ const TsAdminLayout = {
       this.showToast('Report generated successfully!');
     },
 
+    toggleReportDropdown(dropdownName) {
+      const current = this[dropdownName];
+      this.closeAllReportDropdowns();
+      this[dropdownName] = !current;
+    },
+    closeAllReportDropdowns() {
+      this.showReportTypeDropdown = false;
+      this.showReportMonthDropdown = false;
+      this.showReportTrekDropdown = false;
+      this.showReportTrekSubtypeDropdown = false;
+      this.showReportBatchDropdown = false;
+      this.showReportUserSubtypeDropdown = false;
+      this.showReportStaffSubtypeDropdown = false;
+    },
+    getReportTypeName(type) {
+      const match = this.reportTypeOptions.find(o => o.value === type);
+      return match ? match.label : 'Select Report Type';
+    },
+    getTrekSubtypeName(type) {
+      const match = this.trekSubtypeOptions.find(o => o.value === type);
+      return match ? match.label : 'Select Aspect';
+    },
+    getUserSubtypeName(type) {
+      const match = this.userSubtypeOptions.find(o => o.value === type);
+      return match ? match.label : 'Select Aspect';
+    },
+    getStaffSubtypeName(type) {
+      const match = this.staffSubtypeOptions.find(o => o.value === type);
+      return match ? match.label : 'Select Aspect';
+    },
+
+    generateHTMLReportString(title, headers, dataRows, parameters) {
+      let sumPaid = 0;
+      let sumBooked = 0;
+      let avgOcc = 0;
+      let occCount = 0;
+      
+      dataRows.forEach(row => {
+        row.forEach((val, idx) => {
+          if (!headers[idx]) return;
+          const hName = headers[idx].toLowerCase();
+          if (hName.includes('revenue') || hName.includes('spent') || hName.includes('amount')) {
+            const num = Number(String(val).replace(/[^0-9.-]+/g, ""));
+            if (!isNaN(num)) sumPaid += num;
+          }
+          if (hName.includes('booked') || hName.includes('participants')) {
+            const num = Number(String(val).replace(/[^0-9.-]+/g, ""));
+            if (!isNaN(num)) sumBooked += num;
+          }
+          if (hName.includes('occupancy')) {
+            const num = Number(String(val).replace(/[^0-9.-]+/g, ""));
+            if (!isNaN(num)) { avgOcc += num; occCount++; }
+          }
+        });
+      });
+      
+      const averageOccupancy = occCount > 0 ? Math.round(avgOcc / occCount) : null;
+      
+      let statCardsHTML = "";
+      if (sumPaid > 0) {
+        statCardsHTML += `
+          <div class="stat-card">
+            <div class="stat-title">Total Revenue / Spent</div>
+            <div class="stat-value">₹${sumPaid.toLocaleString()}</div>
+          </div>
+        `;
+      }
+      if (sumBooked > 0) {
+        statCardsHTML += `
+          <div class="stat-card">
+            <div class="stat-title">Total Participants / Bookings</div>
+            <div class="stat-value">${sumBooked}</div>
+          </div>
+        `;
+      }
+      if (averageOccupancy !== null) {
+        statCardsHTML += `
+          <div class="stat-card">
+            <div class="stat-title">Average Occupancy</div>
+            <div class="stat-value">${averageOccupancy}%</div>
+          </div>
+        `;
+      }
+      
+      const headerHTML = headers.map(h => `<th>${h}</th>`).join('');
+      const rowsHTML = dataRows.map(row => {
+        const cells = row.map(cell => `<td>${cell}</td>`).join('');
+        return `<tr>${cells}</tr>`;
+      }).join('');
+      
+      return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>${title}</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@700&family=Space+Mono&display=swap');
+    
+    :root {
+      --forest: #1A2E1A;
+      --forest-light: #2C5E3B;
+      --gold: #C8922A;
+      --gold-dark: #A47318;
+      --snow: #F4F6F4;
+      --cream: #F9F6EE;
+      --bark: #2E251A;
+      --stone: #8C8070;
+    }
+    
+    body {
+      font-family: 'DM Sans', sans-serif;
+      margin: 0;
+      padding: 30px;
+      color: var(--bark);
+      background-color: #ffffff;
+      line-height: 1.5;
+    }
+    
+    .report-container {
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+    
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      border-bottom: 2px solid var(--forest);
+      padding-bottom: 20px;
+      margin-bottom: 25px;
+    }
+    
+    .brand {
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .brand-logo {
+      font-family: 'Playfair Display', serif;
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--forest);
+      letter-spacing: 0.02em;
+    }
+    
+    .brand-sub {
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      color: var(--stone);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-top: 3px;
+    }
+    
+    .meta-info {
+      text-align: right;
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      color: var(--stone);
+    }
+    
+    .title-section {
+      margin-bottom: 25px;
+    }
+    
+    .title {
+      font-family: 'Playfair Display', serif;
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--forest);
+      margin: 0 0 10px 0;
+    }
+    
+    .parameters {
+      background-color: var(--snow);
+      border-left: 4px solid var(--gold);
+      padding: 12px 16px;
+      border-radius: 0 4px 4px 0;
+      font-size: 13px;
+      color: var(--forest);
+    }
+    
+    .stats-row {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 30px;
+    }
+    
+    .stat-card {
+      flex: 1;
+      background-color: var(--cream);
+      border: 1px solid rgba(200, 146, 42, 0.15);
+      border-radius: 6px;
+      padding: 15px 20px;
+    }
+    
+    .stat-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--stone);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 5px;
+    }
+    
+    .stat-value {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--forest);
+    }
+    
+    .table-container {
+      overflow-x: auto;
+      border: 1px solid rgba(26, 46, 26, 0.08);
+      border-radius: 6px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.01);
+      margin-bottom: 30px;
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 13px;
+    }
+    
+    th {
+      background-color: var(--forest);
+      color: var(--cream);
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 11px;
+      letter-spacing: 0.02em;
+      padding: 12px 16px;
+    }
+    
+    td {
+      padding: 12px 16px;
+      border-bottom: 1px solid rgba(26, 46, 26, 0.05);
+      color: var(--bark);
+    }
+    
+    tr:nth-child(even) {
+      background-color: var(--snow);
+    }
+    
+    tr:hover {
+      background-color: rgba(200, 146, 42, 0.03);
+    }
+    
+    .footer {
+      border-top: 1px solid rgba(26, 46, 26, 0.08);
+      padding-top: 20px;
+      margin-top: 40px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--stone);
+      font-family: 'Space Mono', monospace;
+    }
+    
+    @media print {
+      body {
+        padding: 0;
+      }
+      .stat-card {
+        border: 1px solid #ddd;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="report-container">
+    <div class="header">
+      <div class="brand">
+        <div class="brand-logo">TrailSync</div>
+        <div class="brand-sub">Platform Executive Report</div>
+      </div>
+      <div class="meta-info">
+        <div>Generated: ${new Date().toLocaleString()}</div>
+        <div>System: ONLINE</div>
+      </div>
+    </div>
+    
+    <div class="title-section">
+      <h1 class="title">${title}</h1>
+      <div class="parameters">
+        <strong>Report Parameters:</strong> ${parameters}
+      </div>
+    </div>
+    
+    ${statCardsHTML ? `<div class="stats-row">${statCardsHTML}</div>` : ''}
+    
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            ${headerHTML}
+          </tr>
+        </thead>
+        <tbody>
+          ${rowsHTML}
+        </tbody>
+      </table>
+    </div>
+    
+    <div class="footer">
+      <div>© 2026 TrailSync Systems</div>
+      <div>Confidential - Admin Portal Access</div>
+    </div>
+  </div>
+</body>
+</html>
+      `;
+    },
+
     previewCurrentReport() {
       const compiled = this.compileReport();
       if (compiled.rows.length === 0) {
@@ -2492,12 +2852,19 @@ const TsAdminLayout = {
         return;
       }
       this.reportPreviewData = compiled;
+      this.iframeSrcDoc = this.generateHTMLReportString(compiled.title, compiled.headers, compiled.rows, compiled.parameters);
       this.showReportPreviewModal = true;
     },
 
     viewReport(report) {
+      let headers = [];
+      let rows = [];
+      let title = report.title;
+      let parameters = report.parameters;
+      
       if (report.headers && report.rows) {
-        this.reportPreviewData = report;
+        headers = report.headers;
+        rows = report.rows;
       } else {
         const prevType = this.selectedReportType;
         const prevMonth = this.selectedReportMonth;
@@ -2509,22 +2876,69 @@ const TsAdminLayout = {
         if (report.type === 'trek_route') this.selectedReportTrek = 'Everest Base Camp';
         
         const compiled = this.compileReport();
-        this.reportPreviewData = {
-          title: report.title,
-          headers: compiled.headers,
-          rows: compiled.rows,
-          parameters: report.parameters
-        };
+        headers = compiled.headers;
+        rows = compiled.rows;
+        parameters = compiled.parameters;
         
         this.selectedReportType = prevType;
         this.selectedReportMonth = prevMonth;
         this.selectedReportTrek = prevTrek;
         this.selectedReportBatch = prevBatch;
       }
+      
+      this.reportPreviewData = { title, headers, rows, parameters };
+      this.iframeSrcDoc = this.generateHTMLReportString(title, headers, rows, parameters);
       this.showReportPreviewModal = true;
     },
 
     downloadReport(report) {
+      this.downloadReportHTML(report);
+    },
+
+    downloadReportHTML(report) {
+      let headers = [];
+      let rows = [];
+      let title = report.title;
+      let parameters = report.parameters;
+      
+      if (report.headers && report.rows) {
+        headers = report.headers;
+        rows = report.rows;
+      } else {
+        const prevType = this.selectedReportType;
+        const prevMonth = this.selectedReportMonth;
+        const prevTrek = this.selectedReportTrek;
+        const prevBatch = this.selectedReportBatch;
+        
+        this.selectedReportType = report.type;
+        if (report.type === 'monthly_activity') this.selectedReportMonth = 'May';
+        if (report.type === 'trek_route') this.selectedReportTrek = 'Everest Base Camp';
+        
+        const compiled = this.compileReport();
+        headers = compiled.headers;
+        rows = compiled.rows;
+        parameters = compiled.parameters;
+        
+        this.selectedReportType = prevType;
+        this.selectedReportMonth = prevMonth;
+        this.selectedReportTrek = prevTrek;
+        this.selectedReportBatch = prevBatch;
+      }
+      
+      const htmlContent = this.generateHTMLReportString(title, headers, rows, parameters);
+      const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `${title.replace(/\s+/g, '_')}.html`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      this.showToast('HTML report download started');
+    },
+
+    downloadReportCSV(report) {
       let headers = [];
       let rows = [];
       let title = report.title;
@@ -4530,7 +4944,7 @@ const TsAdminLayout = {
                     <th>Report Name</th>
                     <th>Parameters</th>
                     <th>Generated At</th>
-                    <th style="text-align: right; width: 150px;">Actions</th>
+                    <th style="text-align: right; width: 170px;">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -4547,8 +4961,11 @@ const TsAdminLayout = {
                       <button class="act-btn act-assign" @click="viewReport(r)" style="margin-right: 0.25rem; background: var(--cream); border-color: rgba(26,46,26,0.1); color: var(--forest);">
                         View
                       </button>
-                      <button class="act-btn act-assign" @click="downloadReport(r)">
-                        Download
+                      <button class="act-btn act-assign" @click="downloadReportHTML(r)" style="margin-right: 0.25rem; background: rgba(200, 146, 42, 0.08); border-color: rgba(200,146,42,0.2); color: var(--gold-dark);">
+                        HTML
+                      </button>
+                      <button class="act-btn act-assign" @click="downloadReportCSV(r)">
+                        CSV
                       </button>
                     </td>
                   </tr>
@@ -4558,7 +4975,7 @@ const TsAdminLayout = {
           </div>
           
           <!-- Right Column: Interactive Report Generator Tool -->
-          <div class="dash-card">
+          <div class="dash-card" style="position: relative;">
             <div class="dash-card-header" style="margin-bottom: 1.25rem;">
               <div>
                 <span class="dash-card-title">Report Generator Tool</span>
@@ -4575,16 +4992,18 @@ const TsAdminLayout = {
                 <label style="display: block; font-size: 0.82rem; font-weight: 700; color: var(--forest); margin-bottom: 0.4rem; text-transform: uppercase;">
                   Report Type
                 </label>
-                <div style="position: relative;">
-                  <select v-model="selectedReportType" class="ts-input" style="width: 100%; appearance: none; -webkit-appearance: none; background: #fff url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%232C5E3B%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22><polyline points=%226 9 12 15 18 9%22></polyline></svg>') no-repeat right 12px center; background-size: 16px;">
-                    <option value="monthly_activity">Monthly Activity Report</option>
-                    <option value="trek_route">Trek Route Report</option>
-                    <option value="all_treks_combined">All Treks Combined Performance</option>
-                    <option value="batch_wise">Batch Wise Performance</option>
-                    <option value="batch_users">Batch Participant List (Downloadable User List)</option>
-                    <option value="user_participation">User Participation Report</option>
-                    <option value="staff_performance">Staff Performance Report</option>
-                  </select>
+                <div class="custom-select-wrapper" :class="{ 'is-open': showReportTypeDropdown }">
+                  <div class="custom-select-trigger" @click.stop="toggleReportDropdown('showReportTypeDropdown')" style="padding: 10px 14px; font-size: 0.88rem; border-radius: 4px; background: white; border: 1px solid var(--stone); display: flex; justify-content: space-between; align-items: center;">
+                    <span>{{ getReportTypeName(selectedReportType) }}</span>
+                    <svg viewBox="0 0 24 24" class="custom-select-arrow" :class="{ open: showReportTypeDropdown }" style="width: 14px; height: 14px;"><polyline points="6 9 12 15 18 9"/></svg>
+                  </div>
+                  <div v-if="showReportTypeDropdown" class="custom-select-dropdown" style="top: 100%; margin-top: 4px; z-index: 1050; width: 100%;">
+                    <div class="custom-select-options" style="max-height: 250px; overflow-y: auto;">
+                      <div v-for="opt in reportTypeOptions" :key="opt.value" class="custom-select-option" :class="{ selected: selectedReportType === opt.value }" @click="selectedReportType = opt.value; showReportTypeDropdown = false; selectedReportBatch = '';">
+                        <span class="option-name">{{ opt.label }}</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
               
@@ -4593,10 +5012,18 @@ const TsAdminLayout = {
                 <label style="display: block; font-size: 0.82rem; font-weight: 700; color: var(--forest); margin-bottom: 0.4rem; text-transform: uppercase;">
                   Select Month
                 </label>
-                <div>
-                  <select v-model="selectedReportMonth" class="ts-input" style="width: 100%;">
-                    <option v-for="m in ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']" :key="m" :value="m">{{ m }}</option>
-                  </select>
+                <div class="custom-select-wrapper" :class="{ 'is-open': showReportMonthDropdown }">
+                  <div class="custom-select-trigger" @click.stop="toggleReportDropdown('showReportMonthDropdown')" style="padding: 10px 14px; font-size: 0.88rem; border-radius: 4px; background: white; border: 1px solid var(--stone); display: flex; justify-content: space-between; align-items: center;">
+                    <span>{{ selectedReportMonth }}</span>
+                    <svg viewBox="0 0 24 24" class="custom-select-arrow" :class="{ open: showReportMonthDropdown }" style="width: 14px; height: 14px;"><polyline points="6 9 12 15 18 9"/></svg>
+                  </div>
+                  <div v-if="showReportMonthDropdown" class="custom-select-dropdown" style="top: 100%; margin-top: 4px; z-index: 1050; width: 100%;">
+                    <div class="custom-select-options" style="max-height: 200px; overflow-y: auto;">
+                      <div v-for="m in ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']" :key="m" class="custom-select-option" :class="{ selected: selectedReportMonth === m }" @click="selectedReportMonth = m; showReportMonthDropdown = false;">
+                        <span class="option-name">{{ m }}</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
               
@@ -4606,21 +5033,40 @@ const TsAdminLayout = {
                   <label style="display: block; font-size: 0.82rem; font-weight: 700; color: var(--forest); margin-bottom: 0.4rem; text-transform: uppercase;">
                     Select Trek Route
                   </label>
-                  <select v-model="selectedReportTrek" class="ts-input" style="width: 100%;">
-                    <option value="">All Trek Routes</option>
-                    <option v-for="route in trekRoutes" :key="route.id" :value="route.name">{{ route.name }}</option>
-                  </select>
+                  <div class="custom-select-wrapper" :class="{ 'is-open': showReportTrekDropdown }">
+                    <div class="custom-select-trigger" @click.stop="toggleReportDropdown('showReportTrekDropdown')" style="padding: 10px 14px; font-size: 0.88rem; border-radius: 4px; background: white; border: 1px solid var(--stone); display: flex; justify-content: space-between; align-items: center;">
+                      <span>{{ selectedReportTrek || 'All Trek Routes' }}</span>
+                      <svg viewBox="0 0 24 24" class="custom-select-arrow" :class="{ open: showReportTrekDropdown }" style="width: 14px; height: 14px;"><polyline points="6 9 12 15 18 9"/></svg>
+                    </div>
+                    <div v-if="showReportTrekDropdown" class="custom-select-dropdown" style="top: 100%; margin-top: 4px; z-index: 1050; width: 100%;">
+                      <div class="custom-select-options" style="max-height: 200px; overflow-y: auto;">
+                        <div class="custom-select-option" :class="{ selected: selectedReportTrek === '' }" @click="selectedReportTrek = ''; showReportTrekDropdown = false;">
+                          <span class="option-name">All Trek Routes</span>
+                        </div>
+                        <div v-for="route in trekRoutes" :key="route.id" class="custom-select-option" :class="{ selected: selectedReportTrek === route.name }" @click="selectedReportTrek = route.name; showReportTrekDropdown = false;">
+                          <span class="option-name">{{ route.name }}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
                 <div>
                   <label style="display: block; font-size: 0.82rem; font-weight: 700; color: var(--forest); margin-bottom: 0.4rem; text-transform: uppercase;">
                     Report Detail Aspect
                   </label>
-                  <select v-model="selectedReportTrekSubtype" class="ts-input" style="width: 100%;">
-                    <option value="summary">Batches Overview & Summary</option>
-                    <option value="participants">Participants Detailed Booking List</option>
-                    <option value="staff">Staff Assignment & Guide Contacts</option>
-                    <option value="all">Compiled All Report (Month-wise Performance)</option>
-                  </select>
+                  <div class="custom-select-wrapper" :class="{ 'is-open': showReportTrekSubtypeDropdown }">
+                    <div class="custom-select-trigger" @click.stop="toggleReportDropdown('showReportTrekSubtypeDropdown')" style="padding: 10px 14px; font-size: 0.88rem; border-radius: 4px; background: white; border: 1px solid var(--stone); display: flex; justify-content: space-between; align-items: center;">
+                      <span>{{ getTrekSubtypeName(selectedReportTrekSubtype) }}</span>
+                      <svg viewBox="0 0 24 24" class="custom-select-arrow" :class="{ open: showReportTrekSubtypeDropdown }" style="width: 14px; height: 14px;"><polyline points="6 9 12 15 18 9"/></svg>
+                    </div>
+                    <div v-if="showReportTrekSubtypeDropdown" class="custom-select-dropdown" style="top: 100%; margin-top: 4px; z-index: 1050; width: 100%;">
+                      <div class="custom-select-options" style="max-height: 200px; overflow-y: auto;">
+                        <div v-for="opt in trekSubtypeOptions" :key="opt.value" class="custom-select-option" :class="{ selected: selectedReportTrekSubtype === opt.value }" @click="selectedReportTrekSubtype = opt.value; showReportTrekSubtypeDropdown = false;">
+                          <span class="option-name">{{ opt.label }}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
               
@@ -4629,13 +5075,23 @@ const TsAdminLayout = {
                 <label style="display: block; font-size: 0.82rem; font-weight: 700; color: var(--forest); margin-bottom: 0.4rem; text-transform: uppercase;">
                   Select Trek Batch
                 </label>
-                <select v-model="selectedReportBatch" class="ts-input" style="width: 100%;">
-                  <option v-if="selectedReportType === 'batch_wise'" value="">All Batches</option>
-                  <option v-else value="">-- Choose Batch --</option>
-                  <option v-for="t in treks" :key="t.id" :value="t.batchCode || 'TID' + String(t.id).padStart(3, '0') + 'B01'">
-                    {{ t.name }} - {{ t.batchCode || 'TID' + String(t.id).padStart(3, '0') + 'B01' }}
-                  </option>
-                </select>
+                <div class="custom-select-wrapper" :class="{ 'is-open': showReportBatchDropdown }">
+                  <div class="custom-select-trigger" @click.stop="toggleReportDropdown('showReportBatchDropdown')" style="padding: 10px 14px; font-size: 0.88rem; border-radius: 4px; background: white; border: 1px solid var(--stone); display: flex; justify-content: space-between; align-items: center;">
+                    <span v-if="selectedReportBatch">{{ selectedReportBatch }}</span>
+                    <span v-else>{{ selectedReportType === 'batch_wise' ? 'All Batches' : '-- Choose Batch --' }}</span>
+                    <svg viewBox="0 0 24 24" class="custom-select-arrow" :class="{ open: showReportBatchDropdown }" style="width: 14px; height: 14px;"><polyline points="6 9 12 15 18 9"/></svg>
+                  </div>
+                  <div v-if="showReportBatchDropdown" class="custom-select-dropdown" style="top: 100%; margin-top: 4px; z-index: 1050; width: 100%;">
+                    <div class="custom-select-options" style="max-height: 200px; overflow-y: auto;">
+                      <div v-if="selectedReportType === 'batch_wise'" class="custom-select-option" :class="{ selected: selectedReportBatch === '' }" @click="selectedReportBatch = ''; showReportBatchDropdown = false;">
+                        <span class="option-name">All Batches</span>
+                      </div>
+                      <div v-for="t in treks" :key="t.id" class="custom-select-option" :class="{ selected: selectedReportBatch === (t.batchCode || 'TID' + String(t.id).padStart(3, '0') + 'B01') }" @click="selectedReportBatch = (t.batchCode || 'TID' + String(t.id).padStart(3, '0') + 'B01'); showReportBatchDropdown = false;">
+                        <span class="option-name">{{ t.name }} - {{ t.batchCode || 'TID' + String(t.id).padStart(3, '0') + 'B01' }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
               
               <!-- Conditional Selectors: User Aspect (For user_participation) -->
@@ -4643,12 +5099,19 @@ const TsAdminLayout = {
                 <label style="display: block; font-size: 0.82rem; font-weight: 700; color: var(--forest); margin-bottom: 0.4rem; text-transform: uppercase;">
                   Report Detail Aspect
                 </label>
-                <select v-model="selectedReportUserSubtype" class="ts-input" style="width: 100%;">
-                  <option value="active">Most Active Users & Spent Totals</option>
-                  <option value="difficulty">Participation by Difficulty Level</option>
-                  <option value="trends">Monthly Booking Trends</option>
-                  <option value="history">Comprehensive Booking History</option>
-                </select>
+                <div class="custom-select-wrapper" :class="{ 'is-open': showReportUserSubtypeDropdown }">
+                  <div class="custom-select-trigger" @click.stop="toggleReportDropdown('showReportUserSubtypeDropdown')" style="padding: 10px 14px; font-size: 0.88rem; border-radius: 4px; background: white; border: 1px solid var(--stone); display: flex; justify-content: space-between; align-items: center;">
+                    <span>{{ getUserSubtypeName(selectedReportUserSubtype) }}</span>
+                    <svg viewBox="0 0 24 24" class="custom-select-arrow" :class="{ open: showReportUserSubtypeDropdown }" style="width: 14px; height: 14px;"><polyline points="6 9 12 15 18 9"/></svg>
+                  </div>
+                  <div v-if="showReportUserSubtypeDropdown" class="custom-select-dropdown" style="top: 100%; margin-top: 4px; z-index: 1050; width: 100%;">
+                    <div class="custom-select-options" style="max-height: 200px; overflow-y: auto;">
+                      <div v-for="opt in userSubtypeOptions" :key="opt.value" class="custom-select-option" :class="{ selected: selectedReportUserSubtype === opt.value }" @click="selectedReportUserSubtype = opt.value; showReportUserSubtypeDropdown = false;">
+                        <span class="option-name">{{ opt.label }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
               
               <!-- Conditional Selectors: Staff Aspect (For staff_performance) -->
@@ -4656,10 +5119,19 @@ const TsAdminLayout = {
                 <label style="display: block; font-size: 0.82rem; font-weight: 700; color: var(--forest); margin-bottom: 0.4rem; text-transform: uppercase;">
                   Report Detail Aspect
                 </label>
-                <select v-model="selectedReportStaffSubtype" class="ts-input" style="width: 100%;">
-                  <option value="performance">Staff Leaderboard & Ratings</option>
-                  <option value="assignments">Detailed Batch Guide Assignments</option>
-                </select>
+                <div class="custom-select-wrapper" :class="{ 'is-open': showReportStaffSubtypeDropdown }">
+                  <div class="custom-select-trigger" @click.stop="toggleReportDropdown('showReportStaffSubtypeDropdown')" style="padding: 10px 14px; font-size: 0.88rem; border-radius: 4px; background: white; border: 1px solid var(--stone); display: flex; justify-content: space-between; align-items: center;">
+                    <span>{{ getStaffSubtypeName(selectedReportStaffSubtype) }}</span>
+                    <svg viewBox="0 0 24 24" class="custom-select-arrow" :class="{ open: showReportStaffSubtypeDropdown }" style="width: 14px; height: 14px;"><polyline points="6 9 12 15 18 9"/></svg>
+                  </div>
+                  <div v-if="showReportStaffSubtypeDropdown" class="custom-select-dropdown" style="top: 100%; margin-top: 4px; z-index: 1050; width: 100%;">
+                    <div class="custom-select-options" style="max-height: 200px; overflow-y: auto;">
+                      <div v-for="opt in staffSubtypeOptions" :key="opt.value" class="custom-select-option" :class="{ selected: selectedReportStaffSubtype === opt.value }" @click="selectedReportStaffSubtype = opt.value; showReportStaffSubtypeDropdown = false;">
+                        <span class="option-name">{{ opt.label }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
               
               <!-- Date Range Filters -->
@@ -5762,40 +6234,23 @@ const TsAdminLayout = {
 
     <!-- ════════ REPORT PREVIEW MODAL ════════ -->
     <div v-if="showReportPreviewModal && reportPreviewData" class="ts-modal-overlay" @click.self="showReportPreviewModal = false">
-      <div class="ts-modal large" style="max-width: 900px; width: 95%;">
+      <div class="ts-modal large" style="max-width: 960px; width: 95%;">
         <div class="ts-modal-header">
-          <h3 class="ts-modal-title">{{ reportPreviewData.title }}</h3>
+          <h3 class="ts-modal-title">Report Preview</h3>
           <button class="modal-close" @click="showReportPreviewModal = false">✕</button>
         </div>
-        <div class="ts-modal-body" style="padding: 1.5rem; max-height: 520px; overflow-y: auto;">
-          <div style="margin-bottom: 1rem; padding: 0.75rem 1rem; background: var(--snow); border: 1px solid rgba(26,46,26,0.06); border-radius: var(--radius); font-size: 0.82rem; color: var(--stone); display: flex; justify-content: space-between; align-items: center;">
-            <div><strong>Configuration Parameters:</strong> <span class="mono">{{ reportPreviewData.parameters }}</span></div>
-            <div><span class="mono" style="font-weight: 700; color: var(--forest);">{{ reportPreviewData.rows.length }} records found</span></div>
-          </div>
-          
-          <div class="table-responsive" style="max-height: 380px; overflow-y: auto; border: 1px solid rgba(26,46,26,0.08); border-radius: var(--radius);">
-            <table class="ts-table" style="width: 100%; border-collapse: collapse; text-align: left;">
-              <thead>
-                <tr style="position: sticky; top: 0; background: var(--cream); z-index: 10;">
-                  <th v-for="h in reportPreviewData.headers" :key="h" style="padding: 0.75rem 1rem; font-size: 0.8rem; font-weight: 700; text-transform: uppercase; color: var(--forest); border-bottom: 1px solid rgba(26,46,26,0.08);">
-                    {{ h }}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="(row, rIdx) in reportPreviewData.rows" :key="rIdx" style="border-bottom: 1px solid rgba(26,46,26,0.04);">
-                  <td v-for="(col, cIdx) in row" :key="cIdx" style="padding: 0.75rem 1rem; font-size: 0.85rem; color: var(--bark);">
-                    {{ col }}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+        <div class="ts-modal-body" style="padding: 0; max-height: 520px; height: 500px; display: flex; flex-direction: column;">
+          <iframe :srcdoc="iframeSrcDoc" style="width: 100%; height: 100%; border: none; background: #fff;"></iframe>
         </div>
         <div class="ts-modal-footer" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem;">
-          <button class="btn-primary-ts" @click="exportReportCSV(reportPreviewData.title, reportPreviewData.headers, reportPreviewData.rows)" style="background: var(--gold); border-color: var(--gold); color: #fff;">
-            ↓ Download CSV
-          </button>
+          <div style="display: flex; gap: 0.5rem;">
+            <button class="btn-primary-ts" @click="downloadReportHTML(reportPreviewData)" style="background: var(--forest); border-color: var(--forest); color: #fff;">
+              ↓ Download HTML Report
+            </button>
+            <button class="btn-primary-ts" @click="downloadReportCSV(reportPreviewData)" style="background: var(--gold); border-color: var(--gold); color: #fff;">
+              ↓ Download CSV
+            </button>
+          </div>
           <button class="btn-primary-ts" @click="showReportPreviewModal = false" style="background: #e2e8f0; border-color: #cbd5e0; color: #4a5568;">Close</button>
         </div>
       </div>

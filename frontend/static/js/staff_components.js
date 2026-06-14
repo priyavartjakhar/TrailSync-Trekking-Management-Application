@@ -44,6 +44,11 @@ const TsStaffLayout = {
       showCompletionModal: false,
       showTrekDetailModal: false,
       showAddParticipantModal: false,
+      showExportDetailModal: false,
+      exportDetailTrek: null,
+      showDownloadPromptModal: false,
+      downloadPromptTrek: null,
+      downloadPending: false,
 
       slotTarget: null,
       statusTarget: null,
@@ -98,66 +103,6 @@ const TsStaffLayout = {
       const open = this.assignedTreks.filter(t => t.status === 'Open' || t.status === 'Approved');
       if (!open.length) return this.assignedTreks[0] || null;
       return open.sort((a, b) => new Date(a.startDate) - new Date(b.startDate))[0];
-    },
-
-    // Treks for today's priorities
-    todayPriorities() {
-      const priorities = [];
-      this.assignedTreks.forEach(t => {
-        const daysUntil = Math.ceil((new Date(t.startDate) - new Date()) / 86400000);
-        if (daysUntil >= 0 && daysUntil <= 7) {
-          priorities.push({
-            type: 'warning',
-            text: `<strong>${t.name}</strong> starts in ${daysUntil} day${daysUntil !== 1 ? 's' : ''}`,
-            time: t.startDate,
-            actionType: 'attendance',
-            trekId: t.id
-          });
-        }
-        const slotsLeft = t.slots - t.registered;
-        if (slotsLeft === 0) {
-          priorities.push({
-            type: 'critical',
-            text: `<strong>${t.name}</strong> is fully booked — consider adding slots`,
-            time: 'Action needed',
-            actionType: 'slots',
-            trekId: t.id
-          });
-        } else if (slotsLeft <= 2) {
-          priorities.push({
-            type: 'warning',
-            text: `Only <strong>${slotsLeft} slot${slotsLeft !== 1 ? 's' : ''} left</strong> for ${t.name}`,
-            time: 'Monitor closely',
-            actionType: 'slots',
-            trekId: t.id
-          });
-        }
-        if (t.status === 'Pending') {
-          priorities.push({
-            type: 'info',
-            text: `<strong>${t.name}</strong> awaiting status update from admin`,
-            time: 'Pending',
-            actionType: 'status',
-            trekId: t.id
-          });
-        }
-      });
-      const pendingParticipants = this.participants.filter(p => p.status === 'Booked' && !p.attendance).length;
-      if (pendingParticipants > 0) {
-        priorities.push({
-          type: 'info',
-          text: `<strong>${pendingParticipants} participant${pendingParticipants !== 1 ? 's' : ''}</strong> without confirmed attendance`,
-          time: 'Mark attendance',
-          actionType: 'attendance',
-          trekId: this.assignedTreks[0]?.id || null
-        });
-      }
-      return priorities.slice(0, 6);
-    },
-
-    // Upcoming timeline (sorted)
-    upcomingTimeline() {
-      return [...this.assignedTreks].sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
     },
 
     // Filtered treks for search
@@ -240,44 +185,6 @@ const TsStaffLayout = {
 
     profileLanguages() {
       return this.splitProfileList(this.staffProfile.languages);
-    },
-
-    monthlyRegistrations() {
-      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      const now = new Date();
-      const last6 = [];
-      for (let i = 5; i >= 0; i--) {
-        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const yLabel = d.getFullYear();
-        const mIdx = d.getMonth();
-        const mKey = `${yLabel}-${String(mIdx + 1).padStart(2, '0')}`;
-        const mLabel = months[mIdx];
-        
-        let count = 0;
-        this.participants.forEach(p => {
-          if (p.bookedOn && p.bookedOn.startsWith(mKey)) {
-            count++;
-          }
-        });
-        
-        last6.push({ month: mLabel, count: count });
-      }
-      return last6;
-    },
-
-    maxMonthlyRegistrations() {
-      const vals = this.monthlyRegistrations.map(m => m.count);
-      return vals.length ? Math.max(...vals, 1) : 1;
-    },
-
-    occupancyBreakdown() {
-      return this.assignedTreks.map(t => ({
-        id: t.id,
-        name: t.name,
-        pct: t.slots > 0 ? Math.min(100, Math.round((t.registered / t.slots) * 100)) : 0,
-        booked: t.registered,
-        total: t.slots
-      }));
     },
 
     // Trek options filtered by search query (name, location, batch code)
@@ -801,6 +708,192 @@ const TsStaffLayout = {
         if (trek) this.openChecklistModal(trek);
       }
     },
+
+    openExportDetailModal(t) {
+      this.exportDetailTrek = t;
+      this.showExportDetailModal = true;
+    },
+
+    openDownloadPromptModal(t) {
+      this.downloadPromptTrek = t;
+      this.showDownloadPromptModal = true;
+    },
+
+    async generatePDFReport(t, type) {
+      this.downloadPending = true;
+      let checklist = [];
+      if (type === 'full') {
+        try {
+          const res = await fetch(`/api/guide/treks/${t.id}/checklist`);
+          if (res.ok) {
+            const data = await res.json();
+            checklist = data.map(item => item.itemName);
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      const trekParticipants = this.participants.filter(p => p.trekId === t.id);
+
+      // Create PDF element container
+      const container = document.createElement('div');
+      container.style.padding = '30px';
+      container.style.fontFamily = "'DM Sans', 'Helvetica Neue', sans-serif";
+      container.style.color = '#4a3728'; 
+      container.style.background = '#fff';
+
+      let html = '';
+
+      // PDF Header
+      html += `
+        <div style="border-bottom: 2px solid #1a2e1a; padding-bottom: 15px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: flex-end;">
+          <div>
+            <div style="font-size: 1.6rem; font-weight: 800; font-family: 'Playfair Display', serif; color: #1a2e1a; letter-spacing: -0.5px;">TrailSync <span style="color: #c8922a; font-weight: 400;">Reports</span></div>
+            <div style="font-size: 0.75rem; color: #8c8070; text-transform: uppercase; letter-spacing: 1px; margin-top: 3px;">Trek Guide Operations panel</div>
+          </div>
+          <div style="text-align: right;">
+            <div style="font-size: 0.72rem; font-family: 'Space Mono', monospace; font-weight: 700; color: #c8922a; background: rgba(200,146,42,0.1); padding: 3px 8px; border-radius: 4px; display: inline-block;">${t.batchCode}</div>
+            <div style="font-size: 0.7rem; color: #8c8070; margin-top: 4px;">Generated on: ${new Date().toLocaleDateString()}</div>
+          </div>
+        </div>
+      `;
+
+      if (type === 'full') {
+        // Full Summary Report
+        html += `
+          <div style="margin-bottom: 25px;">
+            <h2 style="font-family: 'Playfair Display', serif; font-size: 1.4rem; color: #1a2e1a; margin-bottom: 12px; font-weight: 800;">Trek Batch Summary Report</h2>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; background: #fdfaf5; border: 1px solid rgba(26,46,26,0.08); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+              <div>
+                <div style="font-size: 0.72rem; color: #8c8070; text-transform: uppercase; font-weight: 600;">Adventure Name</div>
+                <div style="font-size: 0.95rem; font-weight: 700; color: #1a2e1a; margin-top: 2px;">${t.name}</div>
+              </div>
+              <div>
+                <div style="font-size: 0.72rem; color: #8c8070; text-transform: uppercase; font-weight: 600;">Location</div>
+                <div style="font-size: 0.95rem; font-weight: 700; color: #1a2e1a; margin-top: 2px;">📍 ${t.location}</div>
+              </div>
+              <div style="margin-top: 10px;">
+                <div style="font-size: 0.72rem; color: #8c8070; text-transform: uppercase; font-weight: 600;">Schedule Dates</div>
+                <div style="font-size: 0.88rem; font-weight: 600; color: #1a2e1a; margin-top: 2px;">${this.formatDate(t.startDate)} — ${this.formatDate(t.endDate)}</div>
+              </div>
+              <div style="margin-top: 10px;">
+                <div style="font-size: 0.72rem; color: #8c8070; text-transform: uppercase; font-weight: 600;">Base Price</div>
+                <div style="font-size: 0.88rem; font-weight: 600; color: #1a2e1a; margin-top: 2px;">₹${t.price ? t.price.toLocaleString() : '5,000'}</div>
+              </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 25px;">
+              <div style="border: 1px solid rgba(26,46,26,0.07); padding: 10px; border-radius: 6px; text-align: center; background: #fff;">
+                <div style="font-size: 1.4rem; font-family: 'Playfair Display', serif; font-weight: 800; color: #1a2e1a;">${t.registered}/${t.slots}</div>
+                <div style="font-size: 0.62rem; color: #8c8070; font-weight: 700; text-transform: uppercase; margin-top: 4px;">Occupancy</div>
+              </div>
+              <div style="border: 1px solid rgba(26,46,26,0.07); padding: 10px; border-radius: 6px; text-align: center; background: #fff;">
+                <div style="font-size: 1.4rem; font-family: 'Playfair Display', serif; font-weight: 800; color: #1a2e1a;">${t.registered > 0 ? Math.round((t.registered / t.slots) * 100) : 0}%</div>
+                <div style="font-size: 0.62rem; color: #8c8070; font-weight: 700; text-transform: uppercase; margin-top: 4px;">Fill Rate</div>
+              </div>
+              <div style="border: 1px solid rgba(26,46,26,0.07); padding: 10px; border-radius: 6px; text-align: center; background: #fff;">
+                <div style="font-size: 1.4rem; font-family: 'Playfair Display', serif; font-weight: 800; color: #1a2e1a;">${t.slots - t.registered}</div>
+                <div style="font-size: 0.62rem; color: #8c8070; font-weight: 700; text-transform: uppercase; margin-top: 4px;">Slots Left</div>
+              </div>
+              <div style="border: 1px solid rgba(26,46,26,0.07); padding: 10px; border-radius: 6px; text-align: center; background: #fff;">
+                <div style="font-size: 1.4rem; font-family: 'Playfair Display', serif; font-weight: 800; color: #c8922a;">${t.status}</div>
+                <div style="font-size: 0.62rem; color: #8c8070; font-weight: 700; text-transform: uppercase; margin-top: 4px;">Batch Status</div>
+              </div>
+            </div>
+          </div>
+        `;
+
+        if (checklist.length > 0) {
+          html += `
+            <div style="margin-bottom: 25px;">
+              <h3 style="font-family: 'Playfair Display', serif; font-size: 1.1rem; color: #1a2e1a; margin-bottom: 8px; font-weight: 700;">Trek Checklist Items</h3>
+              <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                ${checklist.map(item => `<span style="font-size: 0.72rem; background: #f5f0e8; color: #1a2e1a; padding: 4px 10px; border-radius: 4px; border: 1px solid rgba(26,46,26,0.08);">${item}</span>`).join('')}
+              </div>
+            </div>
+          `;
+        }
+      } else {
+        // Participants List Only Header
+        html += `
+          <div style="margin-bottom: 20px;">
+            <h2 style="font-family: 'Playfair Display', serif; font-size: 1.4rem; color: #1a2e1a; margin-bottom: 4px; font-weight: 800;">Trek Participant Directory</h2>
+            <div style="font-size: 0.82rem; color: #8c8070;">Trek: <strong style="color: #1a2e1a;">${t.name}</strong> · Batch: <strong style="color: #1a2e1a;">${t.batchCode}</strong> · Location: <strong>📍 ${t.location}</strong></div>
+          </div>
+        `;
+      }
+
+      // Participant Table
+      html += `
+        <div>
+          <h3 style="font-family: 'Playfair Display', serif; font-size: 1.1rem; color: #1a2e1a; margin-bottom: 10px; font-weight: 700; border-bottom: 1px solid rgba(26,46,26,0.1); padding-bottom: 5px;">Trekker Roster (${trekParticipants.length} registered)</h3>
+          <table style="width: 100%; border-collapse: collapse; font-size: 0.74rem; text-align: left;">
+            <thead>
+              <tr style="background: #1a2e1a; color: #fff;">
+                <th style="padding: 8px; border: 1px solid #1a2e1a;">Trekker ID</th>
+                <th style="padding: 8px; border: 1px solid #1a2e1a;">Name</th>
+                <th style="padding: 8px; border: 1px solid #1a2e1a;">Contact Information</th>
+                <th style="padding: 8px; border: 1px solid #1a2e1a; text-align: center;">Blood</th>
+                <th style="padding: 8px; border: 1px solid #1a2e1a; text-align: center;">Emergency Contact</th>
+                <th style="padding: 8px; border: 1px solid #1a2e1a; text-align: center;">Payment</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${trekParticipants.map((p, idx) => `
+                <tr style="background: ${idx % 2 === 0 ? '#fff' : '#fdfaf5'}; border-bottom: 1px solid rgba(26,46,26,0.08);">
+                  <td style="padding: 8px; font-family: 'Space Mono', monospace; font-weight: bold; color: #1a2e1a;">${this.displayTrekkerId(p)}</td>
+                  <td style="padding: 8px; font-weight: 600; color: #1a2e1a;">${p.name}</td>
+                  <td style="padding: 8px;">
+                    <div>📧 ${p.email}</div>
+                    <div style="margin-top: 2px;">📞 ${p.phone || '—'}</div>
+                  </td>
+                  <td style="padding: 8px; text-align: center; font-family: 'Space Mono', monospace; color: #dc2626; font-weight: bold;">${p.bloodGroup || '—'}</td>
+                  <td style="padding: 8px; text-align: center;">
+                    <div>${p.emergencyContactName || '—'}</div>
+                    <div style="font-size: 0.66rem; color: #8c8070; margin-top: 1px;">${p.emergencyContactPhone || ''}</div>
+                  </td>
+                  <td style="padding: 8px; text-align: center;">
+                    <span style="font-size: 0.64rem; padding: 2px 6px; border-radius: 4px; font-weight: bold; text-transform: uppercase; background: ${p.paymentStatus === 'Paid' ? 'rgba(16,185,129,0.1)' : 'rgba(245,158,11,0.1)'}; color: ${p.paymentStatus === 'Paid' ? '#10b981' : '#d97706'}; border: 1px solid ${p.paymentStatus === 'Paid' ? 'rgba(16,185,129,0.2)' : 'rgba(245,158,11,0.2)'};">
+                      ${p.paymentStatus || 'Paid'}
+                    </span>
+                  </td>
+                </tr>
+              `).join('')}
+              ${trekParticipants.length === 0 ? `
+                <tr>
+                  <td colspan="6" style="padding: 20px; text-align: center; color: #8c8070; font-style: italic;">No trekkers are currently registered for this batch.</td>
+                </tr>
+              ` : ''}
+            </tbody>
+          </table>
+        </div>
+      `;
+
+      container.innerHTML = html;
+      document.body.appendChild(container);
+
+      const opt = {
+        margin:       0.4,
+        filename:     `TrailSync_${t.batchCode}_${type === 'full' ? 'Full_Report' : 'Roster'}.pdf`,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true },
+        jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+      };
+
+      try {
+        await html2pdf().from(container).set(opt).save();
+        this.showToast('PDF downloaded successfully!', 'success');
+      } catch (err) {
+        console.error(err);
+        this.showToast('Failed to generate PDF. Please try again.', 'error');
+      } finally {
+        document.body.removeChild(container);
+        this.downloadPending = false;
+        this.showDownloadPromptModal = false;
+      }
+    },
   },
 
   mounted() {
@@ -1005,244 +1098,6 @@ const TsStaffLayout = {
           </div>
         </div>
 
-        <!-- Custom SVG line chart + Occupancy Rate -->
-        <div class="dashboard-grid-equal" style="margin-bottom:1.5rem">
-          <!-- Left side: Monthly Registrations Trend -->
-          <div class="dash-card">
-            <div class="dash-card-header"><span class="dash-card-title">Monthly Registrations Trend</span></div>
-            <div class="chart-svg-wrap">
-              <svg viewBox="0 0 700 180" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto">
-                <defs>
-                  <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stop-color="#c8922a" stop-opacity="0.25"/>
-                    <stop offset="100%" stop-color="#c8922a" stop-opacity="0.02"/>
-                  </linearGradient>
-                </defs>
-                <!-- grid -->
-                <line v-for="gi in 4" :key="'g'+gi" :x1="30" :y1="30 + (gi-1)*35" :x2="670" :y2="30+(gi-1)*35" class="chart-grid-line"/>
-                <!-- area -->
-                <path :d="buildAreaPath(monthlyRegistrations,'count',700,180,30)" class="chart-area-fill"/>
-                <!-- line -->
-                <path :d="buildLinePath(monthlyRegistrations,'count',700,180,30)" class="chart-line-path"/>
-                <!-- dots & labels -->
-                <g v-for="(m,idx) in monthlyRegistrations" :key="'dot'+idx">
-                  <circle
-                    :cx="30 + (idx/(monthlyRegistrations.length-1 || 1))*(700-60)"
-                    :cy="180 - 30 - (m.count/maxMonthlyRegistrations)*(180-60)"
-                    r="3.5" class="chart-dot"/>
-                  <text
-                    :x="30 + (idx/(monthlyRegistrations.length-1 || 1))*(700-60)"
-                    y="172" text-anchor="middle" class="chart-axis-label">{{ m.month }}</text>
-                </g>
-              </svg>
-            </div>
-          </div>
-          <!-- Right side: Trek Occupancy Rate -->
-          <div class="dash-card">
-            <div class="dash-card-header"><span class="dash-card-title">Trek Occupancy Rate</span></div>
-            <div class="occ-list">
-              <div v-for="s in occupancyBreakdown" :key="s.id" class="occ-item">
-                <div class="occ-meta">
-                  <span class="occ-trek" :title="s.name">{{ s.name }}</span>
-                  <span class="occ-pct">{{ s.pct }}% ({{ s.booked }}/{{ s.total }})</span>
-                </div>
-                <div class="occ-bar-track">
-                  <div class="occ-bar-fill" :class="s.pct >= 90 ? 'occ-full' : s.pct >= 70 ? 'occ-high' : s.pct >= 40 ? 'occ-mid' : 'occ-low'" :style="{ width: s.pct + '%' }"></div>
-                </div>
-              </div>
-              <div v-if="!occupancyBreakdown.length" style="color:var(--stone); text-align:center; padding:2rem 0; font-size:0.88rem">
-                No assigned treks to show occupancy.
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Main two-column layout -->
-        <div class="dashboard-main-grid">
-          <!-- Left column -->
-          <div>
-            <!-- Interactive Priorities & Alerts -->
-            <div class="ts-card" style="margin-bottom:1.5rem">
-              <div class="ts-card-header">
-                <div>
-                  <div class="ts-card-title">Priority Action Desk</div>
-                  <div class="ts-card-sub">Action items requiring staff intervention</div>
-                </div>
-              </div>
-              <div class="ts-card-body">
-                <div v-if="!todayPriorities.length" class="empty-state" style="padding:2rem">
-                  <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-                  <p>No urgent actions — all treks are on track!</p>
-                </div>
-                <div class="alerts-tasks-dashboard-grid" v-else>
-                  <div v-for="(p, idx) in todayPriorities" :key="idx" class="task-alert-card" :class="p.type === 'critical' ? 'urgent' : p.type === 'warning' ? 'warning' : 'info'">
-                    <div class="task-card-icon-col">
-                      <span v-if="p.type === 'critical'">🚨</span>
-                      <span v-else-if="p.type === 'warning'">⚠️</span>
-                      <span v-else>ℹ️</span>
-                    </div>
-                    <div class="task-card-body-col">
-                      <div class="task-card-label" v-html="p.text"></div>
-                      <div class="task-card-num" style="font-size:0.62rem; font-family:'Space Mono',monospace; color:var(--stone)">{{ p.time }}</div>
-                    </div>
-                    <button class="btn-primary-ts btn-sm task-resolve-btn" @click="resolvePriorityAction(p)">
-                      Resolve →
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Grouped Operations Console -->
-            <div class="ts-card" style="margin-bottom:1.5rem">
-              <div class="ts-card-header">
-                <div>
-                  <div class="ts-card-title">Operations Console Deck</div>
-                  <div class="ts-card-sub">Quick-access tools for trek and participant operations</div>
-                </div>
-              </div>
-              <div class="ts-card-body">
-                <div class="console-groups-container">
-                  <!-- Group 1: Trek Management -->
-                  <div class="console-group">
-                    <div class="console-group-label">Trek Management</div>
-                    <div class="console-group-buttons">
-                      <button class="console-btn btn-primary-ts" @click="assignedTreks[0] && openSlotModal(assignedTreks[0])" :disabled="!assignedTreks.length">
-                        <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg> Update Slots
-                      </button>
-                      <button class="console-btn btn-forest" @click="assignedTreks[0] && openStatusModal(assignedTreks[0])" :disabled="!assignedTreks.length">
-                        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Change Status
-                      </button>
-                      <button class="console-btn" @click="nextTrek && openCompletionModal(nextTrek)" :disabled="!nextTrek">
-                        <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Complete Trek
-                      </button>
-                    </div>
-                  </div>
-
-                  <!-- Group 2: Trekker Operations -->
-                  <div class="console-group">
-                    <div class="console-group-label">Trekker & Participant Ops</div>
-                    <div class="console-group-buttons">
-                      <button class="console-btn" @click="goTab('participants')">
-                        <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M2 19c0-3 3-5 7-5"/></svg> View Participants
-                      </button>
-                      <button class="console-btn" @click="selectTrekForAttendance(nextTrek || assignedTreks[0])" :disabled="!assignedTreks.length">
-                        <svg viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/></svg> Mark Attendance
-                      </button>
-                      <button class="console-btn" @click="exportCSV(selectedTrekId)" :disabled="!assignedTreks.length">
-                        <svg viewBox="0 0 24 24"><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Export CSV
-                      </button>
-                    </div>
-                  </div>
-
-                  <!-- Group 3: Preps & Checklist -->
-                  <div class="console-group">
-                    <div class="console-group-label">Checklists & Gear Setup</div>
-                    <div class="console-group-buttons">
-                      <button class="console-btn btn-primary-ts" @click="assignedTreks[0] && openChecklistModal(assignedTreks[0])" :disabled="!assignedTreks.length">
-                        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg> Gear Checklist
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Assigned Treks Quick View -->
-            <div class="ts-card" style="margin-bottom:1.5rem">
-              <div class="ts-card-header">
-                <div class="ts-card-title">My Assigned Treks</div>
-                <button class="ts-card-action" @click="goTab('treks')">Manage all →</button>
-              </div>
-              <div class="ts-card-body">
-                <div class="trek-quick-list">
-                  <div v-for="t in assignedTreks" :key="t.id" class="trek-quick-item">
-                    <div>
-                      <div class="tqi-name">{{ t.name }}</div>
-                      <div class="tqi-meta">📍 {{ t.location }} · {{ t.startDate }}</div>
-                    </div>
-                    <div class="tqi-right">
-                      <span :class="'diff-pill pill-' + t.difficulty.toLowerCase()">{{ t.difficulty }}</span>
-                      <span :class="'status-pill status-' + t.status.toLowerCase()">{{ t.status }}</span>
-                      <div class="tqi-actions">
-                        <button class="act-btn act-view btn-sm" @click="selectTrekForParticipants(t)">Participants</button>
-                        <button class="act-btn act-complete btn-sm" @click="openStatusModal(t)">Status</button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Recent Activity -->
-            <div class="ts-card">
-              <div class="ts-card-header">
-                <div class="ts-card-title">Recent Activity</div>
-              </div>
-              <div class="ts-card-body" style="padding-top:0.5rem">
-                <div class="activity-feed">
-                  <div v-for="a in activityLog.slice(0,6)" :key="a.id" class="activity-item">
-                    <div class="activity-dot" :class="a.type==='booking'?'ad-green':a.type==='cancel'?'ad-red':a.type==='status'?'ad-blue':'ad-gold'">
-                      {{ a.type==='booking'?'✓':a.type==='cancel'?'✕':a.type==='status'?'S':'⚙' }}
-                    </div>
-                    <div>
-                      <div class="activity-text" v-html="a.text"></div>
-                      <div class="activity-time">{{ a.time }}</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Right column -->
-          <div>
-            <!-- Upcoming Trek Countdown -->
-            <div v-if="nextTrek" style="margin-bottom:1.25rem">
-              <div class="upcoming-trek-card">
-                <div class="utc-label-top">⏱ Next Trek</div>
-                <div class="utc-name">{{ nextTrek.name }}</div>
-                <div class="utc-loc">📍 {{ nextTrek.location }}</div>
-                <div class="utc-rows">
-                  <div class="utc-row"><span class="utc-row-label">Start Date</span><span class="utc-row-val">{{ nextTrek.startDate }}</span></div>
-                  <div class="utc-row"><span class="utc-row-label">Participants</span><span class="utc-row-val">{{ nextTrek.registered }}/{{ nextTrek.slots }}</span></div>
-                  <div class="utc-row"><span class="utc-row-label">Status</span><span :class="'status-pill status-' + nextTrek.status.toLowerCase()">{{ nextTrek.status }}</span></div>
-                </div>
-                <div class="utc-slot-bar">
-                  <div class="slot-bar-wrap">
-                    <div class="slot-bar-fill" :style="{ width: slotPct(nextTrek) + '%' }"></div>
-                  </div>
-                  <div class="slot-bar-label">{{ slotsLeft(nextTrek) }} of {{ nextTrek.slots }} slots remaining</div>
-                </div>
-                <div class="countdown-strip">
-                  <div class="cd-unit"><span class="cd-val">{{ countdown.days }}</span><span class="cd-lbl">Days</span></div>
-                  <div class="cd-unit"><span class="cd-val">{{ countdown.hours }}</span><span class="cd-lbl">Hrs</span></div>
-                  <div class="cd-unit"><span class="cd-val">{{ countdown.minutes }}</span><span class="cd-lbl">Min</span></div>
-                  <div class="cd-unit"><span class="cd-val">{{ countdown.seconds }}</span><span class="cd-lbl">Sec</span></div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Upcoming timeline -->
-            <div class="ts-card">
-              <div class="ts-card-header"><div class="ts-card-title">Upcoming Timeline</div></div>
-              <div class="ts-card-body">
-                <div class="timeline">
-                  <div v-for="(t, i) in upcomingTimeline" :key="t.id" class="timeline-item">
-                    <div class="timeline-dot" :class="t.status==='Completed'?'completed':t.status==='Open'?'upcoming':''">
-                      {{ i + 1 }}
-                    </div>
-                    <div class="timeline-info">
-                      <div class="tl-name">{{ t.name }}</div>
-                      <div class="tl-meta">{{ t.startDate }} · {{ t.location }}</div>
-                    </div>
-                    <span :class="'status-pill status-' + t.status.toLowerCase()" style="margin-left:auto">{{ t.status }}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
 
       <!-- ════════════════════════════════════════════
@@ -1649,15 +1504,9 @@ const TsStaffLayout = {
               <div style="font-size:0.78rem; color:var(--stone); margin-bottom:1rem; line-height:1.6">
                 Export includes: participant name, email, phone, booking status, booking date, blood group, emergency contact.
               </div>
-              <div style="display:flex; gap:0.5rem">
-                <button class="btn-primary-ts btn-sm" @click="exportCSV(t.id)" :disabled="exportPending && exportTrekId === t.id">
-                  {{ exportPending && exportTrekId === t.id ? '⏳ Exporting…' : '⬇ Export CSV' }}
-                </button>
-                <button class="btn-ghost btn-sm" @click="selectTrekForParticipants(t)">View List</button>
-              </div>
-              <div v-if="exportPending && exportTrekId === t.id" class="export-notice" style="margin-top:0.75rem; font-size:0.78rem">
-                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/></svg>
-                CSV will be sent via email shortly.
+              <div style="display:flex; justify-content:space-between; gap:0.5rem; margin-top:0.5rem">
+                <button class="btn-ghost btn-sm" @click="openExportDetailModal(t)" style="flex:1; text-align:center">👁 View</button>
+                <button class="btn-primary-ts btn-sm" @click="openDownloadPromptModal(t)" style="flex:1; text-align:center">⬇ Download</button>
               </div>
             </div>
           </div>
@@ -2182,6 +2031,141 @@ const TsStaffLayout = {
         </div>
       </div>
     </div>
+
+    <!-- ── BATCH EXPORT DETAIL MODAL ────────────────── -->
+    <transition name="toast">
+      <div v-if="showExportDetailModal" class="ts-modal-overlay" @click.self="showExportDetailModal = false">
+        <div class="ts-modal" style="max-width: 800px; width: 95%;">
+          <div class="ts-modal-header">
+            <span class="ts-modal-title">📊 Batch Detailed Overview</span>
+            <button class="modal-close" @click="showExportDetailModal = false">✕</button>
+          </div>
+          <div class="ts-modal-body" v-if="exportDetailTrek" style="padding: 1.5rem; max-height: 70vh; overflow-y: auto;">
+            
+            <!-- Trek Summary Header -->
+            <div style="background: var(--snow); border: 1px solid rgba(26,46,26,0.08); padding: 1.25rem; border-radius: var(--radius); margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px;">
+              <div>
+                <span class="mono" style="background: rgba(200,146,42,0.13); color: var(--forest); font-size: 0.68rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.05em; display: inline-block; margin-bottom: 4px;">{{ exportDetailTrek.batchCode }}</span>
+                <h4 style="font-family: 'Playfair Display', serif; font-size: 1.3rem; font-weight: 800; color: var(--forest); margin: 0;">{{ exportDetailTrek.name }}</h4>
+                <div style="font-size: 0.82rem; color: var(--stone); margin-top: 4px;">📍 {{ exportDetailTrek.location }}</div>
+              </div>
+              <div style="text-align: right;">
+                <span :class="'status-pill status-' + exportDetailTrek.status.toLowerCase()">{{ exportDetailTrek.status }}</span>
+                <div style="font-size: 0.8rem; color: var(--bark); font-weight: 600; margin-top: 6px;">{{ formatDate(exportDetailTrek.startDate) }} — {{ formatDate(exportDetailTrek.endDate) }}</div>
+              </div>
+            </div>
+
+            <!-- Key Metrics Grid -->
+            <div class="career-stat-grid" style="margin-bottom: 1.5rem; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));">
+              <div class="career-stat">
+                <span>{{ exportDetailTrek.registered }}/{{ exportDetailTrek.slots }}</span>
+                <small>Occupancy</small>
+              </div>
+              <div class="career-stat">
+                <span>{{ exportDetailTrek.registered > 0 ? Math.round((exportDetailTrek.registered / exportDetailTrek.slots) * 100) : 0 }}%</span>
+                <small>Fill Rate</small>
+              </div>
+              <div class="career-stat">
+                <span>{{ slotsLeft(exportDetailTrek) }}</span>
+                <small>Slots Remaining</small>
+              </div>
+              <div class="career-stat">
+                <span>₹{{ exportDetailTrek.price ? exportDetailTrek.price.toLocaleString() : '5,000' }}</span>
+                <small>Base price</small>
+              </div>
+            </div>
+
+            <!-- Participants List Table -->
+            <h5 style="font-family: 'Playfair Display', serif; font-size: 1.05rem; font-weight: 700; color: var(--forest); margin-bottom: 0.85rem; border-bottom: 1px solid rgba(26,46,26,0.1); padding-bottom: 6px;">Registered Trekkers</h5>
+            <div class="ts-table-wrap">
+              <table class="ts-table">
+                <thead>
+                  <tr>
+                    <th>Trekker ID</th>
+                    <th>Name</th>
+                    <th>Contact Info</th>
+                    <th>Blood Group</th>
+                    <th>Emergency Contact</th>
+                    <th>Payment</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="p in participants.filter(p=>p.trekId===exportDetailTrek.id)" :key="p.id">
+                    <td class="mono font-bold">{{ displayTrekkerId(p) }}</td>
+                    <td>
+                      <div class="user-cell">
+                        <div class="user-mini-avatar">{{ p.name[0] }}</div>
+                        <span class="cell-name">{{ p.name }}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div>📧 {{ p.email }}</div>
+                      <div style="font-size:0.75rem; color:var(--stone); margin-top:2px;">📞 {{ p.phone || '—' }}</div>
+                    </td>
+                    <td class="mono font-bold" style="color: #ef4444;">{{ p.bloodGroup || '—' }}</td>
+                    <td style="font-size:0.78rem;">
+                      <div>{{ p.emergencyContactName || '—' }}</div>
+                      <div style="color:var(--stone); margin-top:1px;">{{ p.emergencyContactPhone || '' }}</div>
+                    </td>
+                    <td>
+                      <span :class="'status-pill pay-' + (p.paymentStatus || 'paid').toLowerCase()" style="font-size: 0.65rem; padding: 2px 6px;">{{ p.paymentStatus || 'Paid' }}</span>
+                    </td>
+                  </tr>
+                  <tr v-if="!participants.filter(p=>p.trekId===exportDetailTrek.id).length">
+                    <td colspan="6" style="text-align: center; color: var(--stone); font-style: italic; padding: 1.5rem;">No participants registered for this batch.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+          </div>
+          <div class="ts-modal-footer">
+            <button class="btn-ghost" @click="showExportDetailModal = false">Close</button>
+            <button class="btn-primary-ts" @click="openDownloadPromptModal(exportDetailTrek)">Download Report</button>
+          </div>
+        </div>
+      </div>
+    </transition>
+
+    <!-- ── DOWNLOAD REPORT PROMPT MODAL ────────────────── -->
+    <transition name="toast">
+      <div v-if="showDownloadPromptModal" class="ts-modal-overlay" @click.self="showDownloadPromptModal = false">
+        <div class="ts-modal" style="max-width: 420px; width: 90%;">
+          <div class="ts-modal-header">
+            <span class="ts-modal-title">⬇ Export Document Report</span>
+            <button class="modal-close" @click="showDownloadPromptModal = false">✕</button>
+          </div>
+          <div class="ts-modal-body" v-if="downloadPromptTrek" style="padding: 1.5rem; text-align: center;">
+            <div style="font-size: 2.2rem; margin-bottom: 0.85rem;">📄</div>
+            <h5 style="font-family: 'Playfair Display', serif; font-weight: 800; color: var(--forest); margin-bottom: 6px;">Download PDF Report</h5>
+            <div style="font-size: 0.8rem; color: var(--stone); margin-bottom: 1.5rem; line-height: 1.5;">
+              Select the type of report you want to export as a formatted PDF for <strong style="color: var(--forest);">{{ downloadPromptTrek.name }} ({{ downloadPromptTrek.batchCode }})</strong>.
+            </div>
+
+            <!-- Loading spinner -->
+            <div v-if="downloadPending" class="d-flex flex-column align-items-center" style="margin-bottom: 1rem;">
+              <div class="pay-sim-spinner" style="margin-bottom: 10px;"></div>
+              <div style="font-size: 0.8rem; color: var(--stone); font-weight: 600;">Generating your PDF document...</div>
+            </div>
+
+            <!-- Options -->
+            <div v-else style="display: flex; flex-direction: column; gap: 10px;">
+              <button class="btn-primary-ts d-flex justify-content-between align-items-center" @click="generatePDFReport(downloadPromptTrek, 'list')" style="padding: 12px; font-size: 0.85rem; text-align: left; font-weight: 700; width: 100%;">
+                <span>📋 Participants List Only</span>
+                <span style="font-size: 0.7rem; background: rgba(255,255,255,0.2); padding: 2px 6px; border-radius: 4px;">PDF</span>
+              </button>
+              <button class="btn-forest d-flex justify-content-between align-items-center" @click="generatePDFReport(downloadPromptTrek, 'full')" style="padding: 12px; font-size: 0.85rem; text-align: left; font-weight: 700; background: var(--forest); border: none; color: white; width: 100%;">
+                <span>📊 Full Detailed Information</span>
+                <span style="font-size: 0.7rem; background: rgba(255,255,255,0.2); padding: 2px 6px; border-radius: 4px;">PDF</span>
+              </button>
+            </div>
+          </div>
+          <div class="ts-modal-footer" v-if="!downloadPending">
+            <button class="btn-modal-cancel" @click="showDownloadPromptModal = false" style="font-weight: 600;">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </transition>
 
     <!-- Toast -->
     <transition name="toast">

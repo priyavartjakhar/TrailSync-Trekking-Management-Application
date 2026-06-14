@@ -4510,77 +4510,187 @@ const TsAdminLayout = {
 
       <!-- ══ REPORTS ════════════════════════════════════════ -->
       <section v-if="activeTab==='reports'" class="tab-content">
-        <div class="reports-grid">
-          <div class="report-card">
-            <div class="report-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
-            <div class="report-info">
-              <div class="report-title">Monthly Activity Report</div>
-              <div class="report-desc">HTML report emailed to admin on 1st of every month via Celery Beat. Includes treks conducted, user participation, and popular treks.</div>
-            </div>
-            <button class="btn-primary-ts" @click="triggerReport('monthly')">Generate Now</button>
-          </div>
-          <div class="report-card">
-            <div class="report-icon"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
-            <div class="report-info">
-              <div class="report-title">Staff Performance Report</div>
-              <div class="report-desc">Overview of how each staff member is performing — treks managed, completion rates, and participant counts.</div>
-            </div>
-            <button class="btn-primary-ts" @click="triggerReport('staff')">Generate</button>
-          </div>
-          <div class="report-card">
-            <div class="report-icon"><svg viewBox="0 0 24 24"><path d="M3 17l4-8 4 4 4-6 4 10"/><path d="M3 20h18"/></svg></div>
-            <div class="report-info">
-              <div class="report-title">Trek Route Report</div>
-              <div class="report-desc">Detailed stats per trek: bookings, cancellations, occupancy rates, revenue, and staff assignment history.</div>
-            </div>
-            <button class="btn-primary-ts" @click="triggerReport('trek')">Generate</button>
-          </div>
-          <div class="report-card">
-            <div class="report-icon"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M2 19c0-3 3-5 7-5"/><circle cx="16" cy="10" r="3"/><path d="M13 19c0-3 2.7-5 6-5"/></svg></div>
-            <div class="report-info">
-              <div class="report-title">User Participation Report</div>
-              <div class="report-desc">Most active users, participation by difficulty level, monthly trends, and booking history.</div>
-            </div>
-            <button class="btn-primary-ts" @click="triggerReport('users')">Generate</button>
-          </div>
-        </div>
-
-        <div class="dashboard-grid-equal">
+        <div class="reports-layout-grid">
+          
+          <!-- Left Column: Generated Reports Records -->
           <div class="dash-card">
-            <div class="dash-card-header"><span class="dash-card-title">Export Data</span></div>
-            <div style="display:flex;flex-direction:column;gap:.75rem">
-              <div style="display:flex;align-items:center;justify-content:space-between;padding:.75rem 1rem;background:var(--snow);border-radius:var(--radius);border:1px solid rgba(26,46,26,.08)">
-                <span style="font-size:.88rem;color:var(--forest);font-weight:500">All Bookings</span>
-                <button class="act-btn act-assign" @click="exportCSV('bookings')">↓ CSV</button>
-              </div>
-              <div style="display:flex;align-items:center;justify-content:space-between;padding:.75rem 1rem;background:var(--snow);border-radius:var(--radius);border:1px solid rgba(26,46,26,.08)">
-                <span style="font-size:.88rem;color:var(--forest);font-weight:500">Trek Routes</span>
-                <button class="act-btn act-assign" @click="exportCSV('treks')">↓ CSV</button>
-              </div>
-              <div style="display:flex;align-items:center;justify-content:space-between;padding:.75rem 1rem;background:var(--snow);border-radius:var(--radius);border:1px solid rgba(26,46,26,.08)">
-                <span style="font-size:.88rem;color:var(--forest);font-weight:500">User List</span>
-                <button class="act-btn act-assign" @click="exportCSV('users')">↓ CSV</button>
-              </div>
-              <div style="display:flex;align-items:center;justify-content:space-between;padding:.75rem 1rem;background:var(--snow);border-radius:var(--radius);border:1px solid rgba(26,46,26,.08)">
-                <span style="font-size:.88rem;color:var(--forest);font-weight:500">Staff List</span>
-                <button class="act-btn act-assign" @click="exportCSV('staff')">↓ CSV</button>
-              </div>
-              <div style="display:flex;align-items:center;justify-content:space-between;padding:.75rem 1rem;background:var(--snow);border-radius:var(--radius);border:1px solid rgba(26,46,26,.08)">
-                <span style="font-size:.88rem;color:var(--forest);font-weight:500">Audit Logs</span>
-                <button class="act-btn act-assign" @click="exportCSV('audit')">↓ CSV</button>
+            <div class="dash-card-header" style="margin-bottom: 1rem;">
+              <div>
+                <span class="dash-card-title">Records</span>
+                <div style="font-size: 0.78rem; color: var(--stone); margin-top: 2px;">
+                  History and logs of generated activity and performance reports
+                </div>
               </div>
             </div>
+            
+            <div class="table-responsive" style="max-height: 550px; overflow-y: auto;">
+              <table class="ts-table">
+                <thead>
+                  <tr>
+                    <th>Report Name</th>
+                    <th>Parameters</th>
+                    <th>Generated At</th>
+                    <th style="text-align: right; width: 150px;">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="r in reportsList" :key="r.id">
+                    <td>
+                      <div style="font-weight: 600; color: var(--forest);">{{ r.title }}</div>
+                      <div class="category-tag tag-system" style="font-size: 0.68rem; margin-top: 4px; display: inline-block;">
+                        {{ r.type.replace('_', ' ').toUpperCase() }}
+                      </div>
+                    </td>
+                    <td><span class="mono" style="font-size: 0.78rem; color: var(--bark);">{{ r.parameters }}</span></td>
+                    <td class="mono" style="font-size: 0.78rem; color: var(--stone);">{{ r.generatedAt }}</td>
+                    <td style="text-align: right; white-space: nowrap;">
+                      <button class="act-btn act-assign" @click="viewReport(r)" style="margin-right: 0.25rem; background: var(--cream); border-color: rgba(26,46,26,0.1); color: var(--forest);">
+                        View
+                      </button>
+                      <button class="act-btn act-assign" @click="downloadReport(r)">
+                        Download
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
+          
+          <!-- Right Column: Interactive Report Generator Tool -->
           <div class="dash-card">
-            <div class="dash-card-header"><span class="dash-card-title">Popular Treks</span></div>
-            <div class="chart-bars">
-              <div v-for="t in popularTreks" :key="t.name" class="chart-bar-item">
-                <div class="chart-bar-label">{{ t.name }}</div>
-                <div class="chart-bar-track"><div class="chart-bar-fill" :style="{ width: (t.bookings/maxBookings*100)+'%' }"></div></div>
-                <div class="chart-bar-value">{{ t.bookings }}</div>
+            <div class="dash-card-header" style="margin-bottom: 1.25rem;">
+              <div>
+                <span class="dash-card-title">Report Generator Tool</span>
+                <div style="font-size: 0.78rem; color: var(--stone); margin-top: 2px;">
+                  Configure filters and parameters to compile custom reports
+                </div>
               </div>
             </div>
+            
+            <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+              
+              <!-- Report Type Selector -->
+              <div>
+                <label style="display: block; font-size: 0.82rem; font-weight: 700; color: var(--forest); margin-bottom: 0.4rem; text-transform: uppercase;">
+                  Report Type
+                </label>
+                <div style="position: relative;">
+                  <select v-model="selectedReportType" class="ts-input" style="width: 100%; appearance: none; -webkit-appearance: none; background: #fff url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%232C5E3B%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22><polyline points=%226 9 12 15 18 9%22></polyline></svg>') no-repeat right 12px center; background-size: 16px;">
+                    <option value="monthly_activity">Monthly Activity Report</option>
+                    <option value="trek_route">Trek Route Report</option>
+                    <option value="all_treks_combined">All Treks Combined Performance</option>
+                    <option value="batch_wise">Batch Wise Performance</option>
+                    <option value="batch_users">Batch Participant List (Downloadable User List)</option>
+                    <option value="user_participation">User Participation Report</option>
+                    <option value="staff_performance">Staff Performance Report</option>
+                  </select>
+                </div>
+              </div>
+              
+              <!-- Conditional Selectors: Month (For monthly_activity) -->
+              <div v-if="selectedReportType === 'monthly_activity'">
+                <label style="display: block; font-size: 0.82rem; font-weight: 700; color: var(--forest); margin-bottom: 0.4rem; text-transform: uppercase;">
+                  Select Month
+                </label>
+                <div>
+                  <select v-model="selectedReportMonth" class="ts-input" style="width: 100%;">
+                    <option v-for="m in ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']" :key="m" :value="m">{{ m }}</option>
+                  </select>
+                </div>
+              </div>
+              
+              <!-- Conditional Selectors: Trek Route + Subtype (For trek_route) -->
+              <div v-if="selectedReportType === 'trek_route'" style="display: flex; flex-direction: column; gap: 1rem;">
+                <div>
+                  <label style="display: block; font-size: 0.82rem; font-weight: 700; color: var(--forest); margin-bottom: 0.4rem; text-transform: uppercase;">
+                    Select Trek Route
+                  </label>
+                  <select v-model="selectedReportTrek" class="ts-input" style="width: 100%;">
+                    <option value="">All Trek Routes</option>
+                    <option v-for="route in trekRoutes" :key="route.id" :value="route.name">{{ route.name }}</option>
+                  </select>
+                </div>
+                <div>
+                  <label style="display: block; font-size: 0.82rem; font-weight: 700; color: var(--forest); margin-bottom: 0.4rem; text-transform: uppercase;">
+                    Report Detail Aspect
+                  </label>
+                  <select v-model="selectedReportTrekSubtype" class="ts-input" style="width: 100%;">
+                    <option value="summary">Batches Overview & Summary</option>
+                    <option value="participants">Participants Detailed Booking List</option>
+                    <option value="staff">Staff Assignment & Guide Contacts</option>
+                    <option value="all">Compiled All Report (Month-wise Performance)</option>
+                  </select>
+                </div>
+              </div>
+              
+              <!-- Conditional Selectors: Batch (For batch_wise and batch_users) -->
+              <div v-if="selectedReportType === 'batch_wise' || selectedReportType === 'batch_users'">
+                <label style="display: block; font-size: 0.82rem; font-weight: 700; color: var(--forest); margin-bottom: 0.4rem; text-transform: uppercase;">
+                  Select Trek Batch
+                </label>
+                <select v-model="selectedReportBatch" class="ts-input" style="width: 100%;">
+                  <option v-if="selectedReportType === 'batch_wise'" value="">All Batches</option>
+                  <option v-else value="">-- Choose Batch --</option>
+                  <option v-for="t in treks" :key="t.id" :value="t.batchCode || 'TID' + String(t.id).padStart(3, '0') + 'B01'">
+                    {{ t.name }} - {{ t.batchCode || 'TID' + String(t.id).padStart(3, '0') + 'B01' }}
+                  </option>
+                </select>
+              </div>
+              
+              <!-- Conditional Selectors: User Aspect (For user_participation) -->
+              <div v-if="selectedReportType === 'user_participation'">
+                <label style="display: block; font-size: 0.82rem; font-weight: 700; color: var(--forest); margin-bottom: 0.4rem; text-transform: uppercase;">
+                  Report Detail Aspect
+                </label>
+                <select v-model="selectedReportUserSubtype" class="ts-input" style="width: 100%;">
+                  <option value="active">Most Active Users & Spent Totals</option>
+                  <option value="difficulty">Participation by Difficulty Level</option>
+                  <option value="trends">Monthly Booking Trends</option>
+                  <option value="history">Comprehensive Booking History</option>
+                </select>
+              </div>
+              
+              <!-- Conditional Selectors: Staff Aspect (For staff_performance) -->
+              <div v-if="selectedReportType === 'staff_performance'">
+                <label style="display: block; font-size: 0.82rem; font-weight: 700; color: var(--forest); margin-bottom: 0.4rem; text-transform: uppercase;">
+                  Report Detail Aspect
+                </label>
+                <select v-model="selectedReportStaffSubtype" class="ts-input" style="width: 100%;">
+                  <option value="performance">Staff Leaderboard & Ratings</option>
+                  <option value="assignments">Detailed Batch Guide Assignments</option>
+                </select>
+              </div>
+              
+              <!-- Date Range Filters -->
+              <div v-if="['trek_route', 'all_treks_combined', 'batch_wise', 'batch_users', 'user_participation'].includes(selectedReportType)" style="display: flex; gap: 0.75rem;">
+                <div style="flex: 1;">
+                  <label style="display: block; font-size: 0.8rem; font-weight: 700; color: var(--forest); margin-bottom: 0.3rem; text-transform: uppercase;">
+                    Start Date
+                  </label>
+                  <input type="date" v-model="reportStartDate" class="ts-input" style="width: 100%; padding: 0.45rem 0.75rem;" />
+                </div>
+                <div style="flex: 1;">
+                  <label style="display: block; font-size: 0.8rem; font-weight: 700; color: var(--forest); margin-bottom: 0.3rem; text-transform: uppercase;">
+                    End Date
+                  </label>
+                  <input type="date" v-model="reportEndDate" class="ts-input" style="width: 100%; padding: 0.45rem 0.75rem;" />
+                </div>
+              </div>
+              
+              <!-- Action Buttons -->
+              <div style="display: flex; gap: 0.75rem; margin-top: 1rem; border-top: 1px solid rgba(26,46,26,0.08); padding-top: 1.25rem;">
+                <button class="btn-primary-ts" @click="previewCurrentReport()" style="flex: 1; background: var(--cream); border-color: rgba(26,46,26,0.12); color: var(--forest);">
+                  Preview Report
+                </button>
+                <button class="btn-primary-ts" @click="generateReport()" style="flex: 1; background: var(--forest); border-color: var(--forest); color: #fff;">
+                  Generate & Save
+                </button>
+              </div>
+              
+            </div>
           </div>
+          
         </div>
       </section>
 

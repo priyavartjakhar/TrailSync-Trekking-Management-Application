@@ -1600,6 +1600,21 @@ body { font-family:'DM Sans',sans-serif; background:var(--snow); color:var(--bar
   box-shadow: 0 0 8px rgba(26, 46, 26, 0.3);
 }
 
+/* ── Reports Center Grid Layout ──────────────────────── */
+.reports-layout-grid {
+  display: grid;
+  grid-template-columns: 1.25fr 0.75fr;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+  align-items: start;
+}
+
+@media (max-width: 1024px) {
+  .reports-layout-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 
 
 

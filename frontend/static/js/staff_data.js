@@ -10,14 +10,24 @@ const STAFF_PARTICIPANTS = [];
 
 const STAFF_ACTIVITY_LOG = [];
 
-const STAFF_NOTIFICATIONS = [];
-
 const STAFF_PROFILE_INITIAL = {
+  memberId: '',
   name: '',
   email: '',
   phone: '',
   city: '',
+  joined: '',
+  active: true,
+  blacklisted: false,
+  designation: '',
   certifications: '',
+  languages: '',
+  skills: '',
+  experienceYears: 0,
+  completedTreksCount: 0,
+  photoUrl: '',
+  status: '',
+  customBlockedDates: '',
   bio: ''
 };
 

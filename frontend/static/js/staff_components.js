@@ -20,7 +20,6 @@ const TsStaffLayout = {
       assignedTreks: JSON.parse(JSON.stringify(STAFF_ASSIGNED_TREKS)),
       participants: JSON.parse(JSON.stringify(STAFF_PARTICIPANTS)),
       activityLog: JSON.parse(JSON.stringify(STAFF_ACTIVITY_LOG)),
-      notifications: JSON.parse(JSON.stringify(STAFF_NOTIFICATIONS)),
       checklistItems: [...CHECKLIST_DEFAULTS],
       newChecklistItem: '',
 
@@ -194,11 +193,6 @@ const TsStaffLayout = {
       return this.participants.filter(p => p.trekId === this.selectedTrekId && p.status === 'Booked');
     },
 
-    // Unread notification count
-    unreadCount() {
-      return this.notifications.filter(n => n.unread).length;
-    },
-
     // Trek progress steps
     trekProgressSteps() {
       return ['Planning', 'Approved', 'Open', 'Started', 'Completed'];
@@ -212,7 +206,40 @@ const TsStaffLayout = {
       const completionRate = this.assignedTreks.length > 0
         ? Math.round((this.assignedTreks.filter(t => t.status === 'Completed').length / this.assignedTreks.length) * 100)
         : 0;
-      return { treksManaged: this.assignedTreks.length + 12, participantsManaged: this.participants.length + 380, occupancy, completionRate };
+      const completedTreks = Number(this.staffProfile.completedTreksCount || 0);
+      const experienceYears = Number(this.staffProfile.experienceYears || 0);
+      const activeTreks = this.assignedTreks.filter(t => ['Open', 'Approved', 'Started'].includes(t.status)).length;
+      return {
+        treksManaged: completedTreks + this.assignedTreks.length,
+        completedTreks,
+        assignedTreks: this.assignedTreks.length,
+        activeTreks,
+        participantsManaged: this.participants.length,
+        occupancy,
+        completionRate,
+        experienceYears
+      };
+    },
+
+    profilePhotoUrl() {
+      return this.staffProfile.photoUrl || this.staffProfile.profile_image_url || '';
+    },
+
+    profileStatusLabel() {
+      if (this.staffProfile.blacklisted) return 'Restricted';
+      return this.staffProfile.status || (this.staffProfile.active === false ? 'Inactive' : 'Active');
+    },
+
+    profileSkills() {
+      return this.splitProfileList(this.staffProfile.skills);
+    },
+
+    profileCertifications() {
+      return this.splitProfileList(this.staffProfile.certifications);
+    },
+
+    profileLanguages() {
+      return this.splitProfileList(this.staffProfile.languages);
     },
 
     monthlyRegistrations() {
@@ -268,7 +295,7 @@ const TsStaffLayout = {
   methods: {
     // ── NAV ────────────────────────────────────────
     goTab(tab, options = {}) {
-      const validTabs = ['dashboard', 'treks', 'participants', 'analytics', 'notifications', 'exports', 'performance', 'profile'];
+      const validTabs = ['dashboard', 'treks', 'participants', 'exports', 'profile'];
       if (!validTabs.includes(tab)) return;
 
       let targetHash = tab;
@@ -319,7 +346,7 @@ const TsStaffLayout = {
         this.participantTrekId = isNaN(trekId) ? null : trekId;
         this.selectedTrekId = null;
       } else {
-        const validTabs = ['dashboard', 'treks', 'participants', 'analytics', 'notifications', 'exports', 'performance', 'profile'];
+        const validTabs = ['dashboard', 'treks', 'participants', 'exports', 'profile'];
         if (validTabs.includes(hash)) {
           this.activeTab = hash;
           this.participantsInTreksTab = false;
@@ -686,6 +713,13 @@ const TsStaffLayout = {
       this.showToast('Staff profiles can only be edited by administrators.', 'error');
     },
 
+    splitProfileList(value) {
+      return (value || '')
+        .split(',')
+        .map(v => v.trim())
+        .filter(Boolean);
+    },
+
     async changePassword() {
       if (!this.pwForm.current || !this.pwForm.new) { this.showToast('Fill all fields', 'error'); return; }
       if (this.pwForm.new !== this.pwForm.confirm) { this.showToast("Passwords don't match", 'error'); return; }
@@ -703,12 +737,6 @@ const TsStaffLayout = {
       }
     },
 
-    // ── NOTIFICATIONS ─────────────────────────────
-    markAllRead() {
-      this.notifications.forEach(n => { n.unread = false; });
-      this.showToast('All notifications marked as read');
-    },
-
     // ── COUNTDOWN ─────────────────────────────────
     startCountdown() {
       if (this.countdownTimer) clearInterval(this.countdownTimer);
@@ -724,89 +752,6 @@ const TsStaffLayout = {
           seconds: Math.floor((diff % 60000) / 1000),
         };
       }, 1000);
-    },
-
-    // ── CHART (Chart.js) ──────────────────────────
-    initCharts() {
-      this.$nextTick(() => {
-        if (typeof Chart === 'undefined') return;
-
-        // Registrations bar chart
-        const barCtx = document.getElementById('registrationsChart');
-        if (barCtx && !barCtx._chart) {
-          barCtx._chart = new Chart(barCtx, {
-            type: 'bar',
-            data: {
-              labels: this.assignedTreks.map(t => t.name),
-              datasets: [{
-                label: 'Registered', backgroundColor: 'rgba(200,146,42,0.7)', borderColor: '#c8922a', borderWidth: 1,
-                data: this.assignedTreks.map(t => t.registered)
-              }, {
-                label: 'Total Slots', backgroundColor: 'rgba(26,46,26,0.12)', borderColor: '#2d4a2d', borderWidth: 1,
-                data: this.assignedTreks.map(t => t.slots)
-              }]
-            },
-            options: { responsive: true, plugins: { legend: { position: 'bottom' } }, scales: { y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } } } }
-          });
-        }
-
-        // Difficulty pie chart
-        const pieCtx = document.getElementById('difficultyChart');
-        if (pieCtx && !pieCtx._chart) {
-          const counts = { Easy: 0, Moderate: 0, Hard: 0 };
-          this.assignedTreks.forEach(t => { counts[t.difficulty] = (counts[t.difficulty] || 0) + 1; });
-          pieCtx._chart = new Chart(pieCtx, {
-            type: 'doughnut',
-            data: {
-              labels: Object.keys(counts),
-              datasets: [{ data: Object.values(counts), backgroundColor: ['rgba(34,197,94,0.75)', 'rgba(245,158,11,0.75)', 'rgba(239,68,68,0.75)'], borderWidth: 0 }]
-            },
-            options: { responsive: true, plugins: { legend: { position: 'bottom' } }, cutout: '65%' }
-          });
-        }
-
-        // Monthly participation line chart
-        const lineCtx = document.getElementById('monthlyChart');
-        if (lineCtx && !lineCtx._chart) {
-          lineCtx._chart = new Chart(lineCtx, {
-            type: 'line',
-            data: {
-              labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct'],
-              datasets: [{
-                label: 'Participants', data: [12, 18, 24, 15, 30, 22, 28, 35, 20, 42],
-                borderColor: '#c8922a', backgroundColor: 'rgba(200,146,42,0.1)',
-                tension: 0.4, fill: true, pointBackgroundColor: '#c8922a', pointRadius: 4
-              }]
-            },
-            options: { responsive: true, plugins: { legend: { position: 'bottom' } }, scales: { y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } } } }
-          });
-        }
-
-        // Occupancy gauge (horizontal bar)
-        const occCtx = document.getElementById('occupancyChart');
-        if (occCtx && !occCtx._chart) {
-          occCtx._chart = new Chart(occCtx, {
-            type: 'bar',
-            data: {
-              labels: this.assignedTreks.map(t => t.name),
-              datasets: [{
-                label: 'Occupancy %',
-                data: this.assignedTreks.map(t => Math.round((t.registered / t.slots) * 100)),
-                backgroundColor: this.assignedTreks.map(t => {
-                  const p = t.registered / t.slots;
-                  return p >= 0.9 ? 'rgba(239,68,68,0.7)' : p >= 0.7 ? 'rgba(245,158,11,0.7)' : 'rgba(34,197,94,0.7)';
-                }),
-                borderRadius: 4,
-              }]
-            },
-            options: {
-              indexAxis: 'y', responsive: true,
-              plugins: { legend: { display: false } },
-              scales: { x: { max: 100, grid: { color: 'rgba(0,0,0,0.05)' } } }
-            }
-          });
-        }
-      });
     },
 
     // ── TOAST ─────────────────────────────────────
@@ -858,12 +803,6 @@ const TsStaffLayout = {
     },
   },
 
-  watch: {
-    activeTab(tab) {
-      if (tab === 'analytics') { setTimeout(() => this.initCharts(), 100); }
-    }
-  },
-
   mounted() {
     this.fetchStaffData();
     this.startCountdown();
@@ -876,7 +815,7 @@ const TsStaffLayout = {
       this.handleHashChange();
     } else {
       const savedTab = localStorage.getItem('staffActiveTab');
-      const validTabs = ['dashboard', 'treks', 'participants', 'analytics', 'notifications', 'exports', 'performance', 'profile'];
+      const validTabs = ['dashboard', 'treks', 'participants', 'exports', 'profile'];
       if (savedTab && validTabs.includes(savedTab)) {
         window.location.hash = savedTab === 'attendance' ? 'treks' : savedTab;
       } else {
@@ -910,10 +849,13 @@ const TsStaffLayout = {
 
       <!-- Staff chip -->
       <div class="sidebar-staff-chip">
-        <div class="staff-avatar">{{ staffInitial }}</div>
+        <div class="staff-avatar">
+          <img v-if="profilePhotoUrl" :src="profilePhotoUrl" :alt="staffProfile.name" />
+          <span v-else>{{ staffInitial }}</span>
+        </div>
         <div class="staff-chip-info">
           <div class="staff-chip-name">{{ staffProfile.name }}</div>
-          <div class="staff-chip-role">Trek Staff</div>
+          <div class="staff-chip-role">{{ staffProfile.designation || 'Trek Staff' }}</div>
         </div>
       </div>
 
@@ -932,23 +874,10 @@ const TsStaffLayout = {
           <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M2 19c0-3 3-5 7-5"/><circle cx="16" cy="10" r="3"/><path d="M13 19c0-3 2.7-5 6-5"/></svg>
           Participants
         </a>
-        <a class="nav-item" :class="{ active: activeTab === 'analytics' }" @click="goTab('analytics')">
-          <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-          Analytics
-        </a>
         <div class="nav-section-label">Management</div>
-        <a class="nav-item" :class="{ active: activeTab === 'notifications' }" @click="goTab('notifications')">
-          <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-          Notifications
-          <span v-if="unreadCount" class="nav-badge nav-badge-red">{{ unreadCount }}</span>
-        </a>
         <a class="nav-item" :class="{ active: activeTab === 'exports' }" @click="goTab('exports')">
           <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           Exports
-        </a>
-        <a class="nav-item" :class="{ active: activeTab === 'performance' }" @click="goTab('performance')">
-          <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg>
-          Performance
         </a>
         <div class="nav-section-label">Account</div>
         <a class="nav-item" :class="{ active: activeTab === 'profile' }" @click="goTab('profile')">
@@ -977,10 +906,6 @@ const TsStaffLayout = {
         <div class="topbar-search">
           <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <input v-model="searchQuery" type="text" placeholder="Search treks…" />
-        </div>
-        <div class="topbar-notif" @click="goTab('notifications')" title="Notifications">
-          <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-          <span v-if="unreadCount" class="notif-dot"></span>
         </div>
       </div>
 
@@ -1069,12 +994,12 @@ const TsStaffLayout = {
               </div>
               <div class="stat-item-grouped">
                 <div class="stat-card-header-row">
-                  <div class="stat-num">{{ unreadCount }}</div>
+                  <div class="stat-num">{{ participants.filter(p => p.status === 'Booked' && !p.attendance).length }}</div>
                   <div class="stat-icon-wrapper stat-icon-alert">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
                   </div>
                 </div>
-                <div class="stat-label">Unread Alerts</div>
+                <div class="stat-label">Attendance Due</div>
               </div>
             </div>
           </div>
@@ -1253,7 +1178,6 @@ const TsStaffLayout = {
             <div class="ts-card">
               <div class="ts-card-header">
                 <div class="ts-card-title">Recent Activity</div>
-                <button class="ts-card-action" @click="goTab('notifications')">All →</button>
               </div>
               <div class="ts-card-body" style="padding-top:0.5rem">
                 <div class="activity-feed">
@@ -1703,76 +1627,6 @@ const TsStaffLayout = {
       </div>
 
       <!-- ════════════════════════════════════════════
-           ANALYTICS TAB
-      ════════════════════════════════════════════ -->
-      <div v-if="activeTab === 'analytics'" class="tab-content">
-        <div class="page-header">
-          <div>
-            <div class="section-eyebrow">Data Insights</div>
-            <div class="section-title">Trek <em>Analytics</em></div>
-          </div>
-        </div>
-        <div class="analytics-grid">
-          <div class="ts-card">
-            <div class="ts-card-header"><div class="ts-card-title">Registrations Per Trek</div></div>
-            <div class="ts-card-body">
-              <div class="chart-wrap"><canvas id="registrationsChart" height="220"></canvas></div>
-            </div>
-          </div>
-          <div class="ts-card">
-            <div class="ts-card-header"><div class="ts-card-title">Difficulty Distribution</div></div>
-            <div class="ts-card-body">
-              <div class="chart-wrap"><canvas id="difficultyChart" height="220"></canvas></div>
-            </div>
-          </div>
-          <div class="ts-card">
-            <div class="ts-card-header"><div class="ts-card-title">Monthly Participation</div></div>
-            <div class="ts-card-body">
-              <div class="chart-wrap"><canvas id="monthlyChart" height="220"></canvas></div>
-            </div>
-          </div>
-          <div class="ts-card">
-            <div class="ts-card-header"><div class="ts-card-title">Trek Occupancy Rate</div></div>
-            <div class="ts-card-body">
-              <div class="chart-wrap"><canvas id="occupancyChart" height="220"></canvas></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ════════════════════════════════════════════
-           NOTIFICATIONS TAB
-      ════════════════════════════════════════════ -->
-      <div v-if="activeTab === 'notifications'" class="tab-content">
-        <div class="page-header">
-          <div>
-            <div class="section-eyebrow">Staff Panel</div>
-            <div class="section-title">Notification <em>Centre</em></div>
-          </div>
-          <button class="btn-ghost" @click="markAllRead" v-if="unreadCount">Mark all read</button>
-        </div>
-        <div class="ts-card">
-          <div class="notif-list">
-            <div v-for="n in notifications" :key="n.id" class="notif-item" :class="{ unread: n.unread }" @click="n.unread = false">
-              <div class="notif-icon" :class="n.type==='warning'?'ni-gold':n.type==='cancel'?'ni-red':n.type==='success'?'ni-green':'ni-blue'">
-                <svg v-if="n.type==='warning'" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                <svg v-else-if="n.type==='cancel'" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
-                <svg v-else viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-              </div>
-              <div class="notif-body">
-                <div class="notif-title">{{ n.title }}</div>
-                <div class="notif-desc">{{ n.desc }}</div>
-              </div>
-              <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px">
-                <div class="notif-time">{{ n.time }}</div>
-                <div v-if="n.unread" class="unread-dot"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ════════════════════════════════════════════
            EXPORTS TAB
       ════════════════════════════════════════════ -->
       <div v-if="activeTab === 'exports'" class="tab-content">
@@ -1811,85 +1665,6 @@ const TsStaffLayout = {
       </div>
 
       <!-- ════════════════════════════════════════════
-           PERFORMANCE TAB
-      ════════════════════════════════════════════ -->
-      <div v-if="activeTab === 'performance'" class="tab-content">
-        <div class="page-header">
-          <div>
-            <div class="section-eyebrow">Staff Metrics</div>
-            <div class="section-title">My <em>Performance</em></div>
-          </div>
-        </div>
-        <div style="display:grid; grid-template-columns:1fr 2fr; gap:1.5rem; align-items:start">
-          <div>
-            <div class="ts-card" style="margin-bottom:1.25rem">
-              <div class="ts-card-header"><div class="ts-card-title">Career Stats</div></div>
-              <div class="ts-card-body">
-                <div class="perf-grid">
-                  <div class="perf-card">
-                    <div class="perf-val">{{ perfMetrics.treksManaged }}</div>
-                    <div class="perf-lbl">Treks Managed</div>
-                  </div>
-                  <div class="perf-card">
-                    <div class="perf-val">{{ perfMetrics.participantsManaged }}</div>
-                    <div class="perf-lbl">Participants Led</div>
-                  </div>
-                </div>
-                <div class="perf-progress" style="margin-top:0.5rem">
-                  <div class="perf-progress-label"><span>Average Occupancy</span><span>{{ perfMetrics.occupancy }}%</span></div>
-                  <div class="progress-track"><div class="progress-fill" :style="{ width: perfMetrics.occupancy + '%' }"></div></div>
-                </div>
-                <div class="perf-progress" style="margin-top:0.75rem">
-                  <div class="perf-progress-label"><span>Completion Rate</span><span>{{ perfMetrics.completionRate }}%</span></div>
-                  <div class="progress-track"><div class="progress-fill" :style="{ width: perfMetrics.completionRate + '%' }"></div></div>
-                </div>
-              </div>
-            </div>
-            <div class="ts-card">
-              <div class="ts-card-header"><div class="ts-card-title">Activity Log</div></div>
-              <div class="ts-card-body" style="padding-top:0.35rem">
-                <div class="activity-feed">
-                  <div v-for="a in activityLog" :key="a.id" class="activity-item">
-                    <div class="activity-dot" :class="a.type==='booking'?'ad-green':a.type==='cancel'?'ad-red':a.type==='status'?'ad-blue':'ad-gold'">
-                      {{ a.type==='booking'?'✓':a.type==='cancel'?'✕':a.type==='status'?'S':'⚙' }}
-                    </div>
-                    <div>
-                      <div class="activity-text" v-html="a.text"></div>
-                      <div class="activity-time">{{ a.time }}</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="ts-card">
-            <div class="ts-card-header"><div class="ts-card-title">Trek Breakdown</div></div>
-            <div class="ts-card-body">
-              <div class="ts-table-wrap" style="box-shadow:none; border:none">
-                <table class="ts-table">
-                  <thead><tr><th>Trek</th><th>Status</th><th>Participants</th><th>Slots</th><th>Occupancy</th></tr></thead>
-                  <tbody>
-                    <tr v-for="t in assignedTreks" :key="t.id">
-                      <td class="cell-name">{{ t.name }}</td>
-                      <td><span :class="'status-pill status-' + t.status.toLowerCase()">{{ t.status }}</span></td>
-                      <td class="mono">{{ t.registered }}</td>
-                      <td class="mono">{{ t.slots }}</td>
-                      <td>
-                        <div style="display:flex; align-items:center; gap:8px">
-                          <div class="progress-track" style="flex:1; max-width:80px"><div class="progress-fill" :style="{ width: slotPct(t) + '%' }"></div></div>
-                          <span style="font-family:'Space Mono',monospace; font-size:0.68rem">{{ slotPct(t) }}%</span>
-                        </div>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ════════════════════════════════════════════
            PROFILE TAB
       ════════════════════════════════════════════ -->
       <div v-if="activeTab === 'profile'" class="tab-content">
@@ -1899,57 +1674,144 @@ const TsStaffLayout = {
             <div class="section-title">My <em>Profile</em></div>
           </div>
         </div>
-        <div class="profile-layout">
-          <div class="profile-card-left">
-            <div class="profile-avatar-xl">{{ staffInitial }}</div>
-            <div class="profile-name-xl">{{ staffProfile.name }}</div>
-            <div class="profile-role-xl">Trek Staff</div>
-            <div style="font-size:0.78rem; color:var(--stone); text-align:center; margin-bottom:1rem; font-family:'Space Mono',monospace">{{ staffProfile.email }}</div>
-            <div style="width:100%; display:flex; flex-direction:column; gap:0.5rem">
-              <div style="background:var(--cream); border-radius:6px; padding:0.55rem 0.85rem; font-size:0.78rem; display:flex; align-items:center; gap:8px">
-                <svg width="14" height="14" viewBox="0 0 24 24" style="stroke:var(--gold);fill:none;stroke-width:2"><path d="M3 17l4-8 4 4 4-6 4 10"/></svg>
-                Treks Assigned: <strong style="margin-left:auto">{{ assignedTreks.length }}</strong>
+        <div class="profile-layout profile-layout-modern">
+          <section class="profile-identity-card">
+            <div class="profile-photo-wrap">
+              <img v-if="profilePhotoUrl" :src="profilePhotoUrl" :alt="staffProfile.name" class="profile-photo-xl" />
+              <div v-else class="profile-avatar-xl">{{ staffInitial }}</div>
+              <span class="profile-status-badge" :class="{ inactive: profileStatusLabel !== 'Active' }">{{ profileStatusLabel }}</span>
+            </div>
+            <div class="profile-name-xl">{{ staffProfile.name || 'Staff Member' }}</div>
+            <div class="profile-role-xl">{{ staffProfile.designation || 'Trek Staff' }}</div>
+            <div class="profile-id-pill">{{ staffProfile.memberId || 'Staff ID pending' }}</div>
+
+            <div class="profile-contact-list">
+              <div class="profile-contact-item">
+                <svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="m22 6-10 7L2 6"/></svg>
+                <span>{{ staffProfile.email || 'Email not added' }}</span>
               </div>
-              <div style="background:var(--cream); border-radius:6px; padding:0.55rem 0.85rem; font-size:0.78rem; display:flex; align-items:center; gap:8px">
-                <svg width="14" height="14" viewBox="0 0 24 24" style="stroke:var(--gold);fill:none;stroke-width:2"><circle cx="9" cy="8" r="3"/><path d="M2 19c0-3 3-5 7-5"/></svg>
-                Participants Led: <strong style="margin-left:auto">{{ perfMetrics.participantsManaged }}</strong>
+              <div class="profile-contact-item">
+                <svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.44 2 2 0 0 1 3.6 1.28h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                <span>{{ staffProfile.phone || 'Phone not added' }}</span>
               </div>
-              <div style="background:var(--cream); border-radius:6px; padding:0.55rem 0.85rem; font-size:0.78rem; display:flex; align-items:center; gap:8px">
-                <svg width="14" height="14" viewBox="0 0 24 24" style="stroke:var(--gold);fill:none;stroke-width:2"><polyline points="20 6 9 17 4 12"/></svg>
-                Completion Rate: <strong style="margin-left:auto">{{ perfMetrics.completionRate }}%</strong>
+              <div class="profile-contact-item">
+                <svg viewBox="0 0 24 24"><path d="M12 21s7-4.35 7-11a7 7 0 1 0-14 0c0 6.65 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
+                <span>{{ staffProfile.city || 'Base not added' }}</span>
               </div>
             </div>
-          </div>
-          <div>
-            <div class="profile-form-section">
-              <div class="form-section-title">Profile Details</div>
-              <div class="form-row">
-                <div class="form-group"><label>Full Name</label><input v-model="staffProfile.name" type="text" disabled style="background: var(--snow); color: var(--stone); cursor: not-allowed;" /></div>
-                <div class="form-group"><label>Phone</label><input v-model="staffProfile.phone" type="tel" disabled style="background: var(--snow); color: var(--stone); cursor: not-allowed;" /></div>
+          </section>
+
+          <section class="profile-main-card">
+            <div class="profile-section-head">
+              <div>
+                <div class="profile-kicker">Admin Profile</div>
+                <h3>Staff Details</h3>
               </div>
-              <div class="form-row full">
-                <div class="form-group"><label>Email</label><input v-model="staffProfile.email" type="email" disabled style="background: var(--snow); color: var(--stone); cursor: not-allowed;" /></div>
+              <span class="profile-readonly-pill">Managed by Admin</span>
+            </div>
+
+            <div class="profile-detail-grid">
+              <div class="profile-detail-item">
+                <span>Designation</span>
+                <strong>{{ staffProfile.designation || 'Not assigned' }}</strong>
               </div>
-              <div class="form-row">
-                <div class="form-group"><label>City / Base</label><input v-model="staffProfile.city" type="text" disabled style="background: var(--snow); color: var(--stone); cursor: not-allowed;" /></div>
-                <div class="form-group"><label>Certifications</label><input v-model="staffProfile.certifications" type="text" disabled style="background: var(--snow); color: var(--stone); cursor: not-allowed;" /></div>
+              <div class="profile-detail-item">
+                <span>Experience</span>
+                <strong>{{ perfMetrics.experienceYears }} year{{ perfMetrics.experienceYears === 1 ? '' : 's' }}</strong>
               </div>
-              <div class="form-row full">
-                <div class="form-group"><label>Bio</label><textarea v-model="staffProfile.bio" rows="3" disabled style="background: var(--snow); color: var(--stone); cursor: not-allowed; resize: none;"></textarea></div>
+              <div class="profile-detail-item">
+                <span>Joined</span>
+                <strong>{{ staffProfile.joined || 'Not recorded' }}</strong>
+              </div>
+              <div class="profile-detail-item">
+                <span>Account</span>
+                <strong>{{ staffProfile.blacklisted ? 'Restricted' : (staffProfile.active === false ? 'Inactive' : 'Active') }}</strong>
               </div>
             </div>
-            <div class="profile-form-section" style="margin-bottom:0">
-              <div class="form-section-title">Change Password</div>
-              <div class="form-row full"><div class="form-group"><label>Current Password</label><input v-model="pwForm.current" type="password" placeholder="••••••••" /></div></div>
-              <div class="form-row">
-                <div class="form-group"><label>New Password</label><input v-model="pwForm.new" type="password" placeholder="••••••••" /></div>
-                <div class="form-group"><label>Confirm Password</label><input v-model="pwForm.confirm" type="password" placeholder="••••••••" /></div>
+
+            <div class="profile-copy-block">
+              <span>Bio</span>
+              <p>{{ staffProfile.bio || 'No bio has been added yet.' }}</p>
+            </div>
+
+            <div class="profile-tags-grid">
+              <div class="profile-tag-panel">
+                <span>Skills</span>
+                <div class="profile-tags">
+                  <span v-for="skill in profileSkills" :key="skill" class="profile-tag">{{ skill }}</span>
+                  <em v-if="!profileSkills.length">No skills added</em>
+                </div>
               </div>
-              <div style="display:flex; justify-content:flex-end; margin-top:0.85rem">
-                <button class="btn-forest" @click="changePassword">Update Password</button>
+              <div class="profile-tag-panel">
+                <span>Certifications</span>
+                <div class="profile-tags">
+                  <span v-for="cert in profileCertifications" :key="cert" class="profile-tag profile-tag-gold">{{ cert }}</span>
+                  <em v-if="!profileCertifications.length">No certifications added</em>
+                </div>
+              </div>
+              <div class="profile-tag-panel">
+                <span>Languages</span>
+                <div class="profile-tags">
+                  <span v-for="language in profileLanguages" :key="language" class="profile-tag profile-tag-blue">{{ language }}</span>
+                  <em v-if="!profileLanguages.length">No languages added</em>
+                </div>
               </div>
             </div>
-          </div>
+
+            <div class="career-panel">
+              <div class="profile-section-head compact">
+                <div>
+                  <div class="profile-kicker">Career Performance</div>
+                  <h3>Field Record</h3>
+                </div>
+              </div>
+              <div class="career-stat-grid">
+                <div class="career-stat">
+                  <span>{{ perfMetrics.treksManaged }}</span>
+                  <small>Total Treks Managed</small>
+                </div>
+                <div class="career-stat">
+                  <span>{{ perfMetrics.completedTreks }}</span>
+                  <small>Completed Treks</small>
+                </div>
+                <div class="career-stat">
+                  <span>{{ perfMetrics.assignedTreks }}</span>
+                  <small>Current Assignments</small>
+                </div>
+                <div class="career-stat">
+                  <span>{{ perfMetrics.participantsManaged }}</span>
+                  <small>Current Participants</small>
+                </div>
+              </div>
+              <div class="career-progress-grid">
+                <div class="perf-progress">
+                  <div class="perf-progress-label"><span>Average Occupancy</span><span>{{ perfMetrics.occupancy }}%</span></div>
+                  <div class="progress-track"><div class="progress-fill" :style="{ width: perfMetrics.occupancy + '%' }"></div></div>
+                </div>
+                <div class="perf-progress">
+                  <div class="perf-progress-label"><span>Completion Rate</span><span>{{ perfMetrics.completionRate }}%</span></div>
+                  <div class="progress-track"><div class="progress-fill alt" :style="{ width: perfMetrics.completionRate + '%' }"></div></div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="profile-main-card profile-security-card">
+            <div class="profile-section-head">
+              <div>
+                <div class="profile-kicker">Account Security</div>
+                <h3>Change Password</h3>
+              </div>
+            </div>
+            <div class="form-row full"><div class="form-group"><label>Current Password</label><input v-model="pwForm.current" type="password" placeholder="Current password" /></div></div>
+            <div class="form-row">
+              <div class="form-group"><label>New Password</label><input v-model="pwForm.new" type="password" placeholder="New password" /></div>
+              <div class="form-group"><label>Confirm Password</label><input v-model="pwForm.confirm" type="password" placeholder="Confirm password" /></div>
+            </div>
+            <div class="profile-actions-row">
+              <button class="btn-forest" @click="changePassword">Update Password</button>
+            </div>
+          </section>
         </div>
       </div>
 

@@ -2290,14 +2290,24 @@ def staff_dashboard_data():
             
     profile = current_user.staff_profile
     staff_profile_data = {
+        'memberId': current_user.to_json().get('memberId'),
         'name': current_user.name,
         'email': current_user.email,
         'phone': current_user.phone or '',
         'city': current_user.city or '',
         'bio': current_user.bio or '',
+        'joined': current_user.registered_at.strftime('%Y-%m-%d') if current_user.registered_at else '',
+        'active': current_user.active,
+        'blacklisted': current_user.blacklisted,
+        'designation': profile.designation if profile else 'Lead Guide',
         'certifications': profile.certifications if profile else 'Wilderness First Responder (WFR)',
+        'languages': profile.languages if profile else 'English, Hindi',
         'skills': profile.skills if profile else 'Wilderness First Aid, Navigation',
         'experienceYears': profile.experience_years if profile else 2,
+        'completedTreksCount': profile.completed_treks_count if profile else 10,
+        'photoUrl': profile.photo_url if profile else '',
+        'status': profile.status if profile else 'Active',
+        'customBlockedDates': profile.custom_blocked_dates if profile else '',
     }
             
     return jsonify({

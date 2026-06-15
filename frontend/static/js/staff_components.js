@@ -1184,6 +1184,7 @@ const TsStaffLayout = {
             </a>
           </div>
         </div>
+        <a v-if="sidebarCollapsed" class="topbar-brand-mini topbar-brand-right" href="#" @click.prevent="goTab('dashboard')">Trail<span>Sync</span></a>
       </div>
 
       <div v-if="sidebarCollapsed" class="tab-context-bar">

@@ -12,6 +12,8 @@ const TsStaffLayout = {
       // ── UI STATE ──────────────────────────────────
       activeTab: 'dashboard',
       sidebarOpen: false,
+      sidebarCollapsed: false,
+      profileDropdownOpen: false,
       toast: { show: false, msg: '', type: 'success' },
 
       // ── DATA ──────────────────────────────────────
@@ -75,6 +77,30 @@ const TsStaffLayout = {
 
       // ── PASSWORD FORM ─────────────────────────────
       pwForm: { current: '', new: '', confirm: '' },
+
+      // ── SOCIAL TAB STATE ──────────────────────────
+      selectedSocialTrekId: null,
+      socialMessages: [
+        { id: 1, trekId: 1, sender: 'guide', name: 'Lead Guide', text: 'Hey trekkers! Please make sure you bring proper high-ankle trekking shoes. The weather at Kedarkantha is snowy right now.', timestamp: '10:00 AM' },
+        { id: 2, trekId: 1, sender: 'trekker', name: 'Aarav Sharma', text: 'Thanks for the update, guide! Are microspikes provided at basecamp?', timestamp: '10:15 AM' },
+        { id: 3, trekId: 1, sender: 'guide', name: 'Lead Guide', text: 'Yes, Aarav! We will distribute microspikes and gaiters at Sankri basecamp.', timestamp: '10:18 AM' },
+        { id: 4, trekId: 1, sender: 'trekker', name: 'Neha Gupta', text: 'Awesome! Can we rent warm jackets too?', timestamp: '10:20 AM' },
+        { id: 5, trekId: 1, sender: 'guide', name: 'Lead Guide', text: 'Yes, heavy down jackets are available for rent at Sankri. Make sure to pre-book.', timestamp: '10:22 AM' },
+
+        { id: 6, trekId: 2, sender: 'guide', name: 'Lead Guide', text: 'Welcome to the Hampta Pass group chat! We start in 5 days. Ensure your physical prep matches the routine.', timestamp: '09:00 AM' },
+        { id: 7, trekId: 2, sender: 'trekker', name: 'Rohan Mehta', text: 'Looking forward to it! How cold will it get at Balu ka Ghera camp?', timestamp: '09:12 AM' },
+        { id: 8, trekId: 2, sender: 'guide', name: 'Lead Guide', text: 'It will dip to around 2°C at night, Rohan. Make sure you have at least 3 warm layers.', timestamp: '09:20 AM' }
+      ],
+      socialAnnouncements: [
+        { id: 1, trekId: 1, title: 'Checklist Verification Due', content: 'Please upload or verify your medical certificate and photo ID by tomorrow evening so we can process forest permits.', date: '14 Jun' },
+        { id: 2, trekId: 1, title: 'Assembly Point Sankri', content: 'Our shared transport starts from Dehradun Railway Station at 6:30 AM on Day 1. Look for the TrailSync banner.', date: '13 Jun' },
+        { id: 3, trekId: 2, title: 'Permit Details Needed', content: 'Send your passport-sized photos and physical fitness certificates to the email desk.', date: '12 Jun' }
+      ],
+      newSocialMessageText: '',
+      newSocialAnnouncementText: '',
+      newSocialAnnouncementTitle: '',
+      showSocialProfileModal: false,
+      socialProfileTarget: null,
     };
   },
 
@@ -197,12 +223,27 @@ const TsStaffLayout = {
         (t.batchCode && t.batchCode.toLowerCase().includes(q))
       );
     },
+
+    // ── SOCIAL COMPUTED ───────────────────────────
+    selectedSocialGroupTrek() {
+      return this.assignedTreks.find(t => t.id === this.selectedSocialTrekId) || null;
+    },
+    currentGroupMessages() {
+      return this.socialMessages.filter(m => m.trekId === this.selectedSocialTrekId);
+    },
+    currentGroupAnnouncements() {
+      return this.socialAnnouncements.filter(a => a.trekId === this.selectedSocialTrekId);
+    },
+    socialGroupMembers() {
+      if (!this.selectedSocialTrekId) return [];
+      return this.participants.filter(p => p.trekId === this.selectedSocialTrekId && (p.status === 'Booked' || p.status === 'Completed'));
+    },
   },
 
   methods: {
     // ── NAV ────────────────────────────────────────
     goTab(tab, options = {}) {
-      const validTabs = ['dashboard', 'treks', 'participants', 'exports', 'profile'];
+      const validTabs = ['dashboard', 'treks', 'participants', 'exports', 'profile', 'social'];
       if (!validTabs.includes(tab)) return;
 
       let targetHash = tab;
@@ -214,6 +255,10 @@ const TsStaffLayout = {
         }
       } else if (tab === 'participants' && this.participantTrekId) {
         targetHash = `participants/trek/${this.participantTrekId}`;
+      } else if (tab === 'social') {
+        if (this.selectedSocialTrekId) {
+          targetHash = `social/group/${this.selectedSocialTrekId}`;
+        }
       }
 
       if (window.location.hash.slice(1) === targetHash) {
@@ -252,14 +297,21 @@ const TsStaffLayout = {
         this.attendanceInTreksTab = false;
         this.participantTrekId = isNaN(trekId) ? null : trekId;
         this.selectedTrekId = null;
+      } else if (hash.startsWith('social/group/')) {
+        const trekId = parseInt(hash.replace('social/group/', ''), 10);
+        this.activeTab = 'social';
+        this.selectedSocialTrekId = isNaN(trekId) ? null : trekId;
       } else {
-        const validTabs = ['dashboard', 'treks', 'participants', 'exports', 'profile'];
+        const validTabs = ['dashboard', 'treks', 'participants', 'exports', 'profile', 'social'];
         if (validTabs.includes(hash)) {
           this.activeTab = hash;
           this.participantsInTreksTab = false;
           this.attendanceInTreksTab = false;
           this.participantTrekId = null;
           this.selectedTrekId = null;
+          if (hash === 'social' && !this.selectedSocialTrekId && this.assignedTreks.length > 0) {
+            this.selectedSocialTrekId = this.assignedTreks[0].id;
+          }
         } else {
           window.location.hash = 'dashboard';
           return;
@@ -298,6 +350,25 @@ const TsStaffLayout = {
           }
           this.assignedTreks = data.assignedTreks || this.assignedTreks;
           this.participants = data.participants || this.participants;
+
+          // Map mock social messages/announcements dynamically to active trek IDs
+          if (this.assignedTreks.length > 0) {
+            const firstId = this.assignedTreks[0].id;
+            const secondId = this.assignedTreks[1] ? this.assignedTreks[1].id : firstId;
+            
+            this.socialMessages.forEach(m => {
+              if (m.trekId === 1) m.trekId = firstId;
+              else if (m.trekId === 2) m.trekId = secondId;
+            });
+            this.socialAnnouncements.forEach(a => {
+              if (a.trekId === 1) a.trekId = firstId;
+              else if (a.trekId === 2) a.trekId = secondId;
+            });
+            
+            if (!this.selectedSocialTrekId) {
+              this.selectedSocialTrekId = firstId;
+            }
+          }
         }
       } catch (e) {
         console.error("Error fetching staff data:", e);
@@ -319,6 +390,84 @@ const TsStaffLayout = {
       const d = new Date(dateStr);
       if (isNaN(d)) return dateStr;
       return String(d.getUTCDate()).padStart(2,'0') + ' ' + months[d.getUTCMonth()] + ' ' + d.getUTCFullYear();
+    },
+    formatShortDate(dateStr) {
+      if (!dateStr) return '';
+      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      const d = new Date(dateStr);
+      if (isNaN(d)) return dateStr;
+      return String(d.getUTCDate()).padStart(2,'0') + ' ' + months[d.getUTCMonth()];
+    },
+    getTrekWeather(trek) {
+      if (!trek) return { temp: '—', condition: 'Sunny', icon: 'bi-sun', wind: '—', humidity: '—' };
+      const name = trek.name.toLowerCase();
+      if (name.includes('kedarkantha')) {
+        return { temp: '4°C', condition: 'Snowy / Wind Chill', icon: 'bi-snow', wind: '18 km/h', humidity: '82%' };
+      } else if (name.includes('hampta')) {
+        return { temp: '12°C', condition: 'Rainy / Cloudy', icon: 'bi-cloud-rain-heavy', wind: '12 km/h', humidity: '90%' };
+      } else if (name.includes('roopkund')) {
+        return { temp: '-2°C', condition: 'Freezing / Snow', icon: 'bi-thermometer-snow', wind: '22 km/h', humidity: '85%' };
+      }
+      return { temp: '16°C', condition: 'Clear Skies', icon: 'bi-sun-fill', wind: '8 km/h', humidity: '45%' };
+    },
+    selectSocialGroup(trekId) {
+      this.selectedSocialTrekId = trekId;
+      window.location.hash = `social/group/${trekId}`;
+    },
+    sendSocialMessage() {
+      if (!this.newSocialMessageText.trim()) return;
+      const newMsg = {
+        id: Date.now(),
+        trekId: this.selectedSocialTrekId,
+        sender: 'guide',
+        name: this.staffProfile.name || 'Lead Guide',
+        text: this.newSocialMessageText.trim(),
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+      this.socialMessages.push(newMsg);
+      this.newSocialMessageText = '';
+      this.$nextTick(() => {
+        const feed = this.$el ? this.$el.querySelector('.social-chat-feed') : document.querySelector('.social-chat-feed');
+        if (feed) feed.scrollTop = feed.scrollHeight;
+      });
+    },
+    postSocialAnnouncement() {
+      if (!this.newSocialAnnouncementTitle.trim() || !this.newSocialAnnouncementText.trim()) return;
+      const newAnn = {
+        id: Date.now(),
+        trekId: this.selectedSocialTrekId,
+        title: this.newSocialAnnouncementTitle.trim(),
+        content: this.newSocialAnnouncementText.trim(),
+        date: new Date().toLocaleDateString([], { day: '2-digit', month: 'short' })
+      };
+      this.socialAnnouncements.unshift(newAnn);
+      this.newSocialAnnouncementTitle = '';
+      this.newSocialAnnouncementText = '';
+      this.showToast('Announcement posted & pinned!');
+    },
+    openSocialProfileModal(p) {
+      this.socialProfileTarget = p;
+      this.showSocialProfileModal = true;
+    },
+    getTrekkerCount(trekId) {
+      const trekkers = this.participants.filter(p => p.trekId === trekId && (p.status === 'Booked' || p.status === 'Completed')).length;
+      return trekkers + 1; // including guide
+    },
+    getChatBubbleStyle(sender) {
+      if (sender === 'guide') {
+        return {
+          background: 'var(--cream)',
+          border: '1px solid rgba(200, 146, 42, 0.25)',
+          color: 'var(--bark)',
+          borderTopRightRadius: '0px'
+        };
+      }
+      return {
+        background: '#ffffff',
+        border: '1px solid rgba(26, 46, 26, 0.08)',
+        color: 'var(--bark)',
+        borderTopLeftRadius: '0px'
+      };
     },
 
     displayTrekkerId(p) {
@@ -908,7 +1057,7 @@ const TsStaffLayout = {
       this.handleHashChange();
     } else {
       const savedTab = localStorage.getItem('staffActiveTab');
-      const validTabs = ['dashboard', 'treks', 'participants', 'exports', 'profile'];
+      const validTabs = ['dashboard', 'treks', 'participants', 'exports', 'profile', 'social'];
       if (savedTab && validTabs.includes(savedTab)) {
         window.location.hash = savedTab === 'attendance' ? 'treks' : savedTab;
       } else {
@@ -923,25 +1072,25 @@ const TsStaffLayout = {
   },
 
   template: `
-  <div class="ts-staff-layout">
+  <div class="ts-staff-layout" :class="{ 'sidebar-collapsed': sidebarCollapsed }">
 
     <!-- Mobile sidebar overlay -->
     <div class="sidebar-overlay" :class="{ visible: sidebarOpen }" @click="sidebarOpen = false"></div>
-    <button class="mobile-toggle" @click="sidebarOpen = !sidebarOpen">
-      <svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-    </button>
 
     <!-- ── SIDEBAR ────────────────────────────────── -->
-    <aside class="ts-sidebar" :class="{ open: sidebarOpen }">
-      <div class="sidebar-brand">
-        <div class="sidebar-brand-icon">
-          <svg viewBox="0 0 24 24"><path d="M3 17l4-8 4 4 4-6 4 10"/></svg>
-        </div>
+    <aside class="ts-sidebar" :class="{ open: sidebarOpen, collapsed: sidebarCollapsed }">
+
+      <!-- Sidebar header with toggle -->
+      <div class="sidebar-header-row">
         <a class="brand-name" href="#">Trail<span>Sync</span></a>
+        <button class="sidebar-toggle-btn" @click="sidebarCollapsed = !sidebarCollapsed; sidebarOpen = false" :title="sidebarCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'">
+          <i v-if="!sidebarCollapsed" class="bi bi-x-lg"></i>
+          <i v-else class="bi bi-list"></i>
+        </button>
       </div>
 
-      <!-- Staff chip -->
-      <div class="sidebar-staff-chip">
+      <!-- Staff chip (hidden when collapsed) -->
+      <div class="sidebar-staff-chip" v-show="!sidebarCollapsed">
         <div class="staff-avatar">
           <img v-if="profilePhotoUrl" :src="profilePhotoUrl" :alt="staffProfile.name" />
           <span v-else>{{ staffInitial }}</span>
@@ -953,36 +1102,41 @@ const TsStaffLayout = {
       </div>
 
       <nav class="sidebar-nav">
-        <div class="nav-section-label">Operations</div>
-        <a class="nav-item" :class="{ active: activeTab === 'dashboard' }" @click="goTab('dashboard')">
-          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-          Dashboard
+        <div class="nav-section-label" v-show="!sidebarCollapsed">Operations</div>
+        <a class="nav-item" :class="{ active: activeTab === 'dashboard' }" @click="goTab('dashboard')" :title="sidebarCollapsed ? 'Home' : ''">
+          <i class="bi bi-house-door-fill nav-icon"></i>
+          <span v-show="!sidebarCollapsed">Home</span>
         </a>
-        <a class="nav-item" :class="{ active: activeTab === 'treks' }" @click="goTab('treks')">
-          <svg viewBox="0 0 24 24"><path d="M3 17l4-8 4 4 4-6 4 10"/><path d="M3 20h18"/></svg>
-          Assigned Treks
-          <span class="nav-badge">{{ assignedTreks.length }}</span>
+        <a class="nav-item" :class="{ active: activeTab === 'treks' }" @click="goTab('treks')" :title="sidebarCollapsed ? 'Assigned Treks' : ''">
+          <i class="bi bi-map-fill nav-icon"></i>
+          <span v-show="!sidebarCollapsed">Assigned Treks</span>
+          <span class="nav-badge" v-show="!sidebarCollapsed">{{ assignedTreks.length }}</span>
         </a>
-        <a class="nav-item" :class="{ active: activeTab === 'participants' }" @click="goTab('participants')">
-          <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M2 19c0-3 3-5 7-5"/><circle cx="16" cy="10" r="3"/><path d="M13 19c0-3 2.7-5 6-5"/></svg>
-          Participants
+        <a class="nav-item" :class="{ active: activeTab === 'participants' }" @click="goTab('participants')" :title="sidebarCollapsed ? 'Participants' : ''">
+          <i class="bi bi-people-fill nav-icon"></i>
+          <span v-show="!sidebarCollapsed">Participants</span>
         </a>
-        <div class="nav-section-label">Management</div>
-        <a class="nav-item" :class="{ active: activeTab === 'exports' }" @click="goTab('exports')">
-          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Exports
+        <div class="nav-section-label" v-show="!sidebarCollapsed">Management</div>
+        <a class="nav-item" :class="{ active: activeTab === 'exports' }" @click="goTab('exports')" :title="sidebarCollapsed ? 'Exports' : ''">
+          <i class="bi bi-download nav-icon"></i>
+          <span v-show="!sidebarCollapsed">Exports</span>
         </a>
-        <div class="nav-section-label">Account</div>
-        <a class="nav-item" :class="{ active: activeTab === 'profile' }" @click="goTab('profile')">
-          <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-          My Profile
+        <div class="nav-section-label" v-show="!sidebarCollapsed">Communication</div>
+        <a class="nav-item" :class="{ active: activeTab === 'social' }" @click="goTab('social')" :title="sidebarCollapsed ? 'TrailSync Social' : ''">
+          <i class="bi bi-chat-left-text-fill nav-icon"></i>
+          <span v-show="!sidebarCollapsed">TrailSync Social</span>
+        </a>
+        <div class="nav-section-label" v-show="!sidebarCollapsed">Account</div>
+        <a class="nav-item" :class="{ active: activeTab === 'profile' }" @click="goTab('profile')" :title="sidebarCollapsed ? 'My Profile' : ''">
+          <i class="bi bi-person-fill nav-icon"></i>
+          <span v-show="!sidebarCollapsed">My Profile</span>
         </a>
       </nav>
 
       <div class="sidebar-footer">
-        <button class="btn-logout-sidebar" @click="$emit('logout')">
-          <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-          Sign Out
+        <button class="btn-logout-sidebar" @click="$emit('logout')" :title="sidebarCollapsed ? 'Sign Out' : ''">
+          <i class="bi bi-box-arrow-right nav-icon"></i>
+          <span v-show="!sidebarCollapsed">Sign Out</span>
         </button>
       </div>
     </aside>
@@ -992,13 +1146,49 @@ const TsStaffLayout = {
 
       <!-- Topbar -->
       <div class="ts-topbar">
-        <div class="topbar-breadcrumb">
-          TrailSync / Staff / <span>{{ activeTab.charAt(0).toUpperCase() + activeTab.slice(1) }}</span>
+        <div v-if="!sidebarCollapsed" class="topbar-breadcrumb">
+          TrailSync / <span>{{ activeTab === 'dashboard' ? 'Home' : activeTab.charAt(0).toUpperCase() + activeTab.slice(1) }}</span>
         </div>
         <div class="topbar-spacer"></div>
-        <div class="topbar-search">
-          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input v-model="searchQuery" type="text" placeholder="Search treks…" />
+        <!-- Profile dropdown -->
+        <div class="topbar-profile" style="position: relative;">
+          <button class="topbar-profile-btn" @click="profileDropdownOpen = !profileDropdownOpen">
+            <div class="topbar-avatar">
+              <img v-if="profilePhotoUrl" :src="profilePhotoUrl" :alt="staffProfile.name" />
+              <span v-else>{{ staffInitial }}</span>
+            </div>
+            <span class="topbar-profile-name">{{ staffProfile.name ? staffProfile.name.split(' ')[0] : 'Staff' }}</span>
+            <i class="bi bi-chevron-down" style="font-size: 0.7rem; margin-left: 4px; opacity: 0.7;"></i>
+          </button>
+          <!-- Dropdown overlay (closes on outside click) -->
+          <div v-if="profileDropdownOpen" class="profile-dropdown-overlay" @click="profileDropdownOpen = false"></div>
+          <!-- Dropdown -->
+          <div v-if="profileDropdownOpen" class="profile-dropdown" @click.stop>
+            <div class="profile-dropdown-header">
+              <div class="pd-avatar">
+                <img v-if="profilePhotoUrl" :src="profilePhotoUrl" :alt="staffProfile.name" />
+                <span v-else>{{ staffInitial }}</span>
+              </div>
+              <div>
+                <div class="pd-name">{{ staffProfile.name }}</div>
+                <div class="pd-id">ID: {{ staffProfile.memberId || 'STF-001' }}</div>
+              </div>
+            </div>
+            <div class="pd-email"><i class="bi bi-envelope-fill me-2"></i>{{ staffProfile.email || 'staff@trailsync.in' }}</div>
+            <div class="pd-divider"></div>
+            <a class="pd-item" @click="goTab('profile'); profileDropdownOpen = false">
+              <i class="bi bi-person-fill me-2"></i>View Profile
+            </a>
+            <a class="pd-item pd-signout" @click="$emit('logout')">
+              <i class="bi bi-box-arrow-right me-2"></i>Sign Out
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="sidebarCollapsed" class="tab-context-bar">
+        <div class="topbar-breadcrumb">
+          TrailSync / <span>{{ activeTab === 'dashboard' ? 'Home' : activeTab.charAt(0).toUpperCase() + activeTab.slice(1) }}</span>
         </div>
       </div>
 
@@ -1011,8 +1201,7 @@ const TsStaffLayout = {
         <div class="staff-hero">
           <div class="hero-left">
             <div class="hero-greeting">Welcome Back, Staff</div>
-            <div class="hero-name">Hello, <em>{{ staffProfile.name.split(' ')[0] }}</em> 👋</div>
-            <div class="hero-sub">You have {{ assignedTreks.filter(t=>t.status==='Open'||t.status==='Approved').length }} active trek{{ assignedTreks.filter(t=>t.status==='Open'||t.status==='Approved').length !== 1 ? 's' : '' }} — {{ participants.filter(p=>p.status==='Booked').length }} participants registered</div>
+            <div class="hero-name">Hello, <em>{{ staffProfile.name.split(' ')[0] }}</em></div>
           </div>
           <div class="hero-right">
             <button class="btn-primary-ts" @click="goTab('treks')">Manage Treks</button>
@@ -1020,79 +1209,233 @@ const TsStaffLayout = {
           </div>
         </div>
 
-        <!-- Stats row (Redesigned & Grouped) -->
-        <div class="stats-grouped-container">
-          <!-- Group 1: Trek Summary -->
-          <div class="stats-group">
-            <div class="stats-group-title">Trek Summary</div>
-            <div class="stats-group-cards">
-              <div class="stat-item-grouped">
-                <div class="stat-card-header-row">
-                  <div class="stat-num">{{ assignedTreks.length }}</div>
-                  <div class="stat-icon-wrapper stat-icon-mountain">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l4-8 4 4 4-6 4 10"/></svg>
-                  </div>
-                </div>
-                <div class="stat-label">Assigned Treks</div>
+        <!-- Stats row (exactly 5 stats as requested) -->
+        <div class="stats-row">
+          <div class="stat-card">
+            <div class="stat-icon si-gold">
+              <i class="bi bi-signpost-split-fill fs-5"></i>
+            </div>
+            <div class="stat-info">
+              <div class="stat-val">{{ assignedTreks.length }}</div>
+              <div class="stat-lbl">Total Assigned Treks</div>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-icon si-green">
+              <i class="bi bi-activity fs-5"></i>
+            </div>
+            <div class="stat-info">
+              <div class="stat-val">{{ assignedTreks.filter(t => ['Open', 'Approved', 'Started'].includes(t.status)).length }}</div>
+              <div class="stat-lbl">Active Treks</div>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-icon si-gold">
+              <i class="bi bi-calendar-event fs-5"></i>
+            </div>
+            <div class="stat-info">
+              <div class="stat-val">
+                {{ assignedTreks.filter(t => ['Open', 'Approved', 'Pending'].includes(t.status) && new Date(t.startDate) >= new Date()).length }}
               </div>
-              <div class="stat-item-grouped">
-                <div class="stat-card-header-row">
-                  <div class="stat-num">{{ assignedTreks.filter(t => t.status === 'Completed').length }}</div>
-                  <div class="stat-icon-wrapper stat-icon-check">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+              <div class="stat-lbl">Upcoming Treks</div>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-icon si-blue">
+              <i class="bi bi-check-circle-fill fs-5"></i>
+            </div>
+            <div class="stat-info">
+              <div class="stat-val">{{ assignedTreks.filter(t => t.status === 'Completed').length }}</div>
+              <div class="stat-lbl">Completed Treks</div>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-icon si-forest">
+              <i class="bi bi-people-fill fs-5"></i>
+            </div>
+            <div class="stat-info">
+              <div class="stat-val">{{ participants.length }}</div>
+              <div class="stat-lbl">Total Participants Managed</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dashboard Content Grid -->
+        <!-- Row of 3 widgets (only shown if there is an upcoming trek) -->
+        <div v-if="nextTrek" class="dashboard-widgets-row" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-top: 1.5rem;">
+          
+          <!-- Card 1: Next Trek In -->
+          <div class="upcoming-trek d-flex flex-column justify-content-between">
+            <div>
+              <div class="up-label"><i class="bi bi-clock-history"></i> Next Trek In</div>
+              <div class="up-name">{{ nextTrek.name }}</div>
+              <div class="up-loc"><i class="bi bi-geo-alt-fill"></i> {{ nextTrek.location }}</div>
+              <div class="up-start-date" style="font-size: 0.72rem; color: rgba(255,255,255,0.72); margin-top: -6px; margin-bottom: 12px;">
+                <i class="bi bi-calendar3"></i> Starts: {{ formatDate(nextTrek.startDate) }}
+              </div>
+            </div>
+            
+            <div class="up-countdown">
+              <div class="countdown-unit">
+                <span class="cu-val">{{ countdown.days }}</span>
+                <span class="cu-lbl">Days</span>
+              </div>
+              <div class="countdown-unit">
+                <span class="cu-val">{{ countdown.hours }}</span>
+                <span class="cu-lbl">Hrs</span>
+              </div>
+              <div class="countdown-unit">
+                <span class="cu-val">{{ countdown.minutes }}</span>
+                <span class="cu-lbl">Min</span>
+              </div>
+              <div class="countdown-unit">
+                <span class="cu-val">{{ countdown.seconds }}</span>
+                <span class="cu-lbl">Sec</span>
+              </div>
+            </div>
+
+            <!-- Slot Utilization Bar -->
+            <div class="slot-utilization-wrap mt-3 text-white" style="font-size: 0.72rem;">
+              <div class="d-flex justify-content-between mb-1 opacity-75">
+                <span>Slot Utilization</span>
+                <span>{{ nextTrek.registered }}/{{ nextTrek.slots }}</span>
+              </div>
+              <div class="progress" style="height: 6px; background: rgba(255,255,255,0.15); border-radius: 3px; overflow: hidden;">
+                <div class="progress-bar" role="progressbar" :style="{ width: (nextTrek.registered / nextTrek.slots * 100) + '%', background: '#e8b84b' }"></div>
+              </div>
+            </div>
+
+            <button class="btn-up-details" @click="openTrekDetailModal(nextTrek)">
+              View Details
+            </button>
+          </div>
+
+          <!-- Card 2: Weather Snapshot (detailed, blueish theme & animated) -->
+          <div class="ts-card weather-card-premium d-flex flex-column justify-content-between" style="color: #ffffff; border: none; border-radius: var(--radius); box-shadow: 0 4px 15px rgba(30, 60, 114, 0.2);">
+            <div class="ts-card-header" style="border-bottom: 1px solid rgba(255,255,255,0.12); padding: 1.15rem 1.4rem;">
+              <div class="ts-card-title text-white m-0" style="font-weight: 700; font-size: 0.85rem;">
+                <i class="bi bi-cloud-sun-fill text-warning animate-spin-slow d-inline-block"></i> Weather Snapshot
+              </div>
+            </div>
+            <div class="ts-card-body d-flex flex-column justify-content-between" style="padding: 1.25rem; flex: 1;">
+              <div class="d-flex align-items-center justify-content-between">
+                <div>
+                  <div class="weather-temp" style="font-size: 2.25rem; font-family: 'Playfair Display', serif; font-weight: 700; line-height: 1.1; color: #ffffff;">
+                    {{ getTrekWeather(nextTrek).temp }}
+                  </div>
+                  <div class="weather-cond" style="font-size: 0.8rem; font-weight: 600; color: rgba(255,255,255,0.8); margin-top: 2px;">
+                    {{ getTrekWeather(nextTrek).condition }}
                   </div>
                 </div>
-                <div class="stat-label">Completed Treks</div>
+                <div class="weather-icon" style="font-size: 3rem; color: #ffffff; line-height: 1; opacity: 0.95;">
+                  <i :class="[getTrekWeather(nextTrek).icon, getTrekWeather(nextTrek).icon.includes('sun') ? 'animate-spin-slow d-inline-block' : 'animate-float d-inline-block']"></i>
+                </div>
+              </div>
+              <hr style="margin: 0.75rem 0; opacity: 0.15;" />
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; font-size: 0.72rem; font-family: 'Space Mono', monospace; color: rgba(255,255,255,0.85);">
+                <div>Wind: {{ getTrekWeather(nextTrek).wind }}</div>
+                <div>Hum: {{ getTrekWeather(nextTrek).humidity }}</div>
+                <div>UV Index: 3 (Mod)</div>
+                <div>Vis: 10 km</div>
               </div>
             </div>
           </div>
 
-          <!-- Group 2: Trekker Stats -->
-          <div class="stats-group">
-            <div class="stats-group-title">Trekker Stats</div>
-            <div class="stats-group-cards">
-              <div class="stat-item-grouped">
-                <div class="stat-card-header-row">
-                  <div class="stat-num">{{ participants.filter(p => p.status === 'Booked' || p.status === 'Completed').length }}</div>
-                  <div class="stat-icon-wrapper stat-icon-users">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3"/><path d="M2 19c0-3 3-5 7-5"/><circle cx="16" cy="10" r="3"/><path d="M13 19c0-3 2.7-5 6-5"/></svg>
-                  </div>
-                </div>
-                <div class="stat-label">Total Led</div>
+          <!-- Card 3: Emergency Contacts -->
+          <div class="ts-card emergency-panel d-flex flex-column justify-content-between">
+            <div class="ts-card-header bg-danger-subtle text-danger-emphasis">
+              <div class="ts-card-title text-danger" style="font-weight: 700; font-size: 0.85rem;">
+                <i class="bi bi-exclamation-triangle-fill"></i> Emergency Contacts
               </div>
-              <div class="stat-item-grouped">
-                <div class="stat-card-header-row">
-                  <div class="stat-num">{{ participants.filter(p => p.status === 'Booked').length }}</div>
-                  <div class="stat-icon-wrapper stat-icon-active">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            </div>
+            <div class="ts-card-body d-flex flex-column justify-content-between" style="padding: 1rem 1.25rem; flex: 1;">
+              <div class="emergency-contact-list" style="display: flex; flex-direction: column; gap: 0.65rem; width: 100%;">
+                <div class="emergency-item d-flex justify-content-between align-items-center">
+                  <div>
+                    <div class="em-name fw-bold" style="font-size: 0.8rem; color: var(--forest);">Dr. Anand Sen</div>
+                    <div class="em-role text-muted" style="font-size: 0.65rem;">Basecamp Coordinator</div>
                   </div>
+                  <a href="tel:+919876543210" class="btn btn-sm btn-outline-danger py-1 px-2" style="font-size: 0.68rem; font-weight: 600;">
+                    <i class="bi bi-telephone"></i> Call
+                  </a>
                 </div>
-                <div class="stat-label">Active Booked</div>
+                <div class="emergency-item d-flex justify-content-between align-items-center">
+                  <div>
+                    <div class="em-name fw-bold" style="font-size: 0.8rem; color: var(--forest);">Rescue / Forest Office</div>
+                    <div class="em-role text-muted" style="font-size: 0.65rem;">Uttarakhand / HP Dept</div>
+                  </div>
+                  <a href="tel:+911352712345" class="btn btn-sm btn-outline-danger py-1 px-2" style="font-size: 0.68rem; font-weight: 600;">
+                    <i class="bi bi-telephone"></i> Call
+                  </a>
+                </div>
+                <div class="emergency-item d-flex justify-content-between align-items-center" style="border-bottom: none; padding-bottom: 0;">
+                  <div>
+                    <div class="em-name fw-bold" style="font-size: 0.8rem; color: var(--forest);">TrailSync HQ Operations</div>
+                    <div class="em-role text-muted" style="font-size: 0.65rem;">Hotline 24/7</div>
+                  </div>
+                  <a href="tel:+911800123456" class="btn btn-sm btn-outline-danger py-1 px-2" style="font-size: 0.68rem; font-weight: 600;">
+                    <i class="bi bi-telephone"></i> Call
+                  </a>
+                </div>
               </div>
             </div>
           </div>
 
-          <!-- Group 3: Operations Actions -->
-          <div class="stats-group">
-            <div class="stats-group-title">Actions & Tasks</div>
-            <div class="stats-group-cards">
-              <div class="stat-item-grouped">
-                <div class="stat-card-header-row">
-                  <div class="stat-num">{{ assignedTreks.filter(t => t.status === 'Pending').length }}</div>
-                  <div class="stat-icon-wrapper stat-icon-cancel">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                  </div>
-                </div>
-                <div class="stat-label">Pending Actions</div>
-              </div>
-              <div class="stat-item-grouped">
-                <div class="stat-card-header-row">
-                  <div class="stat-num">{{ participants.filter(p => p.status === 'Booked' && !p.attendance).length }}</div>
-                  <div class="stat-icon-wrapper stat-icon-alert">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-                  </div>
-                </div>
-                <div class="stat-label">Attendance Due</div>
+        </div>
+
+        <!-- Assigned Treks Summary Table below the row of widgets -->
+        <div class="dashboard-table-row" style="margin-top: 1.5rem; margin-bottom: 1rem;">
+          <div class="ts-card">
+            <div class="ts-card-header">
+              <div class="ts-card-title"><i class="bi bi-list-stars"></i> Assigned Treks Summary</div>
+            </div>
+            <div class="ts-card-body" style="padding: 1.25rem;">
+              <div class="table-responsive">
+                <table class="table ts-table align-middle" style="margin-bottom: 0;">
+                  <thead>
+                    <tr>
+                      <th>Trek</th>
+                      <th>Location</th>
+                      <th>Date</th>
+                      <th>Status</th>
+                      <th>Slots</th>
+                      <th class="text-end" style="width: 320px;">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="t in assignedTreks" :key="t.id">
+                      <td class="fw-bold">{{ t.name }}</td>
+                      <td>{{ t.location }}</td>
+                      <td class="mono" style="font-size: 0.8rem;">{{ formatShortDate(t.startDate) }}</td>
+                      <td>
+                        <span :class="'status-pill status-' + t.status.toLowerCase()">{{ t.status }}</span>
+                      </td>
+                      <td class="mono" style="font-size: 0.8rem;">{{ t.registered }}/{{ t.slots }}</td>
+                      <td class="text-end">
+                        <div class="d-flex gap-1 justify-content-end">
+                          <button class="btn btn-sm btn-outline-forest py-1 px-2" style="font-size: 0.72rem; font-weight: 600;" @click="openTrekDetailModal(t)">
+                            <i class="bi bi-eye"></i> View Details
+                          </button>
+                          <button class="btn btn-sm btn-outline-gold py-1 px-2" style="font-size: 0.72rem; font-weight: 600;" @click="openSlotModal(t)">
+                            <i class="bi bi-pencil-square"></i> Edit Slots
+                          </button>
+                          <button class="btn btn-sm btn-outline-primary-ts py-1 px-2" style="font-size: 0.72rem; font-weight: 600;" @click="selectTrekForParticipants(t, { inline: false })">
+                            <i class="bi bi-people"></i> Manage Participants
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                    <tr v-if="!assignedTreks.length">
+                      <td colspan="6" class="text-center py-4 text-muted" style="font-size: 0.85rem;">
+                        No assigned treks found.
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
@@ -1109,6 +1452,7 @@ const TsStaffLayout = {
             <div class="section-eyebrow">Staff Panel</div>
             <div class="section-title">Assigned <em>Treks</em></div>
           </div>
+          <button class="btn-back-home" @click="goTab('dashboard')"><i class="bi bi-house-door-fill me-1"></i>Back to Home</button>
         </div>
 
         <div v-if="!filteredTreks.length" class="empty-state">
@@ -1227,10 +1571,13 @@ const TsStaffLayout = {
             <div class="section-eyebrow">Participant Management</div>
             <div class="section-title">Trek <em>Participants</em></div>
           </div>
-          <button v-if="participantTrekId" class="btn-primary-ts btn-sm" @click="exportCSV(participantTrekId)" :disabled="exportPending && exportTrekId === participantTrekId">
-            <i class="bi" :class="exportPending && exportTrekId === participantTrekId ? 'bi-hourglass-split' : 'bi-download'"></i>
-            {{ exportPending && exportTrekId === participantTrekId ? 'Exporting…' : 'Export CSV' }}
-          </button>
+          <div class="d-flex gap-2 align-items-center">
+            <button class="btn-back-home" @click="goTab('dashboard')"><i class="bi bi-house-door-fill me-1"></i>Back to Home</button>
+            <button v-if="participantTrekId" class="btn-primary-ts btn-sm" @click="exportCSV(participantTrekId)" :disabled="exportPending && exportTrekId === participantTrekId">
+              <i class="bi" :class="exportPending && exportTrekId === participantTrekId ? 'bi-hourglass-split' : 'bi-download'"></i>
+              {{ exportPending && exportTrekId === participantTrekId ? 'Exporting…' : 'Export CSV' }}
+            </button>
+          </div>
         </div>
 
         <!-- No trek selected: search bar + trek card grid -->
@@ -1491,6 +1838,7 @@ const TsStaffLayout = {
             <div class="section-eyebrow">Data Export</div>
             <div class="section-title">Export <em>Reports</em></div>
           </div>
+          <button class="btn-back-home" @click="goTab('dashboard')"><i class="bi bi-house-door-fill me-1"></i>Back to Home</button>
         </div>
         <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap:1.25rem">
           <div v-for="t in assignedTreks" :key="t.id" class="ts-card">
@@ -1523,6 +1871,7 @@ const TsStaffLayout = {
             <div class="section-eyebrow">Account</div>
             <div class="section-title">My <em>Profile</em></div>
           </div>
+          <button class="btn-back-home" @click="goTab('dashboard')"><i class="bi bi-house-door-fill me-1"></i>Back to Home</button>
         </div>
         <div class="profile-layout profile-layout-modern">
           <section class="profile-identity-card">
@@ -1664,6 +2013,194 @@ const TsStaffLayout = {
           </section>
         </div>
       </div>
+
+      <!-- ════════════════════════════════════════════
+           TRAILSYNC SOCIAL TAB
+      ════════════════════════════════════════════ -->
+      <div v-if="activeTab === 'social'" class="tab-content social-tab-container" style="display: flex; flex-direction: column; gap: 0; height: calc(100vh - 80px); min-height: 500px;">
+        <!-- Social tab header -->
+        <div class="page-header" style="flex-shrink: 0; margin-bottom: 1rem;">
+          <div>
+            <div class="section-eyebrow">Communication</div>
+            <div class="section-title">TrailSync <em>Social</em></div>
+          </div>
+          <button class="btn-back-home" @click="goTab('dashboard')"><i class="bi bi-house-door-fill me-1"></i>Back to Home</button>
+        </div>
+        <!-- Social content row -->
+        <div style="display: flex; gap: 1.5rem; flex: 1; min-height: 0;">
+        
+        <!-- Channels list (left) -->
+        <div class="social-channels-panel ts-card" style="width: 280px; display: flex; flex-direction: column; flex-shrink: 0;">
+          <div class="ts-card-header">
+            <div class="ts-card-title"><i class="bi bi-people-fill"></i> Social Groups</div>
+          </div>
+          <div class="social-channels-list" style="flex: 1; overflow-y: auto; padding: 0.75rem;">
+            <div v-for="t in assignedTreks" :key="t.id" 
+                 :class="['social-channel-item', { active: selectedSocialTrekId === t.id }]"
+                 @click="selectSocialGroup(t.id)"
+                 style="padding: 0.75rem; border-radius: 6px; cursor: pointer; margin-bottom: 0.5rem; transition: var(--transition);">
+              <div class="d-flex justify-content-between align-items-start mb-1">
+                <span class="channel-name fw-bold" style="font-size: 0.85rem; color: var(--forest);">{{ t.name }}</span>
+                <span :class="'status-pill status-' + t.status.toLowerCase()" style="font-size: 0.6rem; padding: 2px 6px;">{{ t.status }}</span>
+              </div>
+              <div class="channel-sub text-muted d-flex justify-content-between" style="font-size: 0.7rem;">
+                <span>Batch {{ t.batchCode }}</span>
+                <span>{{ getTrekkerCount(t.id) }} members</span>
+              </div>
+            </div>
+            <div v-if="!assignedTreks.length" class="text-center py-4 text-muted" style="font-size: 0.8rem;">
+              No channels available.
+            </div>
+          </div>
+        </div>
+
+        <!-- Main Chat + Pinned Announcements + Info (right) -->
+        <div class="social-chat-panel d-flex" style="flex: 1; gap: 1.5rem; min-width: 0;">
+          
+          <!-- Chat area (middle) -->
+          <div class="ts-card d-flex flex-column" style="flex: 2; min-width: 0;">
+            <div class="ts-card-header d-flex justify-content-between align-items-center">
+              <div>
+                <div class="ts-card-title m-0" v-if="selectedSocialGroupTrek">
+                  <i class="bi bi-chat-left-dots-fill"></i> Group Chat: {{ selectedSocialGroupTrek.name }}
+                </div>
+                <div class="text-muted" style="font-size: 0.72rem; margin-top: 2px;" v-if="selectedSocialGroupTrek">
+                  Batch Code: {{ selectedSocialGroupTrek.batchCode }} | Status: {{ selectedSocialGroupTrek.status }}
+                </div>
+              </div>
+            </div>
+            
+            <!-- Chat messages feed -->
+            <div class="social-chat-feed" style="flex: 1; overflow-y: auto; padding: 1.25rem; background: var(--snow);">
+              <div v-for="m in currentGroupMessages" :key="m.id" 
+                   :class="['chat-bubble-wrap', m.sender === 'guide' ? 'guide-message' : 'trekker-message']"
+                   style="margin-bottom: 1rem; display: flex; flex-direction: column;">
+                <div class="chat-meta d-flex align-items-center mb-1" style="font-size: 0.7rem; gap: 6px;">
+                  <span class="chat-sender-name fw-bold" :style="{ color: m.sender === 'guide' ? 'var(--gold)' : 'var(--forest)' }">
+                    {{ m.name }}
+                  </span>
+                  <span class="badge bg-gold text-dark" style="font-size:0.58rem; padding: 2px 4px;" v-if="m.sender === 'guide'">Guide</span>
+                  <span class="chat-time text-muted">{{ m.timestamp }}</span>
+                </div>
+                <div class="chat-bubble" 
+                     :style="getChatBubbleStyle(m.sender)"
+                     style="padding: 0.75rem; border-radius: 8px; max-width: 80%; font-size: 0.83rem; line-height: 1.5;">
+                  {{ m.text }}
+                </div>
+              </div>
+              <div v-if="!currentGroupMessages.length" class="text-center py-5 text-muted" style="font-size: 0.85rem;">
+                <i class="bi bi-chat-dots fs-3 mb-2 d-block"></i>
+                No messages yet. Send a message to start the conversation!
+              </div>
+            </div>
+
+            <!-- Chat input bar -->
+            <div class="social-chat-input-bar border-top" style="padding: 1rem; background: var(--cream);">
+              <form @submit.prevent="sendSocialMessage" class="d-flex gap-2">
+                <input v-model="newSocialMessageText" type="text" class="form-control" placeholder="Type a message to the group..." style="font-size: 0.85rem; border-radius: 6px;" />
+                <button type="submit" class="btn btn-primary-ts px-4" style="font-size: 0.85rem;">
+                  <i class="bi bi-send-fill"></i> Send
+                </button>
+              </form>
+            </div>
+          </div>
+
+          <!-- Sidebar: Announcements + Members (rightmost) -->
+          <div class="d-flex flex-column gap-3" style="width: 320px; flex-shrink: 0;">
+            
+            <!-- Pinned Announcements -->
+            <div class="ts-card d-flex flex-column" style="flex: 1; min-height: 0;">
+              <div class="ts-card-header bg-gold-subtle">
+                <div class="ts-card-title" style="color: var(--bark); font-weight: 700;">
+                  <i class="bi bi-pin-angle-fill text-gold"></i> Pinned Announcements
+                </div>
+              </div>
+              <div class="ts-card-body" style="padding: 1rem; overflow-y: auto; flex: 1;">
+                
+                <!-- Post new announcement form (Guide only) -->
+                <div class="announcement-form border-bottom pb-3 mb-3">
+                  <div class="fw-bold mb-2" style="font-size: 0.75rem; color: var(--forest);">
+                    <i class="bi bi-plus-circle"></i> Post Announcement
+                  </div>
+                  <input v-model="newSocialAnnouncementTitle" type="text" class="form-control form-control-sm mb-2" placeholder="Announcement Title..." style="font-size: 0.75rem;" />
+                  <textarea v-model="newSocialAnnouncementText" class="form-control form-control-sm mb-2" rows="2" placeholder="Write content details..." style="font-size: 0.75rem; resize: none;"></textarea>
+                  <button type="button" class="btn btn-sm btn-gold w-100" @click="postSocialAnnouncement" style="font-size: 0.72rem; font-weight: 600;">
+                    Post & Pin
+                  </button>
+                </div>
+
+                <!-- Announcement items -->
+                <div class="announcements-list d-flex flex-direction-column" style="gap: 0.75rem; display: flex; flex-direction: column;">
+                  <div v-for="a in currentGroupAnnouncements" :key="a.id" 
+                       class="announcement-item p-2 border-start border-3 border-gold" 
+                       style="background: var(--snow); border-radius: 0 4px 4px 0; font-size: 0.75rem;">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                      <span class="fw-bold" style="color: var(--forest);">{{ a.title }}</span>
+                      <span class="text-muted" style="font-size: 0.65rem;">{{ a.date }}</span>
+                    </div>
+                    <div class="text-muted" style="line-height: 1.4;">{{ a.content }}</div>
+                  </div>
+                  <div v-if="!currentGroupAnnouncements.length" class="text-center py-3 text-muted" style="font-size: 0.72rem;">
+                    No announcements posted.
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Group Members directory -->
+            <div class="ts-card d-flex flex-column" style="flex: 1; min-height: 0;">
+              <div class="ts-card-header">
+                <div class="ts-card-title"><i class="bi bi-people"></i> Group Members</div>
+              </div>
+              <div class="ts-card-body" style="padding: 0.75rem; overflow-y: auto; flex: 1;">
+                <div class="members-directory-list" style="display: flex; flex-direction: column; gap: 0.5rem;">
+                  
+                  <!-- Guide Item -->
+                  <div class="member-dir-item d-flex align-items-center justify-content-between p-2" 
+                       style="background: var(--cream); border-radius: 6px;">
+                    <div class="d-flex align-items-center gap-2">
+                      <div class="member-avatar bg-gold text-dark d-flex align-items-center justify-content-center fw-bold" 
+                           style="width: 28px; height: 28px; border-radius: 50%; font-size: 0.75rem;">
+                        {{ (staffProfile.name || 'G')[0] }}
+                      </div>
+                      <div>
+                        <div class="fw-bold" style="font-size: 0.78rem; color: var(--forest);">{{ staffProfile.name }}</div>
+                        <div class="text-muted" style="font-size: 0.65rem;">Lead Guide (You)</div>
+                      </div>
+                    </div>
+                    <span class="badge bg-gold text-dark" style="font-size: 0.6rem; font-weight: 700;">Guide</span>
+                  </div>
+
+                  <!-- Trekker Items -->
+                  <div v-for="p in socialGroupMembers" :key="p.id" 
+                       class="member-dir-item d-flex align-items-center justify-content-between p-2" 
+                       @click="openSocialProfileModal(p)"
+                       style="border-radius: 6px; cursor: pointer; transition: var(--transition);">
+                    <div class="d-flex align-items-center gap-2">
+                      <div class="member-avatar bg-secondary-subtle text-dark d-flex align-items-center justify-content-center fw-bold" 
+                           style="width: 28px; height: 28px; border-radius: 50%; font-size: 0.75rem;">
+                        {{ p.name[0] }}
+                      </div>
+                      <div>
+                        <div class="fw-bold" style="font-size: 0.78rem; color: var(--forest);">{{ p.name }}</div>
+                        <div class="text-muted" style="font-size: 0.65rem;">Trekker</div>
+                      </div>
+                    </div>
+                    <i class="bi bi-chevron-right text-muted" style="font-size: 0.75rem;"></i>
+                  </div>
+                  
+                  <div v-if="!socialGroupMembers.length" class="text-center py-3 text-muted" style="font-size: 0.72rem;">
+                    No registered trekkers.
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+        </div><!-- /social content row -->
+
+      </div><!-- /social-tab-container -->
 
     </div><!-- /ts-main -->
 
@@ -2179,6 +2716,49 @@ const TsStaffLayout = {
         {{ toast.msg }}
       </div>
     </transition>
+
+    <!-- Social Profile Detail Modal -->
+    <div v-if="showSocialProfileModal && socialProfileTarget" class="ts-modal-overlay" @click.self="showSocialProfileModal = false">
+      <div class="ts-modal" style="max-width: 460px; width: 90%;">
+        <div class="ts-modal-header">
+          <h3 class="ts-modal-title">Trekker Profile (Social)</h3>
+          <button class="modal-close" @click="showSocialProfileModal = false">✕</button>
+        </div>
+        <div class="ts-modal-body">
+          <div class="pmodal-hero">
+            <div class="pmodal-avatar">{{ socialProfileTarget.name[0] }}</div>
+            <div>
+              <div class="pmodal-name">{{ socialProfileTarget.name }}</div>
+              <div class="pmodal-email">{{ socialProfileTarget.email }}</div>
+              <div class="pmodal-trekker-id">Trekker ID {{ displayTrekkerId(socialProfileTarget) }}</div>
+              <div style="margin-top:4px;">
+                <span :class="'status-pill status-' + socialProfileTarget.status.toLowerCase()">{{ socialProfileTarget.status }}</span>
+              </div>
+            </div>
+          </div>
+          <div class="pmodal-grid mt-3">
+            <div class="pmodal-field">
+              <div class="pmodal-field-label">Phone</div>
+              <div class="pmodal-field-val">{{ socialProfileTarget.phone || '—' }}</div>
+            </div>
+            <div class="pmodal-field">
+              <div class="pmodal-field-label">Blood Group</div>
+              <div class="pmodal-field-val" style="color:#dc2626;font-weight:700">{{ socialProfileTarget.bloodGroup || '—' }}</div>
+            </div>
+          </div>
+          <div class="pmodal-emergency mt-3">
+            <div class="pmodal-emergency-title fw-bold" style="font-size: 0.82rem; color: var(--forest);"><i class="bi bi-exclamation-triangle-fill text-danger"></i> Emergency Contact</div>
+            <div class="pmodal-grid mt-2">
+              <div class="pmodal-field"><div class="pmodal-field-label">Name</div><div class="pmodal-field-val">{{ socialProfileTarget.emergencyContact || '—' }}</div></div>
+              <div class="pmodal-field"><div class="pmodal-field-label">Phone</div><div class="pmodal-field-val">{{ socialProfileTarget.emergencyPhone || '—' }}</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="ts-modal-footer">
+          <button class="btn-ghost" @click="showSocialProfileModal = false">Close</button>
+        </div>
+      </div>
+    </div>
 
   </div>
   `

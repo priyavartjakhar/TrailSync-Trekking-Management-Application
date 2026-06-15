@@ -3075,6 +3075,27 @@ const TsAdminLayout = {
     <aside class="ts-sidebar" :class="{ collapsed: sidebarCollapsed }">
       <div class="sidebar-brand">
         <a class="brand-name" href="#">Trail<span>Sync</span></a>
+        <button class="sidebar-toggle" @click="sidebarCollapsed = !sidebarCollapsed" :title="sidebarCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'">
+          <svg viewBox="0 0 24 24">
+            <template v-if="sidebarCollapsed">
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <line x1="3" y1="12" x2="21" y2="12"></line>
+              <line x1="3" y1="18" x2="21" y2="18"></line>
+            </template>
+            <template v-else>
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </template>
+          </svg>
+        </button>
+      </div>
+
+      <div class="sidebar-user sidebar-user-top">
+        <div class="su-avatar">A</div>
+        <div class="su-info">
+          <div class="su-name">Admin</div>
+          <div class="su-role">Superuser</div>
+        </div>
       </div>
 
       <nav class="sidebar-nav">
@@ -3140,14 +3161,10 @@ const TsAdminLayout = {
         </a>
       </nav>
 
-      <div class="sidebar-user">
-        <div class="su-avatar">A</div>
-        <div class="su-info">
-          <div class="su-name">Admin</div>
-          <div class="su-role">Superuser</div>
-        </div>
-        <button class="su-logout" title="Logout" @click="$emit('logout')">
+      <div class="sidebar-signout">
+        <button class="sidebar-signout-btn" title="Logout" @click="$emit('logout')">
           <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          <span>Sign Out</span>
         </button>
       </div>
     </aside>
@@ -3162,10 +3179,14 @@ const TsAdminLayout = {
           <h1 class="topbar-heading">{{ tabTitles[activeTab] || activeTab }}</h1>
         </div>
         <div class="topbar-actions">
-          <div class="search-box">
+          <div v-if="activeTab !== 'dashboard'" class="search-box">
             <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             <input v-model="searchQuery" type="text" :placeholder="searchPlaceholder" />
           </div>
+          <button v-if="activeTab==='dashboard'" class="topbar-signout-btn" @click="$emit('logout')">
+            <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            Sign Out
+          </button>
           <button v-if="activeTab==='treks'" class="btn-primary-ts" @click="openRouteModal()">+ New Route</button>
           <button v-if="activeTab==='batches'" class="btn-primary-ts" @click="openTrekModal()">+ New Batch</button>
           <button v-if="activeTab==='staff'" class="btn-primary-ts" @click="openStaffModal()">+ Add Staff</button>

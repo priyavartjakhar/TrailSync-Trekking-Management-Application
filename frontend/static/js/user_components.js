@@ -1119,37 +1119,36 @@ const TsUserLayout = {
           <input v-model="searchQuery" type="text" placeholder="Search treks…" @keyup.enter="goTab('explore')" />
         </div>
         <div class="topbar-actions">
-          <!-- User Profile Pill -->
-          <div class="topbar-user-pill" @click.stop="showProfileDropdown = !showProfileDropdown" title="Profile">
-            <span class="topbar-pill-name">{{ profile.name ? profile.name.split(' ')[0] : 'Trekker' }}</span>
-            <div class="topbar-pill-avatar">
-              <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-            </div>
-          </div>
+          <!-- Staff-style profile dropdown -->
+          <div class="topbar-profile" style="position: relative;">
+            <button class="topbar-profile-btn" @click.stop="showProfileDropdown = !showProfileDropdown" title="Profile">
+              <div class="topbar-avatar">
+                <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              </div>
+              <span class="topbar-profile-name">{{ profile.name ? profile.name.split(' ')[0] : 'Trekker' }}</span>
+              <i class="bi bi-chevron-down" style="font-size: 0.7rem; margin-left: 4px; opacity: 0.7;"></i>
+            </button>
 
-          <!-- Floating Profile Dropdown -->
-          <div v-if="showProfileDropdown" class="profile-dropdown-card" @click.stop>
-            <div class="pdd-header">
-              <div class="pdd-name">{{ profile.name }}</div>
-              <div class="pdd-role">Trekker</div>
-            </div>
-            <div class="pdd-body">
-              <div class="pdd-info-row">
-                <span class="pdd-info-lbl">Trekker ID</span>
-                <span class="pdd-info-val mono" style="color: var(--gold); font-weight: 700;">{{ profile.memberId || 'N/A' }}</span>
+            <div v-if="showProfileDropdown" class="profile-dropdown-overlay" @click="showProfileDropdown = false"></div>
+            <div v-if="showProfileDropdown" class="profile-dropdown" @click.stop>
+              <div class="profile-dropdown-header">
+                <div class="pd-avatar">
+                  <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                </div>
+                <div>
+                  <div class="pd-name">{{ profile.name }}</div>
+                  <div class="pd-id">ID: {{ profile.memberId || 'N/A' }}</div>
+                </div>
               </div>
-              <div class="pdd-info-row">
-                <span class="pdd-info-lbl">Email Address</span>
-                <span class="pdd-info-val">{{ profile.email }}</span>
-              </div>
-              <div class="pdd-info-row">
-                <span class="pdd-info-lbl">Contact</span>
-                <span class="pdd-info-val">{{ profile.phone || 'Not provided' }}</span>
-              </div>
-            </div>
-            <div class="pdd-actions">
-              <button class="pdd-btn-edit" @click="goProfileTab">Edit Profile</button>
-              <button class="pdd-btn-logout" @click="handleLogout">Sign Out</button>
+              <div class="pd-email"><i class="bi bi-envelope-fill me-2"></i>{{ profile.email || 'Not provided' }}</div>
+              <div class="pd-email"><i class="bi bi-telephone-fill me-2"></i>{{ profile.phone || 'Not provided' }}</div>
+              <div class="pd-divider"></div>
+              <a class="pd-item" @click="goProfileTab">
+                <i class="bi bi-person-fill me-2"></i>Edit Profile
+              </a>
+              <a class="pd-item pd-signout" @click="handleLogout">
+                <i class="bi bi-box-arrow-right me-2"></i>Sign Out
+              </a>
             </div>
           </div>
         </div>

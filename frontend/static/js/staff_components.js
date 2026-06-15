@@ -1146,6 +1146,7 @@ const TsStaffLayout = {
 
       <!-- Topbar -->
       <div class="ts-topbar">
+        <a v-if="sidebarCollapsed" class="topbar-brand-mini topbar-brand-left" href="#" @click.prevent="goTab('dashboard')">Trail<span>Sync</span></a>
         <div v-if="!sidebarCollapsed" class="topbar-breadcrumb">
           TrailSync / <span>{{ activeTab === 'dashboard' ? 'Home' : activeTab.charAt(0).toUpperCase() + activeTab.slice(1) }}</span>
         </div>
@@ -1184,7 +1185,6 @@ const TsStaffLayout = {
             </a>
           </div>
         </div>
-        <a v-if="sidebarCollapsed" class="topbar-brand-mini topbar-brand-right" href="#" @click.prevent="goTab('dashboard')">Trail<span>Sync</span></a>
       </div>
 
       <div v-if="sidebarCollapsed" class="tab-context-bar">

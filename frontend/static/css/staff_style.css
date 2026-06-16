@@ -129,7 +129,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--snow); color: var(-
   font-size: 0.86rem; font-weight: 500;
   position: relative;
 }
-.nav-item svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.9; flex-shrink: 0; }
+.nav-item svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.9; flex-shrink: 0; stroke-linecap: round; stroke-linejoin: round; }
 .nav-item:hover { color: #fff; background: rgba(255,255,255,0.05); border-left-color: rgba(200,146,42,0.35); }
 .nav-item.active { color: var(--gold-light); background: rgba(200,146,42,0.11); border-left-color: var(--gold); }
 .nav-badge {

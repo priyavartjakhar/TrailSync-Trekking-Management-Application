@@ -112,6 +112,7 @@ const TsStaffLayout = {
       // ── SOCIAL DATABASE STATE ──────────────────────
       socialGroups: [],
       pendingGroups: [],
+      announcementTargetTrekId: null,
       loadingSocial: false
     };
   },
@@ -580,12 +581,14 @@ const TsStaffLayout = {
     },
     selectSocialGroup(trekId) {
       this.selectedSocialTrekId = trekId;
+      this.announcementTargetTrekId = trekId;
       window.location.hash = `social/group/${trekId}`;
       this.fetchSocialGroupMessages(trekId);
     },
     closeSocialChat() {
       this.selectedSocialTrekId = null;
       this.newSocialMessageText = '';
+      this.announcementTargetTrekId = null;
       window.location.hash = 'social';
     },
     async sendSocialMessage() {
@@ -665,6 +668,36 @@ const TsStaffLayout = {
         }
       } catch (e) {
         console.error("Error posting announcement:", e);
+      }
+    },
+    async sendAnnouncementToBatch() {
+      if (!this.announcementTargetTrekId || !this.newSocialAnnouncementText.trim()) {
+        this.showToast('Please select a batch and enter announcement text', 'error');
+        return;
+      }
+      try {
+        const res = await fetch(`/api/social/group/${this.announcementTargetTrekId}/messages`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messageText: this.newSocialAnnouncementText.trim(),
+            isAnnouncement: true,
+            announcementTitle: 'Announcement'
+          })
+        });
+        if (res.ok) {
+          this.newSocialAnnouncementText = '';
+          if (this.selectedSocialTrekId === this.announcementTargetTrekId) {
+            await this.fetchSocialGroupMessages(this.selectedSocialTrekId);
+          }
+          this.showToast('Announcement sent successfully');
+        } else {
+          const errData = await res.json();
+          this.showToast(errData.error || 'Failed to send announcement', 'error');
+        }
+      } catch (e) {
+        console.error('Error sending announcement:', e);
+        this.showToast('Failed to send announcement', 'error');
       }
     },
 
@@ -2476,7 +2509,7 @@ const TsStaffLayout = {
         </div>
 
         <!-- Chat area (main) -->
-        <div style="flex: 1; min-width: 0;">
+        <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0;">
           
           <div v-if="!selectedSocialTrekId" class="ts-card d-flex flex-column align-items-center justify-content-center text-center p-5" style="flex: 1; background: #ffffff; min-height: 400px; border: 1px solid rgba(26,46,26,0.08);">
             <i class="bi bi-chat-left-dots-fill" style="font-size: 3.5rem; color: var(--gold); opacity: 0.6; margin-bottom: 1rem;"></i>
@@ -2488,7 +2521,7 @@ const TsStaffLayout = {
 
           <template v-else>
             <!-- Chat area (middle) -->
-            <div class="ts-card d-flex flex-column" style="flex: 2; min-width: 0;">
+            <div class="ts-card d-flex flex-column" style="flex: 1; min-width: 0; min-height: 0;">
               <div class="ts-card-header d-flex justify-content-between align-items-center">
                 <div>
                   <div style="display:flex; align-items:center; gap:12px;">
@@ -2515,7 +2548,7 @@ const TsStaffLayout = {
               </div>
               
               <!-- Chat messages feed -->
-              <div class="social-chat-feed" style="flex: 1; overflow-y: auto; padding: 1.25rem; background: var(--snow);">
+              <div ref="socialChatFeed" class="social-chat-feed" style="flex: 1; overflow-y: auto; padding: 1.25rem; background: var(--snow); min-height: 0;">
                 <!-- Sticky latest announcement if any -->
                 <div v-if="currentGroupAnnouncements.length > 0" class="announcement-banner p-3 mb-3 d-flex align-items-center gap-3" style="background: #fef2f2; border: 1px solid #fca5a5; border-left: 5px solid #ef4444; border-radius: 6px; color: #991b1b; font-size: 0.85rem;">
                   <i class="bi bi-megaphone-fill fs-5" style="color: #ef4444;"></i>
@@ -2565,6 +2598,51 @@ const TsStaffLayout = {
             </div>
           </template>
         </div>
+
+        <!-- Announcement + Participants panel -->
+        <div class="ts-card d-flex flex-column" style="width: 320px; flex-shrink: 0; min-height: 0;">
+          <div class="ts-card-header d-flex justify-content-between align-items-center">
+            <div class="ts-card-title"><i class="bi bi-megaphone-fill"></i> Announcement</div>
+            <button class="btn btn-sm btn-outline-secondary" @click="openAddParticipantModal(selectedSocialTrekId)" :disabled="!selectedSocialTrekId" style="font-size:0.78rem; padding:4px 8px;">
+              <i class="bi bi-person-plus-fill"></i> Add
+            </button>
+          </div>
+          <div class="ts-card-body" style="padding: 1rem; overflow-y: auto; flex: 1; min-height: 0;">
+            <div class="form-group" style="margin-bottom: 1rem;">
+              <label style="font-size: 0.82rem; color: var(--stone); margin-bottom: 0.35rem; display: block;">Message</label>
+              <textarea v-model="newSocialAnnouncementText" rows="4" class="form-control" placeholder="Write an announcement..." style="resize: none; border-radius: 8px;"></textarea>
+            </div>
+            <div class="form-group" style="margin-bottom: 1rem;">
+              <label style="font-size: 0.82rem; color: var(--stone); margin-bottom: 0.35rem; display: block;">Choose batch</label>
+              <select v-model="announcementTargetTrekId" class="form-select" style="border-radius: 8px;">
+                <option :value="null" disabled>Select a batch</option>
+                <option v-for="group in socialGroups" :key="group.id" :value="group.id">{{ group.name }} — Batch {{ group.batchCode }}</option>
+              </select>
+            </div>
+            <button type="button" class="btn btn-danger w-100" @click="sendAnnouncementToBatch" :disabled="!announcementTargetTrekId || !newSocialAnnouncementText.trim()" style="font-size: 0.95rem;">
+              <i class="bi bi-megaphone-fill me-1"></i> Send Announcement
+            </button>
+          </div>
+
+          <div class="ts-card-header" style="border-top: 1px solid rgba(26,46,26,0.08);">
+            <div class="ts-card-title"><i class="bi bi-people-fill"></i> Participants</div>
+          </div>
+          <div class="ts-card-body" style="padding: 1rem; overflow-y: auto; max-height: 320px; min-height: 0;">
+            <div v-if="socialGroupMembers.length" class="d-flex flex-column gap-2">
+              <div v-for="p in socialGroupMembers" :key="p.id" class="participant-item d-flex justify-content-between align-items-center p-2 rounded" style="background: var(--cream); cursor: pointer;" @click="openSocialProfileModal(p)">
+                <div>
+                  <div class="fw-bold" style="font-size: 0.9rem; color: var(--forest);">{{ p.name }}</div>
+                  <div class="text-muted" style="font-size: 0.78rem;">{{ p.email }}</div>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-secondary" style="font-size: 0.76rem; padding: 4px 8px;">View</button>
+              </div>
+            </div>
+            <div v-else class="text-center text-muted" style="font-size: 0.85rem; padding: 2rem 0;">
+              No participants found for this group.
+            </div>
+          </div>
+        </div>
+      </div>
 
       </div><!-- /social-tab-container -->
 
@@ -3122,6 +3200,7 @@ const TsStaffLayout = {
         </div>
         <div class="ts-modal-footer">
           <button class="btn-ghost" @click="showSocialProfileModal = false">Close</button>
+          <button v-if="socialProfileTarget?.status === 'Booked'" class="btn-danger" @click="cancelParticipant(socialProfileTarget); showSocialProfileModal = false">Remove</button>
         </div>
       </div>
     </div>

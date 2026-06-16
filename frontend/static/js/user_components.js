@@ -2279,46 +2279,49 @@ const TsUserLayout = {
         <!-- ════════════════════════════════════════════
              TRAILSYNC SOCIAL TAB
         ════════════════════════════════════════════ -->
-        <section v-if="activeTab === 'social'" class="tab-section-content" style="display: flex; flex-direction: column; height: calc(100vh - 120px); min-height: 500px; padding: 0;">
-          <!-- Header -->
-          <div style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; border-bottom: 1px solid var(--stone-light); background: #ffffff;">
+        <section v-if="activeTab === 'social'" class="tab-content social-tab-container" style="display: flex; flex-direction: column; gap: 0; height: calc(100vh - 120px); min-height: 500px; padding: 0;">
+          <!-- Social tab header -->
+          <div class="page-header" style="flex-shrink: 0; margin-bottom: 1rem;">
             <div>
-              <span style="font-size: 0.72rem; text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em; color: var(--gold);">Communication</span>
-              <h2 style="font-family: 'Playfair Display', serif; font-size: 1.5rem; font-weight: 700; color: var(--forest); margin: 0;">TrailSync <em>Social</em></h2>
+              <div class="page-eyebrow">Communication</div>
+              <div class="page-title">TrailSync <em>Social</em></div>
             </div>
-            <button class="btn-primary-ts" @click="goTab('dashboard')" style="padding: 6px 12px; font-size: 0.8rem; background: #e2e8f0; border-color: #cbd5e0; color: #4a5568;">
-              <i class="bi bi-house-door-fill me-1"></i>Back to Dashboard
-            </button>
+            <button class="btn-back-home" @click="goTab('dashboard')"><i class="bi bi-house-door-fill me-1"></i>Back to Home</button>
           </div>
 
-          <div style="display: flex; flex: 1; min-height: 0;">
-            <!-- Left Side: Channels List -->
-            <div style="width: 260px; border-right: 1px solid var(--stone-light); background: #ffffff; display: flex; flex-direction: column; flex-shrink: 0;">
-              <div style="padding: 1rem; border-bottom: 1px solid var(--stone-light); font-weight: 700; color: var(--forest); font-size: 0.88rem; display: flex; align-items: center; gap: 6px;">
-                <i class="bi bi-people-fill" style="color: var(--gold);"></i> Social Groups
+          <!-- Social content row -->
+          <div style="display: flex; gap: 1.5rem; flex: 1; min-height: 0;">
+            
+            <!-- Channels list (left) -->
+            <div class="social-channels-panel ts-card" style="width: 280px; display: flex; flex-direction: column; flex-shrink: 0;">
+              <div class="ts-card-header">
+                <div class="ts-card-title"><i class="bi bi-people-fill"></i> Social Groups</div>
               </div>
-              <div style="flex: 1; overflow-y: auto; padding: 0.5rem;">
+              <div class="social-channels-list" style="flex: 1; overflow-y: auto; padding: 0.75rem;">
                 <div v-for="g in socialGroups" :key="g.id"
                      :class="['social-channel-item', { active: selectedSocialTrekId === g.id }]"
                      @click="selectSocialGroup(g.id)"
-                     style="padding: 0.75rem; border-radius: 6px; cursor: pointer; margin-bottom: 0.4rem; transition: var(--transition); border: 1px solid transparent; position: relative;">
+                     style="padding: 0.75rem; border-radius: 6px; cursor: pointer; margin-bottom: 0.5rem; transition: var(--transition);">
                   <div class="d-flex justify-content-between align-items-start mb-1">
-                    <span class="channel-name fw-bold" style="font-size: 0.82rem; color: var(--forest); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px;">{{ g.name }}</span>
-                    <span :class="'status-pill status-' + g.status.toLowerCase()" style="font-size: 0.58rem; padding: 1px 5px; flex-shrink: 0;">{{ g.status }}</span>
+                    <span class="channel-name fw-bold" style="font-size: 0.85rem; color: var(--forest); display: flex; align-items: center; gap: 4px;">
+                      <i class="bi bi-hash"></i> {{ g.name }}
+                      <i v-if="g.isLocked" class="bi bi-lock-fill text-danger" style="font-size: 0.75rem;" title="Chat is Locked"></i>
+                    </span>
+                    <span :class="'status-pill status-' + g.status.toLowerCase()" style="font-size: 0.6rem; padding: 2px 6px;">{{ g.status }}</span>
                   </div>
-                  <div class="channel-sub text-muted" style="font-size: 0.65rem;">
-                    Batch: {{ g.batchCode }}
+                  <div class="channel-sub text-muted d-flex justify-content-between" style="font-size: 0.7rem;">
+                    <span>Batch {{ g.batchCode }}</span>
+                    <span>{{ g.memberCount }} members</span>
                   </div>
-                  <span v-if="g.hasUnreadAnnouncement" style="position: absolute; right: 10px; bottom: 12px; width: 6px; height: 6px; background-color: #ef4444; border-radius: 50%;"></span>
                 </div>
-                <div v-if="!socialGroups.length" class="text-center py-4 text-muted" style="font-size: 0.78rem;">
+                <div v-if="!socialGroups.length" class="text-center py-4 text-muted" style="font-size: 0.8rem;">
                   No active trekking groups found.
                 </div>
               </div>
             </div>
 
             <!-- Middle: Chat Area + Right Panel (Announcements & Members) -->
-            <div v-if="!selectedSocialTrekId" class="ts-card d-flex flex-column align-items-center justify-content-center text-center p-5" style="flex: 1; background: #ffffff; min-height: 400px; border: 1px solid rgba(26,46,26,0.08); margin: 1.5rem;">
+            <div v-if="!selectedSocialTrekId" class="ts-card d-flex flex-column align-items-center justify-content-center text-center p-5" style="flex: 1; background: #ffffff; min-height: 400px; border: 1px solid rgba(26,46,26,0.08);">
               <i class="bi bi-chat-left-dots-fill" style="font-size: 3.5rem; color: var(--gold); opacity: 0.6; margin-bottom: 1rem;"></i>
               <h3 style="font-family: 'Playfair Display', serif; font-size: 1.5rem; color: var(--forest); font-weight: 700; margin-bottom: 0.5rem;">Select group to start chat</h3>
               <p class="text-muted" style="max-width: 380px; font-size: 0.9rem; line-height: 1.5;">
@@ -2328,27 +2331,26 @@ const TsUserLayout = {
 
             <template v-else>
               <!-- Middle: Chat Area -->
-              <div style="flex: 1; display: flex; flex-direction: column; background: #ffffff; min-width: 0;">
-                <!-- Chat Header -->
-                <div style="padding: 0.85rem 1.25rem; border-bottom: 1px solid var(--stone-light); background: #ffffff; display: flex; justify-content: space-between; align-items: center;">
-                  <div v-if="selectedSocialGroupTrek">
-                    <div style="font-weight: 700; color: var(--forest); font-size: 0.95rem; display: flex; align-items: center; gap: 6px;">
-                      <i class="bi bi-chat-left-dots-fill" style="color: var(--gold);"></i> Group Chat: {{ selectedSocialGroupTrek.name }}
+              <div class="ts-card d-flex flex-column" style="flex: 2; min-width: 0;">
+                <div class="ts-card-header d-flex justify-content-between align-items-center">
+                  <div>
+                    <div class="ts-card-title m-0" v-if="selectedSocialGroupTrek">
+                      <i class="bi bi-chat-left-dots-fill"></i> Group Chat: {{ selectedSocialGroupTrek.name }}
                     </div>
-                    <div class="text-muted" style="font-size: 0.72rem; margin-top: 2px;">
-                      Batch: {{ selectedSocialGroupTrek.batchCode }} | Status: {{ selectedSocialGroupTrek.status }}
+                    <div class="text-muted" style="font-size: 0.72rem; margin-top: 2px;" v-if="selectedSocialGroupTrek">
+                      Batch Code: {{ selectedSocialGroupTrek.batchCode }} | Status: {{ selectedSocialGroupTrek.status }}
                     </div>
                   </div>
                 </div>
 
-                <!-- Chat Feed -->
+                <!-- Chat messages feed -->
                 <div class="social-chat-feed" style="flex: 1; overflow-y: auto; padding: 1.25rem; background: var(--snow);">
                   <!-- Sticky latest announcement if any -->
-                  <div v-if="currentGroupAnnouncements.length > 0" class="announcement-banner p-3 mb-3 d-flex align-items-center gap-3" style="background: #fef2f2; border: 1px solid #fca5a5; border-left: 5px solid #ef4444; border-radius: 6px; color: #991b1b; font-size: 0.82rem;">
+                  <div v-if="currentGroupAnnouncements.length > 0" class="announcement-banner p-3 mb-3 d-flex align-items-center gap-3" style="background: #fef2f2; border: 1px solid #fca5a5; border-left: 5px solid #ef4444; border-radius: 6px; color: #991b1b; font-size: 0.85rem;">
                     <i class="bi bi-megaphone-fill fs-5" style="color: #ef4444;"></i>
                     <div style="flex: 1;">
                       <strong style="font-weight: 700;">Announcement: {{ currentGroupAnnouncements[0].title }}</strong>
-                      <div style="font-size: 0.76rem; opacity: 0.9; margin-top: 2px;">{{ currentGroupAnnouncements[0].content }}</div>
+                      <div style="font-size: 0.78rem; opacity: 0.9; margin-top: 2px;">{{ currentGroupAnnouncements[0].content }}</div>
                     </div>
                   </div>
 
@@ -2376,10 +2378,10 @@ const TsUserLayout = {
                   </div>
                 </div>
 
-                <!-- Input bar -->
-                <div v-if="selectedSocialGroupTrek" class="social-chat-input-bar border-top" style="padding: 1rem; background: var(--cream);">
+                <!-- Chat input bar -->
+                <div class="social-chat-input-bar border-top" style="padding: 1rem; background: var(--cream);">
                   <!-- If Locked -->
-                  <div v-if="selectedSocialGroupTrek.isLocked" class="text-center p-3 text-danger fw-bold" style="background: rgba(220,53,69,0.06); border: 1px solid rgba(220,53,69,0.15); border-radius: 6px; font-size: 0.8rem; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                  <div v-if="selectedSocialGroupTrek && selectedSocialGroupTrek.isLocked" class="text-center p-3 text-danger fw-bold" style="background: rgba(220,53,69,0.06); border: 1px solid rgba(220,53,69,0.15); border-radius: 6px; font-size: 0.8rem; display: flex; align-items: center; justify-content: center; gap: 6px;">
                     <i class="bi bi-lock-fill"></i> This group chat has been locked by the guide. Only guides can post messages.
                   </div>
                   <!-- Standard Input Form -->
@@ -2392,11 +2394,11 @@ const TsUserLayout = {
                 </div>
               </div>
 
-              <!-- Right Side: Announcements & Members -->
-              <div style="width: 280px; border-left: 1px solid var(--stone-light); background: #ffffff; display: flex; flex-direction: column; gap: 1.25rem; padding: 1rem; flex-shrink: 0; min-height: 0;">
+              <!-- Sidebar: Announcements + Members (rightmost) -->
+              <div class="d-flex flex-column gap-3" style="width: 320px; flex-shrink: 0;">
                 
-                <!-- Announcements Panel -->
-                <div class="ts-card" style="flex: 1; display: flex; flex-direction: column; min-height: 0; border: 1px solid var(--stone-light);">
+                <!-- Pinned Announcements -->
+                <div class="ts-card d-flex flex-column" style="flex: 1; min-height: 0; border: 1px solid var(--stone-light);">
                   <div class="ts-card-header bg-gold-subtle" style="padding: 0.75rem 1rem;">
                     <div class="ts-card-title" style="color: var(--bark); font-weight: 700; font-size: 0.82rem; margin: 0;">
                       <i class="bi bi-pin-angle-fill text-gold"></i> Pinned Announcements
@@ -2420,8 +2422,8 @@ const TsUserLayout = {
                   </div>
                 </div>
 
-                <!-- Members Panel -->
-                <div class="ts-card" style="flex: 1; display: flex; flex-direction: column; min-height: 0; border: 1px solid var(--stone-light);">
+                <!-- Group Members directory -->
+                <div class="ts-card d-flex flex-column" style="flex: 1; min-height: 0; border: 1px solid var(--stone-light);">
                   <div class="ts-card-header" style="padding: 0.75rem 1rem;">
                     <div class="ts-card-title" style="font-size: 0.82rem; margin: 0;"><i class="bi bi-people"></i> Group Members</div>
                   </div>
@@ -2439,7 +2441,9 @@ const TsUserLayout = {
                           </div>
                           <div>
                             <div class="fw-bold" style="font-size: 0.76rem; color: var(--forest);">{{ p.name }}</div>
-                            <div class="text-muted" style="font-size: 0.62rem; text-transform: capitalize;">{{ p.role }}</div>
+                            <div class="text-muted" style="font-size: 0.62rem; text-transform: capitalize;">
+                              {{ p.role === 'guide' ? 'Lead Guide' : 'Trekker' }}
+                            </div>
                           </div>
                         </div>
                         <span v-if="p.role === 'guide'" class="badge bg-gold text-dark" style="font-size: 0.55rem; font-weight: 700; padding: 2px 4px;">Guide</span>

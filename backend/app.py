@@ -1718,6 +1718,24 @@ def admin_delete_trek(trek_id):
     invalidate_open_treks_cache()
     return jsonify({'success': True})
 
+@app.route('/api/admin/batches/<int:trek_id>/close', methods=['POST'])
+@login_required
+def admin_close_batch(trek_id):
+    if current_user.role != 'admin':
+        return jsonify({'error': 'Unauthorized'}), 403
+        
+    trek = Trek.query.get(trek_id)
+    if not trek:
+        return jsonify({'error': 'Trek not found'}), 404
+    
+    if trek.status == 'Closed':
+        return jsonify({'error': 'Batch is already closed'}), 400
+    
+    trek.status = 'Closed'
+    db.session.commit()
+    invalidate_open_treks_cache()
+    return jsonify({'success': True, 'message': f"Batch '{trek.name}' has been closed. No further bookings are allowed.", 'trek': trek.to_json()})
+
 @app.route('/api/admin/batches/<int:trek_id>/trekkers', methods=['GET'])
 @login_required
 def admin_get_batch_trekkers(trek_id):

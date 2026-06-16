@@ -2604,6 +2604,71 @@ def get_social_groups():
         
     return jsonify(groups)
 
+
+@app.route('/api/social/pending_groups', methods=['GET'])
+@login_required
+def get_pending_social_groups():
+    # Only staff should use this endpoint
+    if current_user.role != 'staff':
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    # Treks where this staff is assigned but no chat messages exist yet
+    treks = Trek.query.filter_by(staff_id=current_user.id).all()
+    pending = []
+    for t in treks:
+        msg_count = ChatMessage.query.filter_by(trek_id=t.id).count()
+        if msg_count == 0:
+            member_count = Booking.query.filter_by(trek_id=t.id, status='Booked').count()
+            if t.staff_id:
+                member_count += 1
+            pending.append({
+                'id': t.id,
+                'name': t.name,
+                'batchCode': t.batch_code or f"TID{t.id:03d}B01",
+                'startDate': t.start_date.strftime('%Y-%m-%d') if t.start_date else '',
+                'endDate': t.end_date.strftime('%Y-%m-%d') if t.end_date else '',
+                'status': t.status,
+                'memberCount': member_count
+            })
+
+    return jsonify(pending)
+
+
+@app.route('/api/social/group/<int:trek_id>/create', methods=['POST'])
+@login_required
+def create_social_group(trek_id):
+    # Only the assigned staff can create the group for their trek
+    trek = Trek.query.get(trek_id)
+    if not trek:
+        return jsonify({'error': 'Trek not found.'}), 404
+    if current_user.role != 'staff' or trek.staff_id != current_user.id:
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    # If group already has messages, return
+    msg_count = ChatMessage.query.filter_by(trek_id=trek_id).count()
+    if msg_count > 0:
+        return jsonify({'error': 'Group already exists'}), 400
+
+    # Create a TrekGroupSetting record to mark group as initialized (optional)
+    settings = TrekGroupSetting.query.filter_by(trek_id=trek_id).first()
+    if not settings:
+        settings = TrekGroupSetting(trek_id=trek_id, is_locked=False)
+        db.session.add(settings)
+
+    # Create an initial system message indicating group creation
+    msg_text = f"Group created by guide {current_user.name}. Participants added: all booked trekkers."
+    msg = ChatMessage(
+        trek_id=trek_id,
+        sender_id=current_user.id,
+        sender_name=current_user.name,
+        sender_role='staff',
+        message_text=msg_text,
+        is_announcement=False
+    )
+    db.session.add(msg)
+    db.session.commit()
+    return jsonify({'success': True, 'message': 'Group created and participants included.', 'trek': trek.to_json()})
+
 @app.route('/api/social/group/<int:trek_id>/messages', methods=['GET'])
 @login_required
 def get_social_group_messages(trek_id):

@@ -111,6 +111,7 @@ const TsStaffLayout = {
 
       // ── SOCIAL DATABASE STATE ──────────────────────
       socialGroups: [],
+      pendingGroups: [],
       loadingSocial: false
     };
   },
@@ -526,9 +527,21 @@ const TsStaffLayout = {
         if (res.ok) {
           this.socialGroups = await res.json();
           // Don't auto-open chat of group by default
+          // Refresh pending groups as well
+          this.fetchPendingGroups();
         }
       } catch (e) {
         console.error("Error fetching social groups:", e);
+      }
+    },
+    async fetchPendingGroups() {
+      try {
+        const res = await fetch('/api/social/pending_groups');
+        if (res.ok) {
+          this.pendingGroups = await res.json();
+        }
+      } catch (e) {
+        console.error('Error fetching pending groups:', e);
       }
     },
     async fetchSocialGroupMessages(trekId, options = {}) {
@@ -596,6 +609,33 @@ const TsStaffLayout = {
         console.error("Error sending message:", e);
       }
     },
+
+    async sendAnnouncementFromInput() {
+      if (!this.selectedSocialTrekId) return;
+      if (!this.newSocialMessageText.trim()) {
+        this.showToast('Please enter announcement text', 'error');
+        return;
+      }
+      const title = window.prompt('Announcement title', 'Announcement');
+      if (title === null) return; // cancelled
+      try {
+        const res = await fetch(`/api/social/group/${this.selectedSocialTrekId}/messages`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messageText: this.newSocialMessageText.trim(), isAnnouncement: true, announcementTitle: title.trim() })
+        });
+        if (res.ok) {
+          this.newSocialMessageText = '';
+          await this.fetchSocialGroupMessages(this.selectedSocialTrekId);
+          this.showToast('Announcement posted & pinned!');
+        } else {
+          const err = await res.json();
+          this.showToast(err.error || 'Failed to post announcement', 'error');
+        }
+      } catch (e) {
+        console.error('Error posting announcement:', e);
+      }
+    },
     async postSocialAnnouncement() {
       if (!this.newSocialAnnouncementTitle.trim() || !this.newSocialAnnouncementText.trim()) {
         this.showToast('Please fill in announcement title and details.', 'error');
@@ -625,6 +665,23 @@ const TsStaffLayout = {
         }
       } catch (e) {
         console.error("Error posting announcement:", e);
+      }
+    },
+
+    async createGroup(trekId) {
+      try {
+        const res = await fetch(`/api/social/group/${trekId}/create`, { method: 'POST' });
+        if (res.ok) {
+          const d = await res.json();
+          this.showToast(d.message || 'Group created');
+          await this.fetchSocialGroups();
+          await this.fetchPendingGroups();
+        } else {
+          const err = await res.json();
+          this.showToast(err.error || 'Failed to create group', 'error');
+        }
+      } catch (e) {
+        console.error('Error creating group:', e);
       }
     },
     openSocialProfileModal(p) {
@@ -2364,8 +2421,30 @@ const TsStaffLayout = {
         <!-- Social content row -->
         <div style="display: flex; gap: 1.5rem; flex: 1; min-height: 0;">
         
-        <!-- Channels list (left) -->
-        <div class="social-channels-panel ts-card" style="width: 280px; display: flex; flex-direction: column; flex-shrink: 0;">
+        <!-- Left column: Pending groups + Channels list -->
+        <div style="display:flex; flex-direction:column; gap:0.75rem; width: 320px; flex-shrink:0;">
+          <!-- Pending groups (top) -->
+          <div class="ts-card" style="padding: 0;">
+            <div class="ts-card-header">
+              <div class="ts-card-title"><i class="bi bi-hourglass-split"></i> Pending Groups</div>
+            </div>
+            <div style="padding:0.75rem;">
+              <div v-if="pendingGroups.length">
+                <div v-for="p in pendingGroups" :key="p.id" style="display:flex; justify-content:space-between; align-items:center; padding:0.5rem; border-radius:6px; background:var(--snow); margin-bottom:0.5rem;">
+                  <div style="font-size:0.88rem; color:var(--forest); font-weight:600;">
+                    {{ p.name }} <div style="font-size:0.72rem; color:var(--stone);">Batch {{ p.batchCode }}</div>
+                  </div>
+                  <div style="display:flex; gap:6px;">
+                    <button class="btn btn-sm btn-success" @click="createGroup(p.id)">Create Group</button>
+                  </div>
+                </div>
+              </div>
+              <div v-else class="text-muted" style="font-size:0.84rem;">No pending groups.</div>
+            </div>
+          </div>
+
+          <!-- Channels list (left) -->
+          <div class="social-channels-panel ts-card" style="width: 100%; display: flex; flex-direction: column; flex-shrink: 0;">
           <div class="ts-card-header">
             <div class="ts-card-title"><i class="bi bi-people-fill"></i> Social Groups</div>
           </div>
@@ -2467,11 +2546,16 @@ const TsStaffLayout = {
 
               <!-- Chat input bar -->
               <div class="social-chat-input-bar border-top" style="padding: 1rem; background: var(--cream);">
-                <form @submit.prevent="sendSocialMessage" class="d-flex gap-2">
+                <form @submit.prevent="sendSocialMessage" class="d-flex gap-2" style="align-items:center;">
                   <input v-model="newSocialMessageText" type="text" class="form-control" placeholder="Type a message to the group..." style="font-size: 0.85rem; border-radius: 6px;" />
-                  <button type="submit" class="btn btn-primary-ts px-4" style="font-size: 0.85rem;">
-                    <i class="bi bi-send-fill"></i> Send
-                  </button>
+                  <div style="display:flex; gap:6px;">
+                    <button type="button" class="btn btn-danger" @click="sendAnnouncementFromInput" title="Post Announcement" style="font-size:0.82rem; padding:6px 10px;">
+                      <i class="bi bi-megaphone-fill"></i> Announcement
+                    </button>
+                    <button type="submit" class="btn btn-primary-ts px-4" style="font-size: 0.85rem;">
+                      <i class="bi bi-send-fill"></i> Send
+                    </button>
+                  </div>
                 </form>
               </div>
             </div>
@@ -2488,17 +2572,7 @@ const TsStaffLayout = {
                 </div>
                 <div class="ts-card-body" style="padding: 1rem; overflow-y: auto; flex: 1;">
                   
-                  <!-- Post new announcement form (Guide only) -->
-                  <div class="announcement-form border-bottom pb-3 mb-3">
-                    <div class="fw-bold mb-2" style="font-size: 0.75rem; color: var(--forest);">
-                      <i class="bi bi-plus-circle"></i> Post Announcement
-                    </div>
-                    <input v-model="newSocialAnnouncementTitle" type="text" class="form-control form-control-sm mb-2" placeholder="Announcement Title..." style="font-size: 0.75rem;" />
-                    <textarea v-model="newSocialAnnouncementText" class="form-control form-control-sm mb-2" rows="2" placeholder="Write content details..." style="font-size: 0.75rem; resize: none;"></textarea>
-                    <button type="button" class="btn btn-sm btn-gold w-100" @click="postSocialAnnouncement" style="font-size: 0.72rem; font-weight: 600;">
-                      Post & Pin
-                    </button>
-                  </div>
+                  <!-- Announcement creation moved to chat input (Announcement button) -->
 
                   <!-- Announcement items -->
                   <div class="announcements-list d-flex flex-direction-column" style="gap: 0.75rem; display: flex; flex-direction: column;">

@@ -570,6 +570,11 @@ const TsStaffLayout = {
       window.location.hash = `social/group/${trekId}`;
       this.fetchSocialGroupMessages(trekId);
     },
+    closeSocialChat() {
+      this.selectedSocialTrekId = null;
+      this.newSocialMessageText = '';
+      window.location.hash = 'social';
+    },
     async sendSocialMessage() {
       if (!this.newSocialMessageText.trim()) return;
       try {
@@ -2403,11 +2408,18 @@ const TsStaffLayout = {
             <div class="ts-card d-flex flex-column" style="flex: 2; min-width: 0;">
               <div class="ts-card-header d-flex justify-content-between align-items-center">
                 <div>
-                  <div class="ts-card-title m-0" v-if="selectedSocialGroupTrek">
-                    <i class="bi bi-chat-left-dots-fill"></i> Group Chat: {{ selectedSocialGroupTrek.name }}
+                  <div style="display:flex; align-items:center; gap:12px;">
+                    <div class="ts-card-title m-0" v-if="selectedSocialGroupTrek">
+                      <i class="bi bi-chat-left-dots-fill"></i> Group Chat: {{ selectedSocialGroupTrek.name }}
+                    </div>
+                    <div class="text-muted" style="font-size: 0.72rem; margin-top: 2px;" v-if="selectedSocialGroupTrek">
+                      Batch Code: {{ selectedSocialGroupTrek.batchCode }} | Status: {{ selectedSocialGroupTrek.status }}
+                    </div>
                   </div>
-                  <div class="text-muted" style="font-size: 0.72rem; margin-top: 2px;" v-if="selectedSocialGroupTrek">
-                    Batch Code: {{ selectedSocialGroupTrek.batchCode }} | Status: {{ selectedSocialGroupTrek.status }}
+                  <div>
+                    <button class="btn btn-sm btn-outline-secondary" @click="closeSocialChat" title="Close chat" style="font-size:0.78rem; padding:4px 8px;">
+                      <i class="bi bi-x-lg"></i>
+                    </button>
                   </div>
                 </div>
                 <!-- Lock group toggle for guide -->

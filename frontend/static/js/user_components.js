@@ -940,6 +940,12 @@ const TsUserLayout = {
       this.fetchSocialGroupMessages(trekId);
       this.fetchSocialGroupMembers(trekId);
     },
+    closeSocialChat() {
+      this.selectedSocialTrekId = null;
+      this.newSocialMessageText = '';
+      this.socialGroupMembersList = [];
+      window.location.hash = 'social';
+    },
     openSocialProfileModal(p) {
       this.socialProfileTarget = p;
       this.showSocialProfileModal = true;
@@ -2334,8 +2340,14 @@ const TsUserLayout = {
               <div class="ts-card d-flex flex-column" style="flex: 2; min-width: 0;">
                 <div class="ts-card-header d-flex justify-content-between align-items-center">
                   <div>
-                    <div class="ts-card-title m-0" v-if="selectedSocialGroupTrek">
-                      <i class="bi bi-chat-left-dots-fill"></i> Group Chat: {{ selectedSocialGroupTrek.name }}
+                    <div class="ts-card-title m-0 d-flex align-items-center" v-if="selectedSocialGroupTrek">
+                          <i class="bi bi-chat-left-dots-fill"></i>
+                          <span style="margin-left:8px">Group Chat: {{ selectedSocialGroupTrek.name }}</span>
+                        </div>
+                    <div>
+                      <button class="btn btn-sm btn-outline-secondary" @click="closeSocialChat" title="Close chat" style="font-size:0.78rem; padding:4px 8px;">
+                        <i class="bi bi-x-lg"></i>
+                      </button>
                     </div>
                     <div class="text-muted" style="font-size: 0.72rem; margin-top: 2px;" v-if="selectedSocialGroupTrek">
                       Batch Code: {{ selectedSocialGroupTrek.batchCode }} | Status: {{ selectedSocialGroupTrek.status }}

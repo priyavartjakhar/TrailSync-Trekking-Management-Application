@@ -1189,7 +1189,29 @@ const TsAdminLayout = {
         user.bookingsList = this.allBookings.filter(b => b.userId === user.id);
         ticket.userDetails = user;
       } else {
-        ticket.userDetails = null;
+        const staff = this.staffList ? this.staffList.find(s => s.id === ticket.userId) : null;
+        if (staff) {
+          ticket.userDetails = {
+            id: staff.id,
+            memberId: staff.memberId,
+            name: staff.name,
+            email: staff.contact,
+            phone: staff.phone,
+            city: '—',
+            emergency: '—',
+            registered: staff.joined,
+            bookingsList: [],
+            bio: 'Trek Guide / Staff member',
+            photoUrl: staff.photoUrl,
+            role: 'staff',
+            designation: staff.designation,
+            experience: staff.experience,
+            skills: staff.skills,
+            certifications: staff.certifications
+          };
+        } else {
+          ticket.userDetails = null;
+        }
       }
       this.selectedTicketDetails = ticket;
       this.showTicketDetailsModal = true;
@@ -1205,7 +1227,8 @@ const TsAdminLayout = {
         'Payments & Refunds': 'cat-payment',
         'Profile & Account Settings': 'cat-profile',
         'Technical Issue / Bug': 'cat-bug',
-        'Feedback & Suggestions': 'cat-feedback'
+        'Feedback & Suggestions': 'cat-feedback',
+        'Leave Request': 'cat-leave'
       };
       return map[category] || 'cat-general';
     },
@@ -6297,10 +6320,18 @@ const TsAdminLayout = {
                 <div class="staff-detail-info" style="background: var(--snow); padding: 1rem; border-radius: 6px; border: 1px solid var(--stone-light); font-size: 0.82rem;">
                   <div style="margin-bottom: 6px;"><strong>Email:</strong> {{ selectedTicketDetails.userDetails.email }}</div>
                   <div style="margin-bottom: 6px;"><strong>Phone:</strong> {{ selectedTicketDetails.userDetails.phone || '—' }}</div>
-                  <div style="margin-bottom: 6px;"><strong>City:</strong> {{ selectedTicketDetails.userDetails.city || '—' }}</div>
-                  <div style="margin-bottom: 6px;"><strong>Emergency Contact:</strong> {{ selectedTicketDetails.userDetails.emergency || '—' }}</div>
+                  <div v-if="selectedTicketDetails.userDetails.role === 'staff'">
+                    <div style="margin-bottom: 6px;"><strong>Designation:</strong> {{ selectedTicketDetails.userDetails.designation || 'Trek Staff' }}</div>
+                    <div style="margin-bottom: 6px;"><strong>Experience:</strong> {{ selectedTicketDetails.userDetails.experience || '—' }} years</div>
+                    <div style="margin-bottom: 6px;"><strong>Skills:</strong> {{ selectedTicketDetails.userDetails.skills || '—' }}</div>
+                    <div style="margin-bottom: 6px;"><strong>Certifications:</strong> {{ selectedTicketDetails.userDetails.certifications || '—' }}</div>
+                  </div>
+                  <div v-else>
+                    <div style="margin-bottom: 6px;"><strong>City:</strong> {{ selectedTicketDetails.userDetails.city || '—' }}</div>
+                    <div style="margin-bottom: 6px;"><strong>Emergency Contact:</strong> {{ selectedTicketDetails.userDetails.emergency || '—' }}</div>
+                    <div style="margin-bottom: 6px;"><strong>Total Bookings:</strong> <span class="mono" style="font-weight:700; color:var(--forest);">{{ selectedTicketDetails.userDetails.bookingsList.length }}</span></div>
+                  </div>
                   <div style="margin-bottom: 6px;"><strong>Joined:</strong> {{ formatDate(selectedTicketDetails.userDetails.registered) }}</div>
-                  <div style="margin-bottom: 6px;"><strong>Total Bookings:</strong> <span class="mono" style="font-weight:700; color:var(--forest);">{{ selectedTicketDetails.userDetails.bookingsList.length }}</span></div>
                   <div><strong>Bio:</strong> {{ selectedTicketDetails.userDetails.bio || 'No bio provided.' }}</div>
                 </div>
               </div>

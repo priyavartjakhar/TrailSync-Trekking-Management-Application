@@ -1903,3 +1903,50 @@ body { font-family: 'DM Sans', sans-serif; background: var(--snow); color: var(-
   background-size: 300% 300% !important;
   animation: weather-gradient 10s ease infinite !important;
 }
+
+/* ── SUPPORT & LEAVES CATEGORIES ── */
+.category-tag {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.cat-general { background: rgba(108, 117, 125, 0.1) !important; color: #495057 !important; border: 1px solid rgba(108, 117, 125, 0.2) !important; }
+.cat-booking { background: rgba(0, 123, 255, 0.1) !important; color: #007bff !important; border: 1px solid rgba(0, 123, 255, 0.2) !important; }
+.cat-payment { background: rgba(40, 167, 69, 0.1) !important; color: #28a745 !important; border: 1px solid rgba(40, 167, 69, 0.2) !important; }
+.cat-profile { background: rgba(23, 162, 184, 0.1) !important; color: #17a2b8 !important; border: 1px solid rgba(23, 162, 184, 0.2) !important; }
+.cat-bug { background: rgba(220, 53, 69, 0.1) !important; color: #dc3545 !important; border: 1px solid rgba(220, 53, 69, 0.2) !important; }
+.cat-feedback { background: rgba(111, 66, 193, 0.1) !important; color: #6f42c1 !important; border: 1px solid rgba(111, 66, 193, 0.2) !important; }
+.cat-leave { background: rgba(245, 158, 11, 0.1) !important; color: #d97706 !important; border: 1px solid rgba(245, 158, 11, 0.2) !important; }
+
+/* ── HIGH VISIBILITY FORM CONTROLS (Support Tab) ── */
+.form-group label {
+  font-weight: 600;
+  font-size: 0.85rem;
+  margin-bottom: 0.35rem;
+  display: block;
+  color: var(--forest);
+}
+.form-control, .form-select {
+  width: 100%;
+  padding: 0.65rem 0.85rem;
+  font-size: 0.88rem;
+  color: var(--bark) !important;
+  background-color: #ffffff !important;
+  border: 1.5px solid var(--stone) !important; /* Higher contrast border */
+  border-radius: var(--radius) !important;
+  outline: none;
+  transition: var(--transition);
+}
+.form-control:focus, .form-select:focus {
+  border-color: var(--forest-light) !important;
+  box-shadow: 0 0 0 3px rgba(61, 107, 61, 0.18) !important;
+}
+.form-control::placeholder {
+  color: var(--stone);
+  opacity: 0.8;
+}
+

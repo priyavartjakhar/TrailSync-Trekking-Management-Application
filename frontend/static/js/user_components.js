@@ -115,6 +115,16 @@ const TsUserLayout = {
         { id: 5, author: 'Rohan Sen', avatar: 'RS', title: 'Nagalapuram Ridge Climb', trekName: 'Nagalapuram Falls Trek', text: 'The trail started with dry deciduous scrubs but soon transitioned into a lush gorge filled with deep water pools. Climbing the steep ridges gave us panoramic views of the Andhra plains below. Jumping into the cool, deep freshwater pools at the end of the day made all the sweat worthwhile.', likes: 53, comments: 7, img: 'https://images.unsplash.com/photo-1501555088652-021faa106b9b?w=600&fit=crop' },
         { id: 6, author: 'Meera Joshi', avatar: 'MJ', title: 'Mystical Talle Valley', trekName: 'Talle Valley Trek', text: "Arunachal's dense bamboo and pine forests are unlike anything else in India. The trail was covered in rich moss and giant ferns, with occasional rains adding to the mystical atmosphere. Spotting a rare cloud leopard track in the soft mud made us realize how wild and untouched this sanctuary is.", likes: 110, comments: 14, img: 'https://images.unsplash.com/photo-1447752875215-b2761acb3c5d?w=600&fit=crop' }
       ],
+      // ── SOCIAL STATE ──────────────────────────────
+      socialGroups: [],
+      socialMessages: [],
+      selectedSocialTrekId: null,
+      newSocialMessageText: '',
+      loadingSocial: false,
+      socialGroupMembersList: [],
+      showSocialProfileModal: false,
+      socialProfileTarget: null,
+      hasUnreadAnnouncements: false
     };
   },
 
@@ -296,20 +306,51 @@ const TsUserLayout = {
       ];
       return [...list, ...fallbacks].slice(0, 3);
     },
+    selectedSocialGroupTrek() {
+      return this.socialGroups.find(t => t.id === this.selectedSocialTrekId) || null;
+    },
+    currentGroupMessages() {
+      return this.socialMessages.filter(m => m.trekId === this.selectedSocialTrekId).map(m => {
+        return {
+          id: m.id,
+          trekId: m.trekId,
+          sender: m.senderRole === 'staff' || m.senderRole === 'admin' ? 'guide' : 'trekker',
+          senderRole: m.senderRole,
+          name: m.senderName,
+          text: m.messageText,
+          isAnnouncement: m.isAnnouncement,
+          timestamp: m.createdAt ? new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''
+        };
+      });
+    },
+    currentGroupAnnouncements() {
+      return this.socialMessages
+        .filter(m => m.isAnnouncement && m.trekId === this.selectedSocialTrekId)
+        .map(m => ({
+          id: m.id,
+          trekId: m.trekId,
+          title: m.announcementTitle || 'Announcement',
+          content: m.messageText,
+          date: m.createdAt ? new Date(m.createdAt).toLocaleDateString([], { day: '2-digit', month: 'short' }) : ''
+        }));
+    },
   },
 
   methods: {
     // ── NAV ────────────────────────────────────────
-    goTab(tab) {
-      const validTabs = ['dashboard', 'explore', 'bookings', 'history', 'profile', 'support'];
+    goTab(tab, options = {}) {
+      const validTabs = ['dashboard', 'explore', 'bookings', 'history', 'profile', 'support', 'social'];
       if (!validTabs.includes(tab)) return;
 
-      if (window.location.hash.slice(1) === tab) {
+      this.selectedSocialTrekId = null;
+      let targetHash = tab;
+
+      if (window.location.hash.slice(1) === targetHash) {
         this.activateTab(tab);
         return;
       }
 
-      window.location.hash = tab;
+      window.location.hash = targetHash;
     },
     getCategoryClass(category) {
       const map = {
@@ -323,12 +364,15 @@ const TsUserLayout = {
       return map[category] || 'cat-general';
     },
     activateTab(tab) {
-      const validTabs = ['dashboard', 'explore', 'bookings', 'history', 'profile', 'support'];
+      const validTabs = ['dashboard', 'explore', 'bookings', 'history', 'profile', 'support', 'social'];
       if (!tab || !validTabs.includes(tab)) return;
 
       this.activeTab = tab;
       if (tab === 'support') {
         this.fetchUserTickets();
+      } else if (tab === 'social') {
+        this.selectedSocialTrekId = null;
+        this.fetchSocialGroups();
       }
       if (window.innerWidth <= 900) {
         this.sidebarOpen = false;
@@ -340,7 +384,17 @@ const TsUserLayout = {
     },
     handleHashChange() {
       const hash = window.location.hash.slice(1);
-      this.activateTab(hash);
+      if (hash.startsWith('social/group/')) {
+        const trekId = parseInt(hash.replace('social/group/', ''), 10);
+        this.activeTab = 'social';
+        this.selectedSocialTrekId = isNaN(trekId) ? null : trekId;
+        if (this.selectedSocialTrekId) {
+          this.fetchSocialGroupMessages(this.selectedSocialTrekId);
+          this.fetchSocialGroupMembers(this.selectedSocialTrekId);
+        }
+      } else {
+        this.activateTab(hash);
+      }
     },
     resetPageScroll() {
       this.$nextTick(() => {
@@ -801,6 +855,120 @@ const TsUserLayout = {
         this.submittingSupport = false;
       }
     },
+    async fetchSocialGroups() {
+      try {
+        const res = await fetch('/api/social/groups');
+        if (res.ok) {
+          this.socialGroups = await res.json();
+          this.hasUnreadAnnouncements = this.socialGroups.some(g => g.hasUnreadAnnouncement);
+        }
+      } catch (e) {
+        console.error("Error fetching social groups:", e);
+      }
+    },
+    async fetchSocialGroupMessages(trekId, options = {}) {
+      if (!options.silent) this.loadingSocial = true;
+      try {
+        const res = await fetch(`/api/social/group/${trekId}/messages`);
+        if (res.ok) {
+          const msgs = await res.json();
+          this.socialMessages = msgs;
+          if (!options.silent) {
+            this.$nextTick(() => {
+              const feed = this.$el ? this.$el.querySelector('.social-chat-feed') : document.querySelector('.social-chat-feed');
+              if (feed) feed.scrollTop = feed.scrollHeight;
+            });
+          }
+          this.fetchSocialGroupsSilent();
+        }
+      } catch (e) {
+        console.error("Error fetching social messages:", e);
+      } finally {
+        if (!options.silent) this.loadingSocial = false;
+      }
+    },
+    async fetchSocialGroupsSilent() {
+      try {
+        const res = await fetch('/api/social/groups');
+        if (res.ok) {
+          this.socialGroups = await res.json();
+          this.hasUnreadAnnouncements = this.socialGroups.some(g => g.hasUnreadAnnouncement);
+        }
+      } catch (_) {}
+    },
+    async sendSocialMessage() {
+      if (!this.newSocialMessageText.trim()) return;
+      try {
+        const text = this.newSocialMessageText.trim();
+        this.newSocialMessageText = '';
+        const res = await fetch(`/api/social/group/${this.selectedSocialTrekId}/messages`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messageText: text })
+        });
+        if (res.ok) {
+          await this.fetchSocialGroupMessages(this.selectedSocialTrekId);
+        } else {
+          const errData = await res.json();
+          this.showToast(errData.error || 'Failed to send message.', 'error');
+        }
+      } catch (e) {
+        console.error("Error sending message:", e);
+      }
+    },
+    async fetchSocialGroupMembers(trekId) {
+      try {
+        const res = await fetch(`/api/social/group/${trekId}/members`);
+        if (res.ok) {
+          const data = await res.json();
+          const members = [];
+          if (data.guide) {
+            members.push(data.guide);
+          }
+          if (data.trekkers) {
+            members.push(...data.trekkers);
+          }
+          this.socialGroupMembersList = members;
+        }
+      } catch (e) {
+        console.error("Error fetching group members:", e);
+      }
+    },
+    selectSocialGroup(trekId) {
+      this.selectedSocialTrekId = trekId;
+      window.location.hash = `social/group/${trekId}`;
+      this.fetchSocialGroupMessages(trekId);
+      this.fetchSocialGroupMembers(trekId);
+    },
+    openSocialProfileModal(p) {
+      this.socialProfileTarget = p;
+      this.showSocialProfileModal = true;
+    },
+    getChatBubbleStyle(m) {
+      if (m.isAnnouncement) {
+        return {
+          background: '#fef2f2',
+          border: '1px solid #fca5a5',
+          color: '#991b1b',
+          borderTopRightRadius: m.sender === 'guide' ? '0px' : '8px',
+          borderTopLeftRadius: m.sender === 'guide' ? '8px' : '0px'
+        };
+      }
+      if (m.sender === 'guide') {
+        return {
+          background: 'var(--cream)',
+          border: '1px solid rgba(200, 146, 42, 0.25)',
+          color: 'var(--bark)',
+          borderTopRightRadius: '0px'
+        };
+      }
+      return {
+        background: '#ffffff',
+        border: '1px solid rgba(26, 46, 26, 0.08)',
+        color: 'var(--bark)',
+        borderTopLeftRadius: '0px'
+      };
+    },
 
     cleanDescription(t) {
       if (!t || !t.description) return '';
@@ -999,10 +1167,12 @@ const TsUserLayout = {
     document.addEventListener('click', this.clickListener);
 
     const hash = window.location.hash.slice(1);
-    const validTabs = ['dashboard', 'explore', 'bookings', 'history', 'profile', 'support'];
-    if (hash && validTabs.includes(hash)) {
-      this.activeTab = hash;
-      localStorage.setItem('userActiveTab', hash);
+    const validTabs = ['dashboard', 'explore', 'bookings', 'history', 'profile', 'support', 'social'];
+    if (hash && (validTabs.includes(hash) || hash.startsWith('social/group/'))) {
+      if (!hash.startsWith('social/group/')) {
+        this.activeTab = hash;
+        localStorage.setItem('userActiveTab', hash);
+      }
     } else {
       const savedTab = localStorage.getItem('userActiveTab');
       if (savedTab && validTabs.includes(savedTab)) {
@@ -1014,11 +1184,22 @@ const TsUserLayout = {
     }
     if (this.activeTab === 'support') {
       this.fetchUserTickets();
+    } else if (this.activeTab === 'social') {
+      this.fetchSocialGroups();
     }
+
+    // SILENT POLLING for social chat updates
+    this.socialPollInterval = setInterval(() => {
+      this.fetchSocialGroupsSilent();
+      if (this.activeTab === 'social' && this.selectedSocialTrekId) {
+        this.fetchSocialGroupMessages(this.selectedSocialTrekId, { silent: true });
+      }
+    }, 15000);
   },
 
   beforeUnmount() {
     if (this.countdownTimer) clearInterval(this.countdownTimer);
+    if (this.socialPollInterval) clearInterval(this.socialPollInterval);
     window.removeEventListener('hashchange', this.hashListener);
     document.removeEventListener('click', this.clickListener);
   },
@@ -1073,6 +1254,11 @@ const TsUserLayout = {
         <div class="sidebar-nav-item" :class="{ active: activeTab === 'history' }" @click="goTab('history')">
           <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
           <span>Trek History</span>
+        </div>
+        <div class="sidebar-nav-item" :class="{ active: activeTab === 'social' }" @click="goTab('social')" style="position: relative;">
+          <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <span>TrailSync Social</span>
+          <span v-if="hasUnreadAnnouncements" class="social-notification-dot" style="position: absolute; top: 12px; right: 15px; width: 8px; height: 8px; background-color: #ef4444; border-radius: 50%;"></span>
         </div>
 
         <div class="sidebar-section-label" style="margin-top:0.5rem">Account</div>
@@ -2090,8 +2276,226 @@ const TsUserLayout = {
           </div>
         </section>
 
+        <!-- ════════════════════════════════════════════
+             TRAILSYNC SOCIAL TAB
+        ════════════════════════════════════════════ -->
+        <section v-if="activeTab === 'social'" class="tab-section-content" style="display: flex; flex-direction: column; height: calc(100vh - 120px); min-height: 500px; padding: 0;">
+          <!-- Header -->
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; border-bottom: 1px solid var(--stone-light); background: #ffffff;">
+            <div>
+              <span style="font-size: 0.72rem; text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em; color: var(--gold);">Communication</span>
+              <h2 style="font-family: 'Playfair Display', serif; font-size: 1.5rem; font-weight: 700; color: var(--forest); margin: 0;">TrailSync <em>Social</em></h2>
+            </div>
+            <button class="btn-primary-ts" @click="goTab('dashboard')" style="padding: 6px 12px; font-size: 0.8rem; background: #e2e8f0; border-color: #cbd5e0; color: #4a5568;">
+              <i class="bi bi-house-door-fill me-1"></i>Back to Dashboard
+            </button>
+          </div>
+
+          <div style="display: flex; flex: 1; min-height: 0;">
+            <!-- Left Side: Channels List -->
+            <div style="width: 260px; border-right: 1px solid var(--stone-light); background: #ffffff; display: flex; flex-direction: column; flex-shrink: 0;">
+              <div style="padding: 1rem; border-bottom: 1px solid var(--stone-light); font-weight: 700; color: var(--forest); font-size: 0.88rem; display: flex; align-items: center; gap: 6px;">
+                <i class="bi bi-people-fill" style="color: var(--gold);"></i> Social Groups
+              </div>
+              <div style="flex: 1; overflow-y: auto; padding: 0.5rem;">
+                <div v-for="g in socialGroups" :key="g.id"
+                     :class="['social-channel-item', { active: selectedSocialTrekId === g.id }]"
+                     @click="selectSocialGroup(g.id)"
+                     style="padding: 0.75rem; border-radius: 6px; cursor: pointer; margin-bottom: 0.4rem; transition: var(--transition); border: 1px solid transparent; position: relative;">
+                  <div class="d-flex justify-content-between align-items-start mb-1">
+                    <span class="channel-name fw-bold" style="font-size: 0.82rem; color: var(--forest); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px;">{{ g.name }}</span>
+                    <span :class="'status-pill status-' + g.status.toLowerCase()" style="font-size: 0.58rem; padding: 1px 5px; flex-shrink: 0;">{{ g.status }}</span>
+                  </div>
+                  <div class="channel-sub text-muted" style="font-size: 0.65rem;">
+                    Batch: {{ g.batchCode }}
+                  </div>
+                  <span v-if="g.hasUnreadAnnouncement" style="position: absolute; right: 10px; bottom: 12px; width: 6px; height: 6px; background-color: #ef4444; border-radius: 50%;"></span>
+                </div>
+                <div v-if="!socialGroups.length" class="text-center py-4 text-muted" style="font-size: 0.78rem;">
+                  No active trekking groups found.
+                </div>
+              </div>
+            </div>
+
+            <!-- Middle: Chat Area + Right Panel (Announcements & Members) -->
+            <div v-if="!selectedSocialTrekId" class="ts-card d-flex flex-column align-items-center justify-content-center text-center p-5" style="flex: 1; background: #ffffff; min-height: 400px; border: 1px solid rgba(26,46,26,0.08); margin: 1.5rem;">
+              <i class="bi bi-chat-left-dots-fill" style="font-size: 3.5rem; color: var(--gold); opacity: 0.6; margin-bottom: 1rem;"></i>
+              <h3 style="font-family: 'Playfair Display', serif; font-size: 1.5rem; color: var(--forest); font-weight: 700; margin-bottom: 0.5rem;">Select group to start chat</h3>
+              <p class="text-muted" style="max-width: 380px; font-size: 0.9rem; line-height: 1.5;">
+                Please select a trekking group from the list on the left to start communicating with fellow travelers, view guide announcements, and see traveler profiles.
+              </p>
+            </div>
+
+            <template v-else>
+              <!-- Middle: Chat Area -->
+              <div style="flex: 1; display: flex; flex-direction: column; background: #ffffff; min-width: 0;">
+                <!-- Chat Header -->
+                <div style="padding: 0.85rem 1.25rem; border-bottom: 1px solid var(--stone-light); background: #ffffff; display: flex; justify-content: space-between; align-items: center;">
+                  <div v-if="selectedSocialGroupTrek">
+                    <div style="font-weight: 700; color: var(--forest); font-size: 0.95rem; display: flex; align-items: center; gap: 6px;">
+                      <i class="bi bi-chat-left-dots-fill" style="color: var(--gold);"></i> Group Chat: {{ selectedSocialGroupTrek.name }}
+                    </div>
+                    <div class="text-muted" style="font-size: 0.72rem; margin-top: 2px;">
+                      Batch: {{ selectedSocialGroupTrek.batchCode }} | Status: {{ selectedSocialGroupTrek.status }}
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Chat Feed -->
+                <div class="social-chat-feed" style="flex: 1; overflow-y: auto; padding: 1.25rem; background: var(--snow);">
+                  <!-- Sticky latest announcement if any -->
+                  <div v-if="currentGroupAnnouncements.length > 0" class="announcement-banner p-3 mb-3 d-flex align-items-center gap-3" style="background: #fef2f2; border: 1px solid #fca5a5; border-left: 5px solid #ef4444; border-radius: 6px; color: #991b1b; font-size: 0.82rem;">
+                    <i class="bi bi-megaphone-fill fs-5" style="color: #ef4444;"></i>
+                    <div style="flex: 1;">
+                      <strong style="font-weight: 700;">Announcement: {{ currentGroupAnnouncements[0].title }}</strong>
+                      <div style="font-size: 0.76rem; opacity: 0.9; margin-top: 2px;">{{ currentGroupAnnouncements[0].content }}</div>
+                    </div>
+                  </div>
+
+                  <!-- Messages -->
+                  <div v-for="m in currentGroupMessages" :key="m.id" 
+                       :class="['chat-bubble-wrap', m.sender === 'guide' ? 'guide-message' : 'trekker-message']"
+                       style="margin-bottom: 1rem; display: flex; flex-direction: column;">
+                    <div class="chat-meta d-flex align-items-center mb-1" style="font-size: 0.7rem; gap: 6px;">
+                      <span class="chat-sender-name fw-bold" :style="{ color: m.sender === 'guide' ? 'var(--gold)' : 'var(--forest)' }">
+                        {{ m.name }}
+                      </span>
+                      <span class="badge bg-gold text-dark" style="font-size:0.58rem; padding: 2px 4px;" v-if="m.sender === 'guide'">Guide</span>
+                      <span class="badge bg-danger text-white" style="font-size:0.58rem; padding: 2px 4px;" v-if="m.isAnnouncement">Announcement</span>
+                      <span class="chat-time text-muted">{{ m.timestamp }}</span>
+                    </div>
+                    <div class="chat-bubble" 
+                         :style="getChatBubbleStyle(m)"
+                         style="padding: 0.75rem; border-radius: 8px; max-width: 80%; font-size: 0.83rem; line-height: 1.5;">
+                      {{ m.text }}
+                    </div>
+                  </div>
+                  <div v-if="!currentGroupMessages.length" class="text-center py-5 text-muted" style="font-size: 0.85rem;">
+                    <i class="bi bi-chat-dots fs-3 mb-2 d-block"></i>
+                    No messages yet. Send a message to start the conversation!
+                  </div>
+                </div>
+
+                <!-- Input bar -->
+                <div v-if="selectedSocialGroupTrek" class="social-chat-input-bar border-top" style="padding: 1rem; background: var(--cream);">
+                  <!-- If Locked -->
+                  <div v-if="selectedSocialGroupTrek.isLocked" class="text-center p-3 text-danger fw-bold" style="background: rgba(220,53,69,0.06); border: 1px solid rgba(220,53,69,0.15); border-radius: 6px; font-size: 0.8rem; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                    <i class="bi bi-lock-fill"></i> This group chat has been locked by the guide. Only guides can post messages.
+                  </div>
+                  <!-- Standard Input Form -->
+                  <form v-else @submit.prevent="sendSocialMessage" class="d-flex gap-2">
+                    <input v-model="newSocialMessageText" type="text" class="form-control" placeholder="Type a message to the group..." style="font-size: 0.85rem; border-radius: 6px;" required />
+                    <button type="submit" class="btn btn-primary-ts px-4" style="font-size: 0.85rem;">
+                      <i class="bi bi-send-fill"></i> Send
+                    </button>
+                  </form>
+                </div>
+              </div>
+
+              <!-- Right Side: Announcements & Members -->
+              <div style="width: 280px; border-left: 1px solid var(--stone-light); background: #ffffff; display: flex; flex-direction: column; gap: 1.25rem; padding: 1rem; flex-shrink: 0; min-height: 0;">
+                
+                <!-- Announcements Panel -->
+                <div class="ts-card" style="flex: 1; display: flex; flex-direction: column; min-height: 0; border: 1px solid var(--stone-light);">
+                  <div class="ts-card-header bg-gold-subtle" style="padding: 0.75rem 1rem;">
+                    <div class="ts-card-title" style="color: var(--bark); font-weight: 700; font-size: 0.82rem; margin: 0;">
+                      <i class="bi bi-pin-angle-fill text-gold"></i> Pinned Announcements
+                    </div>
+                  </div>
+                  <div class="ts-card-body" style="padding: 0.75rem; overflow-y: auto; flex: 1;">
+                    <div class="announcements-list d-flex flex-column" style="gap: 0.6rem; display: flex; flex-direction: column;">
+                      <div v-for="a in currentGroupAnnouncements" :key="a.id" 
+                           class="announcement-item p-2 border-start border-3 border-gold" 
+                           style="background: var(--snow); border-radius: 0 4px 4px 0; font-size: 0.74rem;">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                          <span class="fw-bold" style="color: var(--forest);">{{ a.title }}</span>
+                          <span class="text-muted" style="font-size: 0.62rem;">{{ a.date }}</span>
+                        </div>
+                        <div class="text-muted" style="line-height: 1.35;">{{ a.content }}</div>
+                      </div>
+                      <div v-if="!currentGroupAnnouncements.length" class="text-center py-4 text-muted" style="font-size: 0.72rem;">
+                        No announcements posted.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Members Panel -->
+                <div class="ts-card" style="flex: 1; display: flex; flex-direction: column; min-height: 0; border: 1px solid var(--stone-light);">
+                  <div class="ts-card-header" style="padding: 0.75rem 1rem;">
+                    <div class="ts-card-title" style="font-size: 0.82rem; margin: 0;"><i class="bi bi-people"></i> Group Members</div>
+                  </div>
+                  <div class="ts-card-body" style="padding: 0.5rem; overflow-y: auto; flex: 1;">
+                    <div style="display: flex; flex-direction: column; gap: 0.4rem;">
+                      <div v-for="p in socialGroupMembersList" :key="p.id" 
+                           @click="openSocialProfileModal(p)"
+                           class="member-dir-item d-flex align-items-center justify-content-between p-2" 
+                           style="border-radius: 6px; cursor: pointer; transition: var(--transition); background: p.role === 'guide' ? 'var(--cream)' : 'transparent'; border: 1px solid transparent;">
+                        <div class="d-flex align-items-center gap-2">
+                          <div class="member-avatar d-flex align-items-center justify-content-center fw-bold" 
+                               :style="{ background: p.role === 'guide' ? 'var(--gold)' : 'var(--stone-light)', color: p.role === 'guide' ? '#fff' : 'var(--forest)' }"
+                               style="width: 26px; height: 26px; border-radius: 50%; font-size: 0.72rem;">
+                            {{ p.name[0] }}
+                          </div>
+                          <div>
+                            <div class="fw-bold" style="font-size: 0.76rem; color: var(--forest);">{{ p.name }}</div>
+                            <div class="text-muted" style="font-size: 0.62rem; text-transform: capitalize;">{{ p.role }}</div>
+                          </div>
+                        </div>
+                        <span v-if="p.role === 'guide'" class="badge bg-gold text-dark" style="font-size: 0.55rem; font-weight: 700; padding: 2px 4px;">Guide</span>
+                        <i v-else class="bi bi-chevron-right text-muted" style="font-size: 0.65rem;"></i>
+                      </div>
+                      <div v-if="!socialGroupMembersList.length" class="text-center py-4 text-muted" style="font-size: 0.72rem;">
+                        No members list loaded.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </template>
+          </div>
+        </section>
+
       </div><!-- /page-content -->
     </div><!-- /ts-main-content -->
+
+    <!-- ── FELLOW TREKKER/GUIDE PROFILE MODAL ──────────────────────── ── -->
+    <transition name="toast">
+      <div v-if="showSocialProfileModal && socialProfileTarget" class="ts-modal-overlay" @click.self="showSocialProfileModal = false">
+        <div class="ts-modal" style="max-width: 450px; width: 100%;">
+          <div class="ts-modal-header" style="border-bottom: none; padding-bottom: 0.5rem;">
+            <span class="ts-modal-title" style="font-family:'Playfair Display',serif;">Member Profile</span>
+            <button class="modal-close" @click="showSocialProfileModal = false">✕</button>
+          </div>
+          <div class="ts-modal-body text-center" style="padding-top: 0;">
+            <div style="margin-bottom: 1.5rem; display: flex; flex-direction: column; align-items: center;">
+              <div style="width: 100px; height: 100px; border-radius: 50%; overflow: hidden; border: 3px solid var(--gold); box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin-bottom: 0.75rem;">
+                <img :src="socialProfileTarget.photoUrl" :alt="socialProfileTarget.name" style="width: 100%; height: 100%; object-fit: cover;" />
+              </div>
+              <h4 style="font-family: 'Playfair Display', serif; font-size: 1.3rem; font-weight: 700; color: var(--forest); margin: 0 0 4px 0;">
+                {{ socialProfileTarget.name }}
+              </h4>
+              <span class="badge" :class="socialProfileTarget.role === 'guide' ? 'bg-gold text-dark' : 'bg-forest text-white'" style="font-size: 0.75rem; padding: 4px 10px; font-weight: 600;">
+                {{ socialProfileTarget.role === 'guide' ? 'Trek Guide' : 'Trekker' }}
+              </span>
+            </div>
+
+            <!-- Profile Details -->
+            <div class="text-start" style="background: var(--snow); border: 1px solid var(--stone-light); border-radius: 8px; padding: 1rem; margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.5rem; font-size: 0.85rem;">
+              <div style="display: flex; justify-content: space-between;"><span class="text-muted">Email:</span> <strong>{{ socialProfileTarget.email || '—' }}</strong></div>
+              <div style="display: flex; justify-content: space-between;"><span class="text-muted">Contact:</span> <strong>{{ socialProfileTarget.phone || '—' }}</strong></div>
+              <div v-if="socialProfileTarget.role !== 'guide'" style="display: flex; justify-content: space-between;"><span class="text-muted">Fitness Level:</span> <strong>{{ socialProfileTarget.fitnessLevel || 'Beginner' }}</strong></div>
+              <div v-if="socialProfileTarget.role !== 'guide'" style="display: flex; justify-content: space-between;"><span class="text-muted">Emergency Contact:</span> <strong>{{ socialProfileTarget.emergencyPhone || '—' }}</strong></div>
+              <div v-if="socialProfileTarget.role === 'guide'" style="display: flex; justify-content: space-between;"><span class="text-muted">Languages:</span> <strong>{{ socialProfileTarget.languages || 'English, Hindi' }}</strong></div>
+              <div v-if="socialProfileTarget.role === 'guide'" style="display: flex; justify-content: space-between;"><span class="text-muted">Expertise:</span> <strong>{{ socialProfileTarget.expertise || 'First Aid, Navigation' }}</strong></div>
+            </div>
+            
+            <button class="btn-primary-ts w-100" @click="showSocialProfileModal = false" style="padding: 10px; border-radius: 6px; font-weight: 600;">Close Profile</button>
+          </div>
+        </div>
+      </div>
+    </transition>
 
     <!-- ── BOOKING MODAL ────────────────────────────── -->
     <transition name="toast">

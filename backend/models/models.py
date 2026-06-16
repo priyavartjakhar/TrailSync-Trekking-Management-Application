@@ -351,3 +351,55 @@ class SupportTicket(db.Model):
             'status': self.status,
             'createdAt': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else ''
         }
+
+class ChatMessage(db.Model):
+    __tablename__ = 'chat_messages'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    trek_id = db.Column(db.Integer, db.ForeignKey('treks.id', ondelete='CASCADE'), nullable=False)
+    sender_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    sender_name = db.Column(db.String(100), nullable=False)
+    sender_role = db.Column(db.String(20), nullable=False) # 'user', 'staff', 'admin'
+    message_text = db.Column(db.Text, nullable=False)
+    is_announcement = db.Column(db.Boolean, default=False)
+    announcement_title = db.Column(db.String(150), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Relationships
+    trek = db.relationship('Trek', backref=db.backref('chat_messages', lazy=True, cascade="all, delete-orphan"))
+    sender = db.relationship('User', backref=db.backref('chat_messages', lazy=True, cascade="all, delete-orphan"))
+
+    def to_json(self):
+        return {
+            'id': self.id,
+            'trekId': self.trek_id,
+            'senderId': self.sender_id,
+            'senderName': self.sender_name,
+            'senderRole': self.sender_role,
+            'messageText': self.message_text,
+            'isAnnouncement': self.is_announcement,
+            'announcementTitle': self.announcement_title,
+            'createdAt': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else ''
+        }
+
+class TrekGroupSetting(db.Model):
+    __tablename__ = 'trek_group_settings'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    trek_id = db.Column(db.Integer, db.ForeignKey('treks.id', ondelete='CASCADE'), nullable=False, unique=True)
+    is_locked = db.Column(db.Boolean, default=False)
+    
+    trek = db.relationship('Trek', backref=db.backref('chat_settings', uselist=False, cascade="all, delete-orphan"))
+
+class UserAnnouncementRead(db.Model):
+    __tablename__ = 'user_announcement_reads'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    trek_id = db.Column(db.Integer, db.ForeignKey('treks.id', ondelete='CASCADE'), nullable=False)
+    last_read_message_id = db.Column(db.Integer, default=0)
+
+    # Relationships
+    user = db.relationship('User', backref=db.backref('announcement_reads', lazy=True, cascade="all, delete-orphan"))
+    trek = db.relationship('Trek', backref=db.backref('announcement_reads', lazy=True, cascade="all, delete-orphan"))
+

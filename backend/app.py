@@ -8,7 +8,7 @@ from datetime import datetime, date, timedelta
 import redis
 import json
 
-from backend.models.models import db, User, Trek, Booking, StaffProfile, BookingChecklistItem, TrekGuideItem, SupportTicket, TrekRoute
+from backend.models.models import db, User, Trek, Booking, StaffProfile, BookingChecklistItem, TrekGuideItem, SupportTicket, TrekRoute, ChatMessage, TrekGroupSetting, UserAnnouncementRead
 
 app = Flask(__name__, 
             template_folder=os.path.join(os.path.dirname(__file__), '../frontend'),
@@ -2169,6 +2169,47 @@ def admin_resolve_support_ticket(ticket_id):
     if not ticket:
         return jsonify({'error': 'Ticket not found'}), 404
     ticket.status = 'Resolved'
+    
+    # Auto-block dates for leave requests
+    import re
+    if ticket.subject and '[Leave Request]' in ticket.subject:
+        dates_found = re.findall(r'\d{4}-\d{2}-\d{2}', ticket.subject)
+        if not dates_found and ticket.message:
+            dates_found = re.findall(r'\d{4}-\d{2}-\d{2}', ticket.message)
+            
+        if dates_found and ticket.user_id:
+            staff = User.query.get(ticket.user_id)
+            if staff and staff.role == 'staff':
+                profile = staff.staff_profile
+                if not profile:
+                    profile = StaffProfile(user_id=staff.id)
+                    db.session.add(profile)
+                    
+                from datetime import datetime, timedelta
+                all_leave_dates = []
+                if len(dates_found) == 2:
+                    try:
+                        start_dt = datetime.strptime(dates_found[0], '%Y-%m-%d')
+                        end_dt = datetime.strptime(dates_found[1], '%Y-%m-%d')
+                        if start_dt <= end_dt:
+                            curr = start_dt
+                            while curr <= end_dt:
+                                all_leave_dates.append(curr.strftime('%Y-%m-%d'))
+                                curr += timedelta(days=1)
+                        else:
+                            all_leave_dates = dates_found
+                    except ValueError:
+                        all_leave_dates = dates_found
+                else:
+                    all_leave_dates = dates_found
+                    
+                existing_blocked = profile.custom_blocked_dates or ''
+                existing_list = [d.strip() for d in existing_blocked.split(',') if d.strip()]
+                for d in all_leave_dates:
+                    if d not in existing_list:
+                        existing_list.append(d)
+                profile.custom_blocked_dates = ','.join(sorted(existing_list))
+
     db.session.commit()
     return jsonify({'success': True, 'message': f'Ticket #{ticket_id} resolved.'})
 
@@ -2429,6 +2470,259 @@ def staff_export(trek_id):
             writer.writerow([b.unique_booking_id, b.user.to_json()['memberId'], b.user.name, b.user.email, b.booked_on.strftime('%Y-%m-%d'), b.status])
             
     return jsonify({'message': f'CSV export triggered. File generated: {filename}'})
+
+
+# ── STAFF SUPPORT TICKETS ──────────────────────────────────────
+
+@app.route('/api/staff/tickets', methods=['GET'])
+@login_required
+def get_staff_tickets():
+    if current_user.role != 'staff':
+        return jsonify({'error': 'Unauthorized'}), 403
+    tickets = SupportTicket.query.filter_by(user_id=current_user.id).order_by(SupportTicket.created_at.desc()).all()
+    return jsonify([ticket.to_json() for ticket in tickets])
+
+@app.route('/api/staff/tickets', methods=['POST'])
+@login_required
+def create_staff_ticket():
+    if current_user.role != 'staff':
+        return jsonify({'error': 'Unauthorized'}), 403
+    data = request.get_json() or {}
+    subject = data.get('subject', '').strip()
+    message = data.get('message', '').strip()
+    category = data.get('category', 'General').strip()
+    
+    if not subject or not message:
+        return jsonify({'error': 'Subject and Message are required'}), 400
+        
+    full_subject = f"[{category}] {subject}"
+    
+    ticket = SupportTicket(
+        user_id=current_user.id,
+        name=current_user.name,
+        email=current_user.email,
+        subject=full_subject,
+        message=message,
+        status='Open'
+    )
+    db.session.add(ticket)
+    db.session.commit()
+    
+    return jsonify({'success': True, 'ticket': ticket.to_json(), 'message': 'Ticket submitted successfully'})
+
+
+# ── TRAILSYNC SOCIAL ───────────────────────────────────────────
+
+@app.route('/api/social/groups', methods=['GET'])
+@login_required
+def get_social_groups():
+    if current_user.role == 'user':
+        # Treks the user has booked
+        bookings = Booking.query.filter_by(user_id=current_user.id, status='Booked').all()
+        treks = [b.trek for b in bookings if b.trek]
+    elif current_user.role == 'staff':
+        # Treks the guide is assigned to
+        treks = Trek.query.filter_by(staff_id=current_user.id).all()
+    elif current_user.role == 'admin':
+        treks = Trek.query.all()
+    else:
+        return jsonify({'error': 'Unauthorized'}), 403
+        
+    groups = []
+    for t in treks:
+        # Check locked state
+        settings = TrekGroupSetting.query.filter_by(trek_id=t.id).first()
+        is_locked = settings.is_locked if settings else False
+        
+        # Count total members (booked trekkers + guide)
+        member_count = Booking.query.filter_by(trek_id=t.id, status='Booked').count()
+        if t.staff_id:
+            member_count += 1
+            
+        # Check for unread announcements
+        has_unread = False
+        if current_user.role == 'user':
+            latest_announcement = ChatMessage.query.filter_by(trek_id=t.id, is_announcement=True).order_by(ChatMessage.id.desc()).first()
+            if latest_announcement:
+                read_record = UserAnnouncementRead.query.filter_by(user_id=current_user.id, trek_id=t.id).first()
+                if not read_record or read_record.last_read_message_id < latest_announcement.id:
+                    has_unread = True
+                    
+        groups.append({
+            'id': t.id,
+            'name': t.name,
+            'batchCode': t.batch_code or f"TID{t.id:03d}B01",
+            'startDate': t.start_date.strftime('%Y-%m-%d') if t.start_date else '',
+            'endDate': t.end_date.strftime('%Y-%m-%d') if t.end_date else '',
+            'status': t.status,
+            'isLocked': is_locked,
+            'memberCount': member_count,
+            'hasUnreadAnnouncement': has_unread
+        })
+        
+    return jsonify(groups)
+
+@app.route('/api/social/group/<int:trek_id>/messages', methods=['GET'])
+@login_required
+def get_social_group_messages(trek_id):
+    # Verify membership
+    is_member = False
+    if current_user.role == 'admin':
+        is_member = True
+    elif current_user.role == 'staff':
+        trek = Trek.query.filter_by(id=trek_id, staff_id=current_user.id).first()
+        if trek:
+            is_member = True
+    else:
+        booking = Booking.query.filter_by(user_id=current_user.id, trek_id=trek_id, status='Booked').first()
+        if booking:
+            is_member = True
+            
+    if not is_member:
+        return jsonify({'error': 'You are not a member of this trek group.'}), 403
+        
+    messages = ChatMessage.query.filter_by(trek_id=trek_id).order_by(ChatMessage.created_at.asc()).all()
+    
+    # Update unread count / read state for user
+    latest_announcement = ChatMessage.query.filter_by(trek_id=trek_id, is_announcement=True).order_by(ChatMessage.id.desc()).first()
+    if latest_announcement and current_user.role == 'user':
+        read_record = UserAnnouncementRead.query.filter_by(user_id=current_user.id, trek_id=trek_id).first()
+        if not read_record:
+            read_record = UserAnnouncementRead(user_id=current_user.id, trek_id=trek_id, last_read_message_id=latest_announcement.id)
+            db.session.add(read_record)
+        else:
+            read_record.last_read_message_id = max(read_record.last_read_message_id, latest_announcement.id)
+        db.session.commit()
+        
+    return jsonify([m.to_json() for m in messages])
+
+@app.route('/api/social/group/<int:trek_id>/messages', methods=['POST'])
+@login_required
+def send_social_group_message(trek_id):
+    # Verify membership
+    is_member = False
+    trek = Trek.query.get(trek_id)
+    if not trek:
+        return jsonify({'error': 'Trek not found.'}), 404
+        
+    if current_user.role == 'admin':
+        is_member = True
+    elif current_user.role == 'staff':
+        if trek.staff_id == current_user.id:
+            is_member = True
+    else:
+        booking = Booking.query.filter_by(user_id=current_user.id, trek_id=trek_id, status='Booked').first()
+        if booking:
+            is_member = True
+            
+    if not is_member:
+        return jsonify({'error': 'You are not a member of this trek group.'}), 403
+        
+    # Check lock status
+    settings = TrekGroupSetting.query.filter_by(trek_id=trek_id).first()
+    is_locked = settings.is_locked if settings else False
+    if is_locked and current_user.role == 'user':
+        return jsonify({'error': 'This chat has been locked by the guide.'}), 403
+        
+    data = request.get_json() or {}
+    message_text = data.get('messageText', '').strip()
+    is_announcement = data.get('isAnnouncement', False)
+    announcement_title = data.get('announcementTitle', '').strip()
+    
+    if not message_text:
+        return jsonify({'error': 'Message text is required.'}), 400
+        
+    # Standard users cannot post announcements
+    if current_user.role == 'user':
+        is_announcement = False
+        announcement_title = None
+        
+    msg = ChatMessage(
+        trek_id=trek_id,
+        sender_id=current_user.id,
+        sender_name=current_user.name,
+        sender_role=current_user.role,
+        message_text=message_text,
+        is_announcement=is_announcement,
+        announcement_title=announcement_title if is_announcement else None
+    )
+    db.session.add(msg)
+    db.session.commit()
+    
+    return jsonify(msg.to_json())
+
+@app.route('/api/social/group/<int:trek_id>/toggle_lock', methods=['POST'])
+@login_required
+def toggle_social_group_lock(trek_id):
+    # Verify permissions (Only the assigned guide or admin)
+    trek = Trek.query.get(trek_id)
+    if not trek:
+        return jsonify({'error': 'Trek not found.'}), 404
+        
+    if current_user.role != 'admin' and (current_user.role != 'staff' or trek.staff_id != current_user.id):
+        return jsonify({'error': 'Unauthorized'}), 403
+        
+    settings = TrekGroupSetting.query.filter_by(trek_id=trek_id).first()
+    if not settings:
+        settings = TrekGroupSetting(trek_id=trek_id, is_locked=True)
+        db.session.add(settings)
+    else:
+        settings.is_locked = not settings.is_locked
+        
+    db.session.commit()
+    return jsonify({'success': True, 'isLocked': settings.is_locked})
+
+@app.route('/api/social/group/<int:trek_id>/members', methods=['GET'])
+@login_required
+def get_social_group_members(trek_id):
+    trek = Trek.query.get(trek_id)
+    if not trek:
+        return jsonify({'error': 'Trek not found.'}), 404
+        
+    # Get guide details
+    guide_data = None
+    if trek.staff:
+        profile = trek.staff.staff_profile
+        photos = [
+            "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&h=300&fit=crop",
+            "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&h=300&fit=crop",
+            "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300&h=300&fit=crop"
+        ]
+        photo_url = (profile.photo_url if (profile and profile.photo_url) else None) or photos[trek.staff.id % len(photos)]
+        guide_data = {
+            'id': trek.staff.id,
+            'name': trek.staff.name,
+            'photoUrl': photo_url,
+            'designation': profile.designation if profile else 'Lead Guide',
+            'role': 'guide'
+        }
+        
+    # Get registered trekkers
+    bookings = Booking.query.filter_by(trek_id=trek_id, status='Booked').all()
+    trekkers = []
+    photos = [
+        "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&h=300&fit=crop",
+        "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&h=300&fit=crop",
+        "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300&h=300&fit=crop"
+    ]
+    for b in bookings:
+        u = b.user
+        photo_url = photos[u.id % len(photos)]
+        trekkers.append({
+            'id': u.id,
+            'name': u.name,
+            'photoUrl': photo_url,
+            'bio': u.bio or 'Outdoor enthusiast. Passionate about exploring the trails.',
+            'city': u.city or 'Not Specified',
+            'joined': u.registered_at.strftime('%Y-%m-%d') if u.registered_at else '',
+            'preferredDifficulty': u.preferred_difficulty or 'Moderate',
+            'role': 'trekker'
+        })
+        
+    return jsonify({
+        'guide': guide_data,
+        'trekkers': trekkers
+    })
 
 
 if __name__ == '__main__':

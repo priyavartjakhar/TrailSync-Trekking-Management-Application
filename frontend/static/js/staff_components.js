@@ -2421,58 +2421,62 @@ const TsStaffLayout = {
         <!-- Social content row -->
         <div style="display: flex; gap: 1.5rem; flex: 1; min-height: 0;">
         
-        <!-- Left column: Pending groups + Channels list -->
-        <div style="display:flex; flex-direction:column; gap:0.75rem; width: 320px; flex-shrink:0;">
-          <!-- Pending groups (top) -->
-          <div class="ts-card" style="padding: 0;">
-            <div class="ts-card-header">
-              <div class="ts-card-title"><i class="bi bi-hourglass-split"></i> Pending Groups</div>
-            </div>
-            <div style="padding:0.75rem;">
-              <div v-if="pendingGroups.length">
-                <div v-for="p in pendingGroups" :key="p.id" style="display:flex; justify-content:space-between; align-items:center; padding:0.5rem; border-radius:6px; background:var(--snow); margin-bottom:0.5rem;">
-                  <div style="font-size:0.88rem; color:var(--forest); font-weight:600;">
-                    {{ p.name }} <div style="font-size:0.72rem; color:var(--stone);">Batch {{ p.batchCode }}</div>
-                  </div>
-                  <div style="display:flex; gap:6px;">
-                    <button class="btn btn-sm btn-success" @click="createGroup(p.id)">Create Group</button>
-                  </div>
-                </div>
-              </div>
-              <div v-else class="text-muted" style="font-size:0.84rem;">No pending groups.</div>
-            </div>
-          </div>
-
-          <!-- Channels list (left) -->
-          <div class="social-channels-panel ts-card" style="width: 100%; display: flex; flex-direction: column; flex-shrink: 0;">
+        <!-- Left column: Channels list -->
+        <div class="social-channels-panel ts-card" style="width: 280px; display: flex; flex-direction: column; flex-shrink: 0;">
           <div class="ts-card-header">
             <div class="ts-card-title"><i class="bi bi-people-fill"></i> Social Groups</div>
           </div>
           <div class="social-channels-list" style="flex: 1; overflow-y: auto; padding: 0.75rem;">
-            <div v-for="t in socialGroups" :key="t.id" 
-                 :class="['social-channel-item', { active: selectedSocialTrekId === t.id }]"
-                 @click="selectSocialGroup(t.id)"
-                 style="padding: 0.75rem; border-radius: 6px; cursor: pointer; margin-bottom: 0.5rem; transition: var(--transition);">
-              <div class="d-flex justify-content-between align-items-start mb-1">
-                <span class="channel-name fw-bold" style="font-size: 0.85rem; color: var(--forest); display: flex; align-items: center; gap: 4px;">
-                  <i class="bi bi-hash"></i> {{ t.name }}
-                  <i v-if="t.isLocked" class="bi bi-lock-fill text-danger" style="font-size: 0.75rem;" title="Chat is Locked"></i>
-                </span>
-                <span :class="'status-pill status-' + t.status.toLowerCase()" style="font-size: 0.6rem; padding: 2px 6px;">{{ t.status }}</span>
+            <!-- Pending groups section -->
+            <div v-if="pendingGroups.length">
+              <div style="font-weight:700; font-size:0.75rem; color:var(--stone); text-transform:uppercase; padding:0.5rem 0; margin-bottom:0.5rem; border-bottom:1px solid var(--stone-light);">
+                <i class="bi bi-hourglass-split"></i> Pending
               </div>
-              <div class="channel-sub text-muted d-flex justify-content-between" style="font-size: 0.7rem;">
-                <span>Batch {{ t.batchCode }}</span>
-                <span>{{ t.memberCount }} members</span>
+              <div v-for="p in pendingGroups" :key="'pending-' + p.id" 
+                   style="padding: 0.75rem; border-radius: 6px; background:var(--cream); margin-bottom:0.5rem; border:1px dashed var(--gold);">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                  <div>
+                    <div class="fw-bold" style="font-size: 0.84rem; color: var(--forest);">{{ p.name }}</div>
+                    <div class="text-muted" style="font-size: 0.7rem;">Batch {{ p.batchCode }}</div>
+                  </div>
+                </div>
+                <button class="btn btn-sm btn-success w-100" @click="createGroup(p.id)" style="font-size:0.75rem; padding:4px 8px;">
+                  <i class="bi bi-plus-circle"></i> Create Group
+                </button>
+              </div>
+              <div style="border-bottom:1px solid var(--stone-light); margin-bottom:0.75rem;"></div>
+            </div>
+
+            <!-- Created groups -->
+            <div v-if="socialGroups.length">
+              <div style="font-weight:700; font-size:0.75rem; color:var(--stone); text-transform:uppercase; padding:0.5rem 0; margin-bottom:0.5rem;" v-if="pendingGroups.length">
+                <i class="bi bi-chat-dots-fill"></i> Active
+              </div>
+              <div v-for="t in socialGroups" :key="t.id" 
+                   :class="['social-channel-item', { active: selectedSocialTrekId === t.id }]"
+                   @click="selectSocialGroup(t.id)"
+                   style="padding: 0.75rem; border-radius: 6px; cursor: pointer; margin-bottom: 0.5rem; transition: var(--transition);">
+                <div class="d-flex justify-content-between align-items-start mb-1">
+                  <span class="channel-name fw-bold" style="font-size: 0.85rem; color: var(--forest); display: flex; align-items: center; gap: 4px;">
+                    <i class="bi bi-hash"></i> {{ t.name }}
+                    <i v-if="t.isLocked" class="bi bi-lock-fill text-danger" style="font-size: 0.75rem;" title="Chat is Locked"></i>
+                  </span>
+                  <span :class="'status-pill status-' + t.status.toLowerCase()" style="font-size: 0.6rem; padding: 2px 6px;">{{ t.status }}</span>
+                </div>
+                <div class="channel-sub text-muted d-flex justify-content-between" style="font-size: 0.7rem;">
+                  <span>Batch {{ t.batchCode }}</span>
+                  <span>{{ t.memberCount }} members</span>
+                </div>
               </div>
             </div>
-            <div v-if="!socialGroups.length" class="text-center py-4 text-muted" style="font-size: 0.8rem;">
-              No channels available.
+            <div v-if="!socialGroups.length && !pendingGroups.length" class="text-center py-4 text-muted" style="font-size: 0.8rem;">
+              No groups available.
             </div>
           </div>
         </div>
 
-        <!-- Main Chat + Pinned Announcements + Info (right) -->
-        <div class="social-chat-panel d-flex" style="flex: 1; gap: 1.5rem; min-width: 0;">
+        <!-- Chat area (main) -->
+        <div style="flex: 1; min-width: 0;">
           
           <div v-if="!selectedSocialTrekId" class="ts-card d-flex flex-column align-items-center justify-content-center text-center p-5" style="flex: 1; background: #ffffff; min-height: 400px; border: 1px solid rgba(26,46,26,0.08);">
             <i class="bi bi-chat-left-dots-fill" style="font-size: 3.5rem; color: var(--gold); opacity: 0.6; margin-bottom: 1rem;"></i>
@@ -2559,93 +2563,8 @@ const TsStaffLayout = {
                 </form>
               </div>
             </div>
-
-            <!-- Sidebar: Announcements + Members (rightmost) -->
-            <div class="d-flex flex-column gap-3" style="width: 320px; flex-shrink: 0;">
-              
-              <!-- Pinned Announcements -->
-              <div class="ts-card d-flex flex-column" style="flex: 1; min-height: 0;">
-                <div class="ts-card-header bg-gold-subtle">
-                  <div class="ts-card-title" style="color: var(--bark); font-weight: 700;">
-                    <i class="bi bi-pin-angle-fill text-gold"></i> Pinned Announcements
-                  </div>
-                </div>
-                <div class="ts-card-body" style="padding: 1rem; overflow-y: auto; flex: 1;">
-                  
-                  <!-- Announcement creation moved to chat input (Announcement button) -->
-
-                  <!-- Announcement items -->
-                  <div class="announcements-list d-flex flex-direction-column" style="gap: 0.75rem; display: flex; flex-direction: column;">
-                    <div v-for="a in currentGroupAnnouncements" :key="a.id" 
-                         class="announcement-item p-2 border-start border-3 border-gold" 
-                         style="background: var(--snow); border-radius: 0 4px 4px 0; font-size: 0.75rem;">
-                      <div class="d-flex justify-content-between align-items-center mb-1">
-                        <span class="fw-bold" style="color: var(--forest);">{{ a.title }}</span>
-                        <span class="text-muted" style="font-size: 0.65rem;">{{ a.date }}</span>
-                      </div>
-                      <div class="text-muted" style="line-height: 1.4;">{{ a.content }}</div>
-                    </div>
-                    <div v-if="!currentGroupAnnouncements.length" class="text-center py-3 text-muted" style="font-size: 0.72rem;">
-                      No announcements posted.
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Group Members directory -->
-              <div class="ts-card d-flex flex-column" style="flex: 1; min-height: 0;">
-                <div class="ts-card-header">
-                  <div class="ts-card-title"><i class="bi bi-people"></i> Group Members</div>
-                </div>
-                <div class="ts-card-body" style="padding: 0.75rem; overflow-y: auto; flex: 1;">
-                  <div class="members-directory-list" style="display: flex; flex-direction: column; gap: 0.5rem;">
-                    
-                    <!-- Guide Item -->
-                    <div class="member-dir-item d-flex align-items-center justify-content-between p-2" 
-                         style="background: var(--cream); border-radius: 6px;">
-                      <div class="d-flex align-items-center gap-2">
-                        <div class="member-avatar bg-gold text-dark d-flex align-items-center justify-content-center fw-bold" 
-                             style="width: 28px; height: 28px; border-radius: 50%; font-size: 0.75rem;">
-                          {{ (staffProfile.name || 'G')[0] }}
-                        </div>
-                        <div>
-                          <div class="fw-bold" style="font-size: 0.78rem; color: var(--forest);">{{ staffProfile.name }}</div>
-                          <div class="text-muted" style="font-size: 0.65rem;">Lead Guide (You)</div>
-                        </div>
-                      </div>
-                      <span class="badge bg-gold text-dark" style="font-size: 0.6rem; font-weight: 700;">Guide</span>
-                    </div>
-
-                    <!-- Trekker Items -->
-                    <div v-for="p in socialGroupMembers" :key="p.id" 
-                         class="member-dir-item d-flex align-items-center justify-content-between p-2" 
-                         @click="openSocialProfileModal(p)"
-                         style="border-radius: 6px; cursor: pointer; transition: var(--transition);">
-                      <div class="d-flex align-items-center gap-2">
-                        <div class="member-avatar bg-secondary-subtle text-dark d-flex align-items-center justify-content-center fw-bold" 
-                             style="width: 28px; height: 28px; border-radius: 50%; font-size: 0.75rem;">
-                          {{ p.name[0] }}
-                        </div>
-                        <div>
-                          <div class="fw-bold" style="font-size: 0.78rem; color: var(--forest);">{{ p.name }}</div>
-                          <div class="text-muted" style="font-size: 0.65rem;">Trekker</div>
-                        </div>
-                      </div>
-                      <i class="bi bi-chevron-right text-muted" style="font-size: 0.75rem;"></i>
-                    </div>
-                    
-                    <div v-if="!socialGroupMembers.length" class="text-center py-3 text-muted" style="font-size: 0.72rem;">
-                      No registered trekkers.
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-            </div>
           </template>
         </div>
-
-        </div><!-- /social content row -->
 
       </div><!-- /social-tab-container -->
 

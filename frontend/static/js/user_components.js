@@ -1267,7 +1267,7 @@ const TsUserLayout = {
           <span>My Profile</span>
         </div>
         <div class="sidebar-nav-item" :class="{ active: activeTab === 'support' }" @click="goTab('support')">
-          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
           <span>Support & Help</span>
         </div>
       </nav>

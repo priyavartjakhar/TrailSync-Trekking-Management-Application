@@ -1736,6 +1736,30 @@ def admin_close_batch(trek_id):
     invalidate_open_treks_cache()
     return jsonify({'success': True, 'message': f"Batch '{trek.name}' has been closed. No further bookings are allowed.", 'trek': trek.to_json()})
 
+
+@app.route('/api/admin/batches/toggle/<int:trek_id>', methods=['POST'])
+@login_required
+def admin_toggle_batch(trek_id):
+    if current_user.role != 'admin':
+        return jsonify({'error': 'Unauthorized'}), 403
+        
+    trek = Trek.query.get(trek_id)
+    if not trek:
+        return jsonify({'error': 'Trek not found'}), 404
+
+    # Toggle between Open and Closed (leave Completed unchanged)
+    if trek.status == 'Open':
+        trek.status = 'Closed'
+    elif trek.status == 'Closed':
+        trek.status = 'Open'
+    else:
+        # For other statuses like 'Completed', don't change
+        return jsonify({'error': 'Cannot toggle status for this batch'}), 400
+
+    db.session.commit()
+    invalidate_open_treks_cache()
+    return jsonify({'success': True, 'active': trek.status == 'Open', 'trek': trek.to_json()})
+
 @app.route('/api/admin/batches/<int:trek_id>/trekkers', methods=['GET'])
 @login_required
 def admin_get_batch_trekkers(trek_id):

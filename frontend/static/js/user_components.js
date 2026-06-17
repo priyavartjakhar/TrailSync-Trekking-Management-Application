@@ -58,6 +58,7 @@ const TsUserLayout = {
       locationFilter: '',
       durationFilter: '',
       quickFilter: 'All',
+      showBookableOnly: false,
       showDiffFilterDropdown: false,
       showLocFilterDropdown: false,
       showDurFilterDropdown: false,
@@ -187,8 +188,13 @@ const TsUserLayout = {
           t.duration >= 10
         );
         const matchQuick = this.quickFilter === 'All' || t.difficulty === this.quickFilter;
-        return matchSearch && matchDiff && matchLoc && matchDur && matchQuick;
+        const matchBookable = !this.showBookableOnly || this.hasBookableSlots(t);
+        return matchSearch && matchDiff && matchLoc && matchDur && matchQuick && matchBookable;
       });
+    },
+
+    bookableTreksCount() {
+      return this.availableTreks.filter(t => this.hasBookableSlots(t)).length;
     },
 
     // Calendar days for current month view
@@ -485,10 +491,16 @@ const TsUserLayout = {
     },
     isBooked(trekId) { return this.bookedTrekIds.has(trekId); },
     isFull(t) { return t.booked >= t.slots; },
-    slotsLeft(t) { return t.slots - t.booked; },
-    slotsPct(t) { return Math.min(100, Math.round((t.booked / t.slots) * 100)); },
+    hasBookableSlots(t) {
+      if (Array.isArray(t.batches) && t.batches.length) {
+        return t.batches.some(b => this.slotsLeft(b) > 0);
+      }
+      return this.slotsLeft(t) > 0;
+    },
+    slotsLeft(t) { return Math.max(0, Number(t?.slots || 0) - Number(t?.booked || 0)); },
+    slotsPct(t) { return Math.min(100, Math.round((Number(t.booked || 0) / Number(t.slots || 1)) * 100)); },
     slotsClass(t) {
-      const p = t.booked / t.slots;
+      const p = Number(t.booked || 0) / Number(t.slots || 1);
       return p >= 0.9 ? 'slots-red-fill' : p >= 0.6 ? 'slots-amber-fill' : 'slots-green-fill';
     },
     diffColor(d) {
@@ -1733,7 +1745,7 @@ const TsUserLayout = {
                   </div>
                 </div>
               </div>
-              <button class="btn-outline" style="white-space:nowrap; align-self:flex-end" @click="searchQuery=''; difficultyFilter=''; locationFilter=''; durationFilter=''; quickFilter='All'">Reset</button>
+              <button class="btn-outline" style="white-space:nowrap; align-self:flex-end" @click="searchQuery=''; difficultyFilter=''; locationFilter=''; durationFilter=''; quickFilter='All'; showBookableOnly=false">Reset</button>
             </div>
 
             <!-- Quick filter chips -->
@@ -1743,6 +1755,17 @@ const TsUserLayout = {
                 @click="quickFilter = f">{{ f }}</button>
               <span style="margin-left:auto; font-size:0.78rem; color:var(--stone); align-self:center">
                 {{ filteredTreks.length }} trek{{ filteredTreks.length !== 1 ? 's' : '' }} found
+              </span>
+            </div>
+            <div style="margin-top:0.75rem; display:flex; flex-wrap:wrap; gap:0.75rem; align-items:center;">
+              <button
+                class="filter-chip"
+                :class="{ active: showBookableOnly }"
+                @click="showBookableOnly = !showBookableOnly">
+                Slots Available
+              </button>
+              <span style="font-size:0.78rem; color:var(--stone);">
+                {{ bookableTreksCount }} trek{{ bookableTreksCount !== 1 ? 's' : '' }} currently have bookable batch seats
               </span>
             </div>
           </div>
@@ -1785,7 +1808,7 @@ const TsUserLayout = {
           <div v-if="filteredTreks.length === 0" class="empty-state" style="margin-top:1rem">
             <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             <p>No treks match your filters.</p>
-            <p><a @click="searchQuery=''; difficultyFilter=''; locationFilter=''; durationFilter=''; quickFilter='All'">Clear all filters</a></p>
+            <p><a @click="searchQuery=''; difficultyFilter=''; locationFilter=''; durationFilter=''; quickFilter='All'; showBookableOnly=false">Clear all filters</a></p>
           </div>
         </section>
 

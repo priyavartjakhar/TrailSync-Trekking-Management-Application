@@ -91,14 +91,7 @@ const TsStaffLayout = {
         { id: 7, trekId: 2, sender: 'trekker', name: 'Rohan Mehta', text: 'Looking forward to it! How cold will it get at Balu ka Ghera camp?', timestamp: '09:12 AM' },
         { id: 8, trekId: 2, sender: 'guide', name: 'Lead Guide', text: 'It will dip to around 2°C at night, Rohan. Make sure you have at least 3 warm layers.', timestamp: '09:20 AM' }
       ],
-      socialAnnouncements: [
-        { id: 1, trekId: 1, title: 'Checklist Verification Due', content: 'Please upload or verify your medical certificate and photo ID by tomorrow evening so we can process forest permits.', date: '14 Jun' },
-        { id: 2, trekId: 1, title: 'Assembly Point Sankri', content: 'Our shared transport starts from Dehradun Railway Station at 6:30 AM on Day 1. Look for the TrailSync banner.', date: '13 Jun' },
-        { id: 3, trekId: 2, title: 'Permit Details Needed', content: 'Send your passport-sized photos and physical fitness certificates to the email desk.', date: '12 Jun' }
-      ],
       newSocialMessageText: '',
-      newSocialAnnouncementText: '',
-      newSocialAnnouncementTitle: '',
       showSocialProfileModal: false,
       socialProfileTarget: null,
 
@@ -112,7 +105,6 @@ const TsStaffLayout = {
       // ── SOCIAL DATABASE STATE ──────────────────────
       socialGroups: [],
       pendingGroups: [],
-      announcementTargetTrekId: null,
       loadingSocial: false
     };
   },
@@ -250,21 +242,10 @@ const TsStaffLayout = {
           senderRole: m.senderRole,
           name: m.senderName,
           text: m.messageText,
-          isAnnouncement: m.isAnnouncement,
+          isAnnouncement: false,
           timestamp: m.createdAt ? new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''
         };
       });
-    },
-    currentGroupAnnouncements() {
-      return this.socialMessages
-        .filter(m => m.isAnnouncement && m.trekId === this.selectedSocialTrekId)
-        .map(m => ({
-          id: m.id,
-          trekId: m.trekId,
-          title: m.announcementTitle || 'Announcement',
-          content: m.messageText,
-          date: m.createdAt ? new Date(m.createdAt).toLocaleDateString([], { day: '2-digit', month: 'short' }) : ''
-        }));
     },
     socialGroupMembers() {
       if (!this.selectedSocialTrekId) return [];
@@ -383,7 +364,6 @@ const TsStaffLayout = {
           this.assignedTreks = data.assignedTreks || this.assignedTreks;
           this.participants = data.participants || this.participants;
 
-          // Map mock social messages/announcements dynamically to active trek IDs
           if (this.assignedTreks.length > 0) {
             const firstId = this.assignedTreks[0].id;
             const secondId = this.assignedTreks[1] ? this.assignedTreks[1].id : firstId;
@@ -391,10 +371,6 @@ const TsStaffLayout = {
             this.socialMessages.forEach(m => {
               if (m.trekId === 1) m.trekId = firstId;
               else if (m.trekId === 2) m.trekId = secondId;
-            });
-            this.socialAnnouncements.forEach(a => {
-              if (a.trekId === 1) a.trekId = firstId;
-              else if (a.trekId === 2) a.trekId = secondId;
             });
             
             // Don't auto-open chat of group by default
@@ -581,14 +557,12 @@ const TsStaffLayout = {
     },
     selectSocialGroup(trekId) {
       this.selectedSocialTrekId = trekId;
-      this.announcementTargetTrekId = trekId;
       window.location.hash = `social/group/${trekId}`;
       this.fetchSocialGroupMessages(trekId);
     },
     closeSocialChat() {
       this.selectedSocialTrekId = null;
       this.newSocialMessageText = '';
-      this.announcementTargetTrekId = null;
       window.location.hash = 'social';
     },
     async sendSocialMessage() {
@@ -610,94 +584,6 @@ const TsStaffLayout = {
         }
       } catch (e) {
         console.error("Error sending message:", e);
-      }
-    },
-
-    async sendAnnouncementFromInput() {
-      if (!this.selectedSocialTrekId) return;
-      if (!this.newSocialMessageText.trim()) {
-        this.showToast('Please enter announcement text', 'error');
-        return;
-      }
-      const title = window.prompt('Announcement title', 'Announcement');
-      if (title === null) return; // cancelled
-      try {
-        const res = await fetch(`/api/social/group/${this.selectedSocialTrekId}/messages`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messageText: this.newSocialMessageText.trim(), isAnnouncement: true, announcementTitle: title.trim() })
-        });
-        if (res.ok) {
-          this.newSocialMessageText = '';
-          await this.fetchSocialGroupMessages(this.selectedSocialTrekId);
-          this.showToast('Announcement posted & pinned!');
-        } else {
-          const err = await res.json();
-          this.showToast(err.error || 'Failed to post announcement', 'error');
-        }
-      } catch (e) {
-        console.error('Error posting announcement:', e);
-      }
-    },
-    async postSocialAnnouncement() {
-      if (!this.newSocialAnnouncementTitle.trim() || !this.newSocialAnnouncementText.trim()) {
-        this.showToast('Please fill in announcement title and details.', 'error');
-        return;
-      }
-      try {
-        const title = this.newSocialAnnouncementTitle.trim();
-        const content = this.newSocialAnnouncementText.trim();
-        this.newSocialAnnouncementTitle = '';
-        this.newSocialAnnouncementText = '';
-        
-        const res = await fetch(`/api/social/group/${this.selectedSocialTrekId}/messages`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            messageText: content,
-            isAnnouncement: true,
-            announcementTitle: title
-          })
-        });
-        if (res.ok) {
-          this.showToast('Announcement posted & pinned!');
-          await this.fetchSocialGroupMessages(this.selectedSocialTrekId);
-        } else {
-          const errData = await res.json();
-          this.showToast(errData.error || 'Failed to post announcement.', 'error');
-        }
-      } catch (e) {
-        console.error("Error posting announcement:", e);
-      }
-    },
-    async sendAnnouncementToBatch() {
-      if (!this.announcementTargetTrekId || !this.newSocialAnnouncementText.trim()) {
-        this.showToast('Please select a batch and enter announcement text', 'error');
-        return;
-      }
-      try {
-        const res = await fetch(`/api/social/group/${this.announcementTargetTrekId}/messages`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            messageText: this.newSocialAnnouncementText.trim(),
-            isAnnouncement: true,
-            announcementTitle: 'Announcement'
-          })
-        });
-        if (res.ok) {
-          this.newSocialAnnouncementText = '';
-          if (this.selectedSocialTrekId === this.announcementTargetTrekId) {
-            await this.fetchSocialGroupMessages(this.selectedSocialTrekId);
-          }
-          this.showToast('Announcement sent successfully');
-        } else {
-          const errData = await res.json();
-          this.showToast(errData.error || 'Failed to send announcement', 'error');
-        }
-      } catch (e) {
-        console.error('Error sending announcement:', e);
-        this.showToast('Failed to send announcement', 'error');
       }
     },
 
@@ -726,15 +612,6 @@ const TsStaffLayout = {
       return trekkers + 1; // including guide
     },
     getChatBubbleStyle(m) {
-      if (m.isAnnouncement) {
-        return {
-          background: '#fef2f2',
-          border: '1px solid #fca5a5',
-          color: '#991b1b',
-          borderTopRightRadius: m.sender === 'guide' ? '0px' : '8px',
-          borderTopLeftRadius: m.sender === 'guide' ? '8px' : '0px'
-        };
-      }
       if (m.sender === 'guide') {
         return {
           background: 'var(--cream)',
@@ -793,6 +670,12 @@ const TsStaffLayout = {
     // ── STATUS MODAL ─────────────────────────────
     openStatusModal(t) { this.statusTarget = t; this.newStatus = t.status; this.showStatusModal = true; },
     async saveStatus() {
+      // Validate allowed transition based on trek dates
+      if (!this.isStatusAllowed(this.newStatus)) {
+        this.showToast('Cannot set this status due to trek dates.', 'error');
+        return;
+      }
+
       try {
         const res = await fetch(`/api/staff/treks/status/${this.statusTarget.id}`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -839,6 +722,32 @@ const TsStaffLayout = {
         this.activityLog.unshift({ id: Date.now(), text: `<strong>${p.name}</strong> booking cancelled`, type: 'cancel', time: 'just now' });
         this.showToast(`${p.name}'s booking cancelled`);
       }
+    },
+    // Helpers for status validation
+    parseDateOnly(d) {
+      if (!d) return null;
+      const dt = new Date(d);
+      if (isNaN(dt)) return null;
+      // zero time for date-only comparison
+      return new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
+    },
+    isStatusAllowed(s, trek = null) {
+      const target = trek || this.statusTarget;
+      if (!target) return true;
+      const start = this.parseDateOnly(target.startDate);
+      const end = this.parseDateOnly(target.endDate);
+      const today = this.parseDateOnly(new Date());
+      if (s === 'Started') {
+        // allow Started only when start date is today or earlier
+        if (!start) return false;
+        return today >= start;
+      }
+      if (s === 'Completed') {
+        // allow Completed only on the end date or later
+        if (!end) return false;
+        return today >= end;
+      }
+      return true;
     },
 
     toggleAttendance(p) {
@@ -936,6 +845,10 @@ const TsStaffLayout = {
 
     // ── MARK AS STARTED ───────────────────────────
     async markStarted(t) {
+      if (!this.isStatusAllowed('Started', t)) {
+        this.showToast('Cannot start before trek start date', 'error');
+        return;
+      }
       try {
         const res = await fetch(`/api/staff/treks/status/${t.id}`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -1012,7 +925,14 @@ const TsStaffLayout = {
     },
 
     // ── TREK COMPLETION ───────────────────────────
-    openCompletionModal(t) { this.completionTrek = t; this.showCompletionModal = true; },
+    openCompletionModal(t) {
+      if (!this.isStatusAllowed('Completed', t)) {
+        this.showToast('Cannot complete until trek end date', 'error');
+        return;
+      }
+      this.completionTrek = t;
+      this.showCompletionModal = true;
+    },
     async confirmCompletion() {
       const t = this.completionTrek;
       try {
@@ -1336,7 +1256,14 @@ const TsStaffLayout = {
 
     const hash = window.location.hash.slice(1);
     if (hash) {
-      this.handleHashChange();
+      // When the page is loaded/refreshed, never auto-open a group chat
+      // If the URL points to a specific group (social/group/:id) reset to the social overview
+      if (hash.startsWith('social/group/')) {
+        window.location.hash = 'social';
+        this.handleHashChange();
+      } else {
+        this.handleHashChange();
+      }
     } else {
       const savedTab = localStorage.getItem('staffActiveTab');
       const validTabs = ['dashboard', 'treks', 'participants', 'exports', 'profile', 'social', 'support'];
@@ -1841,11 +1768,11 @@ const TsStaffLayout = {
                 </button>
               </div>
               <div class="tsc-btn-row tsc-btn-row-status tsc-btn-row-launch">
-                <button v-if="t.status !== 'Started' && t.status !== 'Completed'" class="btn-forest btn-sm tsc-icon-btn tsc-btn-start" @click="markStarted(t)">
+                <button v-if="t.status !== 'Started' && t.status !== 'Completed'" class="btn-forest btn-sm tsc-icon-btn tsc-btn-start" :disabled="!isStatusAllowed('Started', t)" :title="!isStatusAllowed('Started', t) ? 'Cannot start before trek start date' : ''" @click="markStarted(t)">
                   <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                   Mark as Started
                 </button>
-                <button v-if="t.status === 'Started'" class="btn-primary-ts btn-sm tsc-icon-btn tsc-btn-complete" @click="openCompletionModal(t)">
+                <button v-if="t.status === 'Started'" class="btn-primary-ts btn-sm tsc-icon-btn tsc-btn-complete" :disabled="!isStatusAllowed('Completed', t)" :title="!isStatusAllowed('Completed', t) ? 'Cannot complete until trek end date' : ''" @click="openCompletionModal(t)">
                   <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
                   Mark as Completed
                 </button>
@@ -2515,48 +2442,41 @@ const TsStaffLayout = {
             <i class="bi bi-chat-left-dots-fill" style="font-size: 3.5rem; color: var(--gold); opacity: 0.6; margin-bottom: 1rem;"></i>
             <h3 style="font-family: 'Playfair Display', serif; font-size: 1.5rem; color: var(--forest); font-weight: 700; margin-bottom: 0.5rem;">Select group to start chat</h3>
             <p class="text-muted" style="max-width: 380px; font-size: 0.9rem; line-height: 1.5;">
-              Please select a trekking group from the list on the left to start communicating with participants, view pinned announcements, or publish notifications.
+              Please select a trekking group from the list on the left to start communicating with participants.
             </p>
           </div>
 
           <template v-else>
             <!-- Chat area (middle) -->
-            <div class="ts-card d-flex flex-column" style="flex: 1; min-width: 0; min-height: 0;">
-              <div class="ts-card-header d-flex justify-content-between align-items-center">
-                <div>
-                  <div style="display:flex; align-items:center; gap:12px;">
-                    <div class="ts-card-title m-0" v-if="selectedSocialGroupTrek">
+            <div class="ts-card d-flex flex-column" style="flex: 1; min-width: 0; min-height: 0; max-height: 100%;">
+              <div class="ts-card-header d-flex justify-content-between align-items-start" style="gap: 1rem; flex-wrap: wrap;">
+                <div style="display: flex; flex-direction: column; gap: 0.75rem; flex: 1; min-width: 0;">
+                  <div style="display:flex; align-items:center; gap:12px; flex-wrap: wrap;">
+                    <div class="ts-card-title m-0" v-if="selectedSocialGroupTrek" style="display:flex; align-items:center; gap:8px;">
                       <i class="bi bi-chat-left-dots-fill"></i> Group Chat: {{ selectedSocialGroupTrek.name }}
                     </div>
-                    <div class="text-muted" style="font-size: 0.72rem; margin-top: 2px;" v-if="selectedSocialGroupTrek">
+                  </div>
+                  <div style="display:flex; align-items:center; justify-content:space-between; gap: 0.75rem; flex-wrap: wrap;">
+                    <div class="text-muted" style="font-size: 0.72rem;" v-if="selectedSocialGroupTrek">
                       Batch Code: {{ selectedSocialGroupTrek.batchCode }} | Status: {{ selectedSocialGroupTrek.status }}
                     </div>
-                  </div>
-                  <div>
-                    <button class="btn btn-sm btn-outline-secondary" @click="closeSocialChat" title="Close chat" style="font-size:0.78rem; padding:4px 8px;">
-                      <i class="bi bi-x-lg"></i>
-                    </button>
+                    <div v-if="selectedSocialGroupTrek">
+                      <button class="btn btn-sm btn-outline-danger" @click="toggleSocialGroupLock(selectedSocialGroupTrek.id)" style="font-size: 0.72rem; font-weight: 600; padding: 4px 8px; border-radius: 4px; display: flex; align-items: center; gap: 4px;">
+                        <i class="bi" :class="selectedSocialGroupTrek.isLocked ? 'bi-unlock-fill' : 'bi-lock-fill'"></i>
+                        {{ selectedSocialGroupTrek.isLocked ? 'Unlock Group Chat' : 'Lock Group Chat' }}
+                      </button>
+                    </div>
                   </div>
                 </div>
-                <!-- Lock group toggle for guide -->
-                <div v-if="selectedSocialGroupTrek">
-                  <button class="btn btn-sm btn-outline-danger" @click="toggleSocialGroupLock(selectedSocialGroupTrek.id)" style="font-size: 0.72rem; font-weight: 600; padding: 4px 8px; border-radius: 4px; display: flex; align-items: center; gap: 4px;">
-                    <i class="bi" :class="selectedSocialGroupTrek.isLocked ? 'bi-unlock-fill' : 'bi-lock-fill'"></i>
-                    {{ selectedSocialGroupTrek.isLocked ? 'Unlock Group Chat' : 'Lock Group Chat' }}
+                <div style="flex-shrink: 0;">
+                  <button class="btn btn-sm btn-outline-secondary" @click="closeSocialChat" title="Close chat" style="font-size:0.78rem; padding:4px 8px;">
+                    <i class="bi bi-x-lg"></i>
                   </button>
                 </div>
               </div>
               
               <!-- Chat messages feed -->
-              <div ref="socialChatFeed" class="social-chat-feed" style="flex: 1; overflow-y: auto; padding: 1.25rem; background: var(--snow); min-height: 0;">
-                <!-- Sticky latest announcement if any -->
-                <div v-if="currentGroupAnnouncements.length > 0" class="announcement-banner p-3 mb-3 d-flex align-items-center gap-3" style="background: #fef2f2; border: 1px solid #fca5a5; border-left: 5px solid #ef4444; border-radius: 6px; color: #991b1b; font-size: 0.85rem;">
-                  <i class="bi bi-megaphone-fill fs-5" style="color: #ef4444;"></i>
-                  <div style="flex: 1;">
-                    <strong style="font-weight: 700;">Announcement: {{ currentGroupAnnouncements[0].title }}</strong>
-                    <div style="font-size: 0.78rem; opacity: 0.9; margin-top: 2px;">{{ currentGroupAnnouncements[0].content }}</div>
-                  </div>
-                </div>
+              <div ref="socialChatFeed" class="social-chat-feed" style="flex: 1 1 auto; overflow-y: auto; padding: 1.25rem; background: var(--snow); min-height: 0; max-height: calc(100vh - 320px);">
 
                 <div v-for="m in currentGroupMessages" :key="m.id" 
                      :class="['chat-bubble-wrap', m.sender === 'guide' ? 'guide-message' : 'trekker-message']"
@@ -2566,12 +2486,11 @@ const TsStaffLayout = {
                       {{ m.name }}
                     </span>
                     <span class="badge bg-gold text-dark" style="font-size:0.58rem; padding: 2px 4px;" v-if="m.sender === 'guide'">Guide</span>
-                    <span class="badge bg-danger text-white" style="font-size:0.58rem; padding: 2px 4px;" v-if="m.isAnnouncement">Announcement</span>
                     <span class="chat-time text-muted">{{ m.timestamp }}</span>
                   </div>
                   <div class="chat-bubble" 
                        :style="getChatBubbleStyle(m)"
-                       style="padding: 0.75rem; border-radius: 8px; max-width: 80%; font-size: 0.83rem; line-height: 1.5;">
+                       style="padding: 0.75rem; border-radius: 8px; max-width: 80%; width: fit-content; font-size: 0.83rem; line-height: 1.5; word-break: break-word;">
                     {{ m.text }}
                   </div>
                 </div>
@@ -2585,56 +2504,33 @@ const TsStaffLayout = {
               <div class="social-chat-input-bar border-top" style="padding: 1rem; background: var(--cream);">
                 <form @submit.prevent="sendSocialMessage" class="d-flex gap-2" style="align-items:center;">
                   <input v-model="newSocialMessageText" type="text" class="form-control" placeholder="Type a message to the group..." style="font-size: 0.85rem; border-radius: 6px;" />
-                  <div style="display:flex; gap:6px;">
-                    <button type="button" class="btn btn-danger" @click="sendAnnouncementFromInput" title="Post Announcement" style="font-size:0.82rem; padding:6px 10px;">
-                      <i class="bi bi-megaphone-fill"></i> Announcement
-                    </button>
-                    <button type="submit" class="btn btn-primary-ts px-4" style="font-size: 0.85rem;">
-                      <i class="bi bi-send-fill"></i> Send
-                    </button>
-                  </div>
+                  <button type="submit" class="btn btn-primary-ts px-4" style="font-size: 0.85rem;">
+                    <i class="bi bi-send-fill"></i> Send
+                  </button>
                 </form>
               </div>
             </div>
           </template>
         </div>
 
-        <!-- Announcement + Participants panel -->
+        <!-- Participants panel -->
         <div class="ts-card d-flex flex-column" style="width: 320px; flex-shrink: 0; min-height: 0;">
           <div class="ts-card-header d-flex justify-content-between align-items-center">
-            <div class="ts-card-title"><i class="bi bi-megaphone-fill"></i> Announcement</div>
+            <div class="ts-card-title"><i class="bi bi-people-fill"></i> Participants</div>
             <button class="btn btn-sm btn-outline-secondary" @click="openAddParticipantModal(selectedSocialTrekId)" :disabled="!selectedSocialTrekId" style="font-size:0.78rem; padding:4px 8px;">
               <i class="bi bi-person-plus-fill"></i> Add
             </button>
           </div>
           <div class="ts-card-body" style="padding: 1rem; overflow-y: auto; flex: 1; min-height: 0;">
-            <div class="form-group" style="margin-bottom: 1rem;">
-              <label style="font-size: 0.82rem; color: var(--stone); margin-bottom: 0.35rem; display: block;">Message</label>
-              <textarea v-model="newSocialAnnouncementText" rows="4" class="form-control" placeholder="Write an announcement..." style="resize: none; border-radius: 8px;"></textarea>
-            </div>
-            <div class="form-group" style="margin-bottom: 1rem;">
-              <label style="font-size: 0.82rem; color: var(--stone); margin-bottom: 0.35rem; display: block;">Choose batch</label>
-              <select v-model="announcementTargetTrekId" class="form-select" style="border-radius: 8px;">
-                <option :value="null" disabled>Select a batch</option>
-                <option v-for="group in socialGroups" :key="group.id" :value="group.id">{{ group.name }} — Batch {{ group.batchCode }}</option>
-              </select>
-            </div>
-            <button type="button" class="btn btn-danger w-100" @click="sendAnnouncementToBatch" :disabled="!announcementTargetTrekId || !newSocialAnnouncementText.trim()" style="font-size: 0.95rem;">
-              <i class="bi bi-megaphone-fill me-1"></i> Send Announcement
-            </button>
-          </div>
-
-          <div class="ts-card-header" style="border-top: 1px solid rgba(26,46,26,0.08);">
-            <div class="ts-card-title"><i class="bi bi-people-fill"></i> Participants</div>
-          </div>
-          <div class="ts-card-body" style="padding: 1rem; overflow-y: auto; max-height: 320px; min-height: 0;">
             <div v-if="socialGroupMembers.length" class="d-flex flex-column gap-2">
-              <div v-for="p in socialGroupMembers" :key="p.id" class="participant-item d-flex justify-content-between align-items-center p-2 rounded" style="background: var(--cream); cursor: pointer;" @click="openSocialProfileModal(p)">
+              <div v-for="p in socialGroupMembers" :key="p.id" class="participant-item d-flex justify-content-between align-items-center p-2 rounded" style="background: var(--cream);">
                 <div>
-                  <div class="fw-bold" style="font-size: 0.9rem; color: var(--forest);">{{ p.name }}</div>
-                  <div class="text-muted" style="font-size: 0.78rem;">{{ p.email }}</div>
+                  <div class="fw-bold" style="font-size: 0.95rem; color: var(--forest);">{{ p.name }}</div>
+                  <div class="text-muted" style="font-size: 0.78rem;">Trekker ID {{ displayTrekkerId(p) }}</div>
                 </div>
-                <button type="button" class="btn btn-sm btn-outline-secondary" style="font-size: 0.76rem; padding: 4px 8px;">View</button>
+                <button type="button" class="btn btn-sm btn-outline-danger" style="font-size: 0.76rem; padding: 4px 8px;" @click="cancelParticipant(p)">
+                  Remove
+                </button>
               </div>
             </div>
             <div v-else class="text-center text-muted" style="font-size: 0.85rem; padding: 2rem 0;">
@@ -2686,7 +2582,7 @@ const TsStaffLayout = {
           <div class="modal-info-row"><span class="modal-info-label">Current</span><span :class="'status-pill status-' + statusTarget.status.toLowerCase()">{{ statusTarget.status }}</span></div>
           <div class="status-options">
             <label v-for="s in ['Pending','Approved','Open','Closed','Started','Completed']" :key="s" class="status-radio">
-              <input type="radio" :value="s" v-model="newStatus" />
+              <input type="radio" :value="s" v-model="newStatus" :disabled="!isStatusAllowed(s)" :title="!isStatusAllowed(s) ? (s === 'Started' ? 'Cannot start before trek start date' : s === 'Completed' ? 'Cannot complete until trek end date has passed' : '') : ''" />
               <span :class="'status-pill status-' + s.toLowerCase()">{{ s }}</span>
             </label>
           </div>

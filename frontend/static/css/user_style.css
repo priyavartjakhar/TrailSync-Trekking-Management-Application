@@ -1013,6 +1013,8 @@ body {
   stroke: currentColor;
   fill: none;
   stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .si-gold   { background: rgba(200,146,42,0.18);  color: var(--gold); }

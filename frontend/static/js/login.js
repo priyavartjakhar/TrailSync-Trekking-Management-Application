@@ -88,6 +88,13 @@ createApp({
           localStorage.setItem('ts_role',  data.role || role.value);
         }
 
+        /* Force admin dashboard tab on admin login */
+        if (role.value === 'admin') {
+          localStorage.setItem('adminActiveTab', 'dashboard');
+        } else if (role.value === 'trekker') {
+          localStorage.setItem('userActiveTab', 'dashboard');
+        }
+
         /* Redirect to role dashboard */
         window.location.href = data.redirect || (role.value === 'trekker' ? '/dashboard' : '/' + role.value);
 

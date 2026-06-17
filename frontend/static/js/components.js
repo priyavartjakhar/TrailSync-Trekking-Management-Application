@@ -382,9 +382,13 @@ const TsMap = {
     pillClass(d) { return pillClass(d); },
     async fetchTreks() {
       try {
-        const res = await fetch('/api/public/treks');
+        const res = await fetch('/api/public/trek_routes');
         if (res.ok) {
-          this.treksList = await res.json();
+          const routes = await res.json();
+          this.treksList = routes.map(r => ({
+            ...r,
+            status: r.active ? 'Open' : 'Closed'
+          }));
         }
       } catch (e) {
         console.error('Error fetching map treks:', e);
@@ -432,11 +436,10 @@ const TsMap = {
             let html = `<div class="map-tooltip-state">${sn}</div>`;
             if (treks.length > 0) {
               html += `<div class="tooltip-count-badge">${treks.length} trek${treks.length !== 1 ? 's' : ''}</div><ul class="map-tooltip-treks">`;
-              treks.slice(0, 5).forEach(t => {
+              treks.forEach(t => {
                 const statusTag = t.status === 'Open' ? '<span class="status-tag-open">Open</span>' : '<span class="status-tag-closed">Closed</span>';
                 html += `<li><span class="tooltip-trek-name">${t.name} ${statusTag}</span><span class="tooltip-trek-meta">${t.difficulty}<br>${t.duration} days</span></li>`;
               });
-              if (treks.length > 5) html += `<li style="font-size:0.72rem;color:var(--stone);font-style:italic;">+${treks.length - 5} more — click to see all</li>`;
               html += `</ul>`;
             } else {
               html += `<div class="tooltip-no-treks">No treks listed for this state.</div>`;

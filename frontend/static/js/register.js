@@ -245,6 +245,7 @@ createApp({
         if (data.token) {
           localStorage.setItem('ts_token', data.token);
           localStorage.setItem('ts_role',  data.role || 'user');
+          if ((data.role || 'user') === 'trekker' || (data.role || 'user') === 'user') { localStorage.setItem('userActiveTab', 'dashboard'); }
         }
 
         /* Redirect to the dashboard */

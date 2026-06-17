@@ -44,6 +44,15 @@ const TsAdminLayout = {
       trekRoutes: [],
       routeViewMode: 'list',
       showRouteModal: false,
+      showRouteStateDropdown: false,
+      routeStateSearchQuery: '',
+      indianStates: [
+        'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
+        'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka',
+        'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram',
+        'Nagaland', 'Odisha', 'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana',
+        'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal', 'Jammu and Kashmir', 'Ladakh'
+      ],
       showFormDiffDropdown: false,
       editingRoute: null,
       editingStaff: null,
@@ -54,7 +63,7 @@ const TsAdminLayout = {
       selectedAssignTrekCode: '',
       tempTrekId: null,
       trekSearchQuery: '',
-      routeForm: { name:'', location:'', difficulty:'Moderate', duration:5, distance:15, imageUrl:'', description:'', latitude:null, longitude:null },
+      routeForm: { name:'', location:'', place:'', difficulty:'Moderate', duration:5, distance:15, imageUrl:'', description:'', latitude:null, longitude:null },
       selectedRouteDetails: null,
       showRouteDetailsModal: false,
       routeSearchQuery: '',
@@ -114,6 +123,7 @@ const TsAdminLayout = {
         jobs:         'Scheduled Jobs',
         revenue:      'Revenue Dashboard',
         support_tickets: 'Support Tickets',
+        trek_history: 'Trek History',
       },
 
       trekForm: {
@@ -172,6 +182,10 @@ const TsAdminLayout = {
       selectedReportStaffSubtype: 'performance',
       reportStartDate: '',
       reportEndDate: '',
+
+      selectedHistoryTrek: null,
+      showHistoryModal: false,
+
       reportsList: [
         {
           id: 1,
@@ -182,10 +196,10 @@ const TsAdminLayout = {
         },
         {
           id: 2,
-          title: 'Trek Route Report - Everest Base Camp',
+          title: 'Trek Route Report - Current Mock Routes',
           type: 'trek_route',
           generatedAt: '2026-06-05 14:30:00',
-          parameters: 'Trek: Everest Base Camp',
+          parameters: 'Trek: All Trek Routes',
         },
         {
           id: 3,
@@ -243,6 +257,17 @@ const TsAdminLayout = {
         support_tickets:'Search tickets…',
       };
       return map[this.activeTab] || 'Search…';
+    },
+    completedTreks() {
+      const q = this.searchQuery.toLowerCase();
+      let list = this.treks.filter(t => ['Completed', 'Closed'].includes(t.status));
+      if (q) {
+        list = list.filter(t => 
+          (t.batchCode && t.batchCode.toLowerCase().includes(q)) || 
+          (t.name && t.name.toLowerCase().includes(q))
+        );
+      }
+      return list;
     },
     filteredRoutes() {
       let list = this.trekRoutes;
@@ -384,37 +409,42 @@ const TsAdminLayout = {
         totalSlots += t.slots || 0;
         bookedSlots += t.booked || 0;
       });
-      return totalSlots ? Math.round((bookedSlots / totalSlots) * 100) : 72;
+      return totalSlots ? Math.round((bookedSlots / totalSlots) * 100) : 0;
+    },
+    confirmedBookingRate() {
+      const total = this.allBookings.length;
+      if (!total) return 0;
+      const confirmed = this.allBookings.filter(b => b.status !== 'Cancelled' && b.paymentStatus === 'Paid').length;
+      return Math.round((confirmed / total) * 1000) / 10;
     },
     popularTreksWithMock() {
-      const base = [
-        { name: 'Everest Base Camp', bookings: 250 },
-        { name: 'Triund Trek', bookings: 180 },
-        { name: 'Kedarkantha Trek', bookings: 160 }
-      ];
-      this.popularTreks.forEach(pt => {
-        if (!base.find(b => b.name === pt.name)) {
-          base.push({ name: pt.name, bookings: pt.bookings });
-        }
+      if (this.popularTreks.length) {
+        return [...this.popularTreks].sort((a, b) => b.bookings - a.bookings).slice(0, 5);
+      }
+
+      const counts = {};
+      this.allBookings.forEach(b => {
+        if (b.status === 'Cancelled') return;
+        const trekName = b.trek || 'Unknown';
+        counts[trekName] = (counts[trekName] || 0) + 1;
       });
-      base.sort((a, b) => b.bookings - a.bookings);
-      return base.slice(0, 5);
+
+      return Object.entries(counts)
+        .map(([name, bookings]) => ({ name, bookings }))
+        .sort((a, b) => b.bookings - a.bookings)
+        .slice(0, 5);
     },
     maxPopularBookings() {
       const vals = this.popularTreksWithMock.map(t => t.bookings);
       return vals.length ? Math.max(...vals) : 1;
     },
     locationDemand() {
-      const counts = { 'Himachal': 420, 'Uttarakhand': 380, 'Kashmir': 150, 'Sikkim': 90, 'Karnataka': 120 };
+      const counts = {};
       this.allBookings.forEach(b => {
-        const loc = b.location || '';
-        let state = 'Other';
-        if (loc.includes('Himachal')) state = 'Himachal';
-        else if (loc.includes('Uttarakhand')) state = 'Uttarakhand';
-        else if (loc.includes('Kashmir') || loc.includes('Sonamarg')) state = 'Kashmir';
-        else if (loc.includes('Sikkim')) state = 'Sikkim';
-        else if (loc.includes('Karnataka')) state = 'Karnataka';
-        else if (loc.includes('Ladakh') || loc.includes('Leh')) state = 'Ladakh';
+        if (b.status === 'Cancelled' || !(b.paymentStatus === 'Paid' || b.paid)) return;
+        const matchedTrek = this.treks.find(t => Number(t.id) === Number(b.trekId)) || this.trekRoutes.find(r => r.name === b.trek);
+        const loc = b.location || b.trekLocation || (matchedTrek ? matchedTrek.location : '') || '';
+        const state = this.stateFromLocation(loc);
         counts[state] = (counts[state] || 0) + 1;
       });
       return Object.entries(counts).map(([state, count]) => ({ state, count })).sort((a, b) => b.count - a.count);
@@ -424,17 +454,24 @@ const TsAdminLayout = {
       return vals.length ? Math.max(...vals) : 1;
     },
     occupancyRatePerTrek() {
-      const base = [
-        { name: 'Triund Trek', pct: 95, booked: 19, total: 20 },
-        { name: 'Kedarkantha Trek', pct: 82, booked: 41, total: 50 },
-        { name: 'Hampta Pass', pct: 60, booked: 12, total: 20 }
-      ];
-      this.slotUtilization.forEach(s => {
-        if (!base.find(b => b.name === s.trek)) {
-          base.push({ name: s.trek, pct: s.pct, booked: s.booked, total: s.total });
-        }
+      if (this.slotUtilization.length) {
+        return [...this.slotUtilization]
+          .sort((a, b) => b.pct - a.pct)
+          .slice(0, 5)
+          .map(s => ({ name: s.trek, pct: s.pct, booked: s.booked, total: s.total }));
+      }
+
+      const derived = this.treks.map(t => {
+        const booked = this.allBookings.filter(b => b.trekId === t.id && b.status === 'Booked').length;
+        const total = t.slots || 0;
+        return {
+          name: t.name,
+          booked,
+          total,
+          pct: total ? Math.round((booked / total) * 100) : 0
+        };
       });
-      return base.sort((a, b) => b.pct - a.pct).slice(0, 5);
+      return derived.sort((a, b) => b.pct - a.pct).slice(0, 5);
     },
     bookingStatusDist() {
       let booked = 0;
@@ -512,13 +549,13 @@ const TsAdminLayout = {
     enrichedUpcomingTreks() {
       return this.upcomingTreks.map(ut => {
         const matched = this.treks.find(t => t.name === ut.name);
-        const totalSlots = matched ? matched.slots : 20;
-        const bookedSlots = matched ? matched.booked : Math.floor(totalSlots * 0.6);
+        const totalSlots = matched ? matched.slots : 0;
+        const bookedSlots = matched ? (matched.booked || matched.bookedSlots || 0) : 0;
         return {
           ...ut,
           totalSlots,
           bookedSlots,
-          remainingSlots: totalSlots - bookedSlots
+          remainingSlots: Math.max(0, totalSlots - bookedSlots)
         };
       });
     },
@@ -643,15 +680,30 @@ const TsAdminLayout = {
         return sum + (b.status === 'Booked' && b.paymentStatus === 'Pending' ? (Number(b.bookingPrice) || 0) : 0);
       }, 0);
 
-      const totalRevenue = 1245000 + livePaidSum;
-      const monthlyRevenue = 185000 + livePaidSum;
-      const pendingPayments = 42000 + livePendingSum;
+      const totalRevenue = livePaidSum;
+      const today = new Date();
+      const currentMonth = today.getMonth();
+      const currentYear = today.getFullYear();
+      const monthlyRevenue = this.allBookings.reduce((sum, b) => {
+        if (b.status !== 'Cancelled' && b.paymentStatus === 'Paid') {
+          const dateStr = b.date || b.bookedOn;
+          if (dateStr) {
+            const d = new Date(dateStr);
+            if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
+              return sum + (Number(b.amountPaid) || 0);
+            }
+          }
+        }
+        return sum;
+      }, 0);
 
-      const totalTreks = 15 + this.treks.length;
-      const totalUsers = 80 + this.users.length;
+      const pendingPayments = livePendingSum;
 
-      const avgPerTrek = Math.round(totalRevenue / totalTreks);
-      const avgPerUser = Math.round(totalRevenue / totalUsers);
+      const totalTreks = this.treks.length;
+      const totalUsers = this.users.length;
+
+      const avgPerTrek = totalTreks ? Math.round(totalRevenue / totalTreks) : 0;
+      const avgPerUser = totalUsers ? Math.round(totalRevenue / totalUsers) : 0;
 
       return {
         total: totalRevenue,
@@ -662,80 +714,59 @@ const TsAdminLayout = {
       };
     },
     revenueGrowthData() {
-      const base = [
-        { month: 'Jan', amount: 50000 },
-        { month: 'Feb', amount: 70000 },
-        { month: 'Mar', amount: 110000 },
-        { month: 'Apr', amount: 180000 },
-        { month: 'May', amount: 250000 },
-        { month: 'Jun', amount: 290000 }
-      ];
+      const today = new Date();
+      const currentMonth = today.getMonth(); // 0 to 11
+      const currentYear = today.getFullYear();
+
+      const monthsNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const activeMonths = monthsNames.slice(0, currentMonth + 1);
+      const base = activeMonths.map(mName => ({ month: mName, amount: 0 }));
 
       this.allBookings.forEach(b => {
         if (b.status !== 'Cancelled' && b.paymentStatus === 'Paid') {
           const dateStr = b.date || b.bookedOn;
           if (dateStr) {
-            const m = new Date(dateStr).getMonth();
-            const monthsNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-            const mName = monthsNames[m];
-            const found = base.find(x => x.month === mName);
-            if (found) {
-              found.amount += Number(b.amountPaid) || 0;
-            } else if (mName) {
-              base.push({ month: mName, amount: Number(b.amountPaid) || 0 });
+            const d = new Date(dateStr);
+            if (d.getFullYear() === currentYear) {
+              const mName = monthsNames[d.getMonth()];
+              const found = base.find(x => x.month === mName);
+              if (found) {
+                found.amount += Number(b.amountPaid) || 0;
+              }
             }
           }
         }
       });
 
-      const lastSixSum = base.slice(-6).reduce((sum, item) => sum + item.amount, 0);
-      const forecastVal = Math.round(lastSixSum / Math.min(base.length, 6));
-
-      const result = base.map(x => ({ ...x, isForecast: false }));
-      result.push({ month: 'Jul (F)', amount: forecastVal, isForecast: true });
-
-      return result;
+      return base;
     },
     maxRevenueGrowthAmount() {
       const vals = this.revenueGrowthData.map(r => r.amount);
       return vals.length ? Math.max(...vals) : 1;
     },
     revenueByTrek() {
-      const base = {
-        'Everest Base Camp': 450000,
-        'Triund Trek': 220000,
-        'Kedarkantha Trek': 180000
-      };
+      const base = {};
       this.allBookings.forEach(b => {
         if (b.status !== 'Cancelled' && b.paymentStatus === 'Paid') {
-          base[b.trekName] = (base[b.trekName] || 0) + (Number(b.amountPaid) || 0);
+          const trekName = b.trek || b.trekName || this.treks.find(t => Number(t.id) === Number(b.trekId))?.name || 'Unknown';
+          base[trekName] = (base[trekName] || 0) + (Number(b.amountPaid) || 0);
         }
       });
       return Object.entries(base)
         .map(([name, amount]) => ({ name, amount }))
-        .sort((a, b) => b.amount - a.amount)
-        .slice(0, 5);
+        .sort((a, b) => b.amount - a.amount);
     },
     maxRevenueByTrek() {
       const vals = this.revenueByTrek.map(t => t.amount);
       return vals.length ? Math.max(...vals) : 1;
     },
     revenueByLocation() {
-      const base = {
-        'Himachal': 560000,
-        'Uttarakhand': 410000,
-        'Kashmir': 180000
-      };
+      const base = {};
       this.allBookings.forEach(b => {
         if (b.status !== 'Cancelled' && b.paymentStatus === 'Paid') {
-          const loc = b.location || '';
-          let state = 'Other';
-          if (loc.includes('Himachal')) state = 'Himachal';
-          else if (loc.includes('Uttarakhand')) state = 'Uttarakhand';
-          else if (loc.includes('Kashmir') || loc.includes('Sonamarg')) state = 'Kashmir';
-          else if (loc.includes('Sikkim')) state = 'Sikkim';
-          else if (loc.includes('Karnataka')) state = 'Karnataka';
-          else if (loc.includes('Ladakh') || loc.includes('Leh')) state = 'Ladakh';
+          const matchedTrek = this.treks.find(t => Number(t.id) === Number(b.trekId)) || this.trekRoutes.find(r => r.name === b.trek);
+          const loc = b.location || b.trekLocation || (matchedTrek ? matchedTrek.location : '') || '';
+          const state = this.stateFromLocation(loc);
           base[state] = (base[state] || 0) + (Number(b.amountPaid) || 0);
         }
       });
@@ -758,7 +789,7 @@ const TsAdminLayout = {
       });
       const total = paid + pending + failed;
       if (total === 0) {
-        return { paid: 78, pending: 15, failed: 7, offsetPending: -78, offsetFailed: -93 };
+        return { paid: 0, pending: 0, failed: 0, offsetPending: 0, offsetFailed: 0 };
       }
       const p_pct = Math.round((paid / total) * 100);
       const pen_pct = Math.round((pending / total) * 100);
@@ -773,9 +804,9 @@ const TsAdminLayout = {
     },
     revenuePerDifficulty() {
       const base = {
-        'Easy': 240000,
-        'Moderate': 610000,
-        'Hard': 480000
+        'Easy': 0,
+        'Moderate': 0,
+        'Hard': 0
       };
       this.allBookings.forEach(b => {
         if (b.status !== 'Cancelled' && b.paymentStatus === 'Paid') {
@@ -784,9 +815,9 @@ const TsAdminLayout = {
         }
       });
       const total = base.Easy + base.Moderate + base.Hard;
-      const easy_pct = Math.round((base.Easy / total) * 100);
-      const mod_pct = Math.round((base.Moderate / total) * 100);
-      const hard_pct = 100 - easy_pct - mod_pct;
+      const easy_pct = total ? Math.round((base.Easy / total) * 100) : 0;
+      const mod_pct = total ? Math.round((base.Moderate / total) * 100) : 0;
+      const hard_pct = total ? (100 - easy_pct - mod_pct) : 0;
       return {
         easy: base.Easy,
         moderate: base.Moderate,
@@ -800,41 +831,45 @@ const TsAdminLayout = {
     },
     topPayingUsers() {
       const spenders = {};
-      spenders['Priyavart Jakhar'] = { spent: 25000, bookingsCount: 3, email: 'priyavart@gmail.com' };
-      spenders['Amit Verma'] = { spent: 18000, bookingsCount: 2, email: 'amit@trailsync.com' };
-      spenders['Rohan Desai'] = { spent: 15000, bookingsCount: 2, email: 'rohan@mail.com' };
-      
       this.allBookings.forEach(b => {
         if (b.status !== 'Cancelled' && b.paymentStatus === 'Paid') {
-          const name = b.user || 'Unknown Trekker';
-          if (!spenders[name]) {
-            spenders[name] = { spent: 0, bookingsCount: 0, email: b.trekkerId || 'TS26T0000' };
+          const userId = b.userId || b.trekkerId || b.bookingId || b.id;
+          const userObj = this.users.find(u => Number(u.id) === Number(b.userId) || u.memberId === b.trekkerId || u.name === b.user);
+          const key = String(userId);
+          if (!spenders[key]) {
+            spenders[key] = {
+              name: userObj ? userObj.name : (b.user || 'Unknown Trekker'),
+              email: userObj ? userObj.email : (b.email || '—'),
+              memberId: userObj ? userObj.memberId : (b.trekkerId || '—'),
+              spent: 0,
+              bookingsCount: 0
+            };
           }
-          spenders[name].spent += Number(b.amountPaid) || 0;
-          spenders[name].bookingsCount += 1;
+          spenders[key].spent += Number(b.amountPaid) || 0;
+          spenders[key].bookingsCount += 1;
         }
       });
 
       return Object.entries(spenders)
-        .map(([name, data]) => ({ name, ...data }))
-        .sort((a, b) => b.spent - a.spent)
-        .slice(0, 5);
+        .map(([, data]) => data)
+        .sort((a, b) => b.spent - a.spent);
     },
     refundAnalytics() {
-      let liveRefunded = 0;
+      let refunded = 0;
+      let nonRefunded = 0;
       this.allBookings.forEach(b => {
         if (b.status === 'Cancelled' && b.paymentStatus === 'Refunded') {
-          liveRefunded += Number(b.bookingPrice || b.price || 5000);
+          refunded += Number(b.amountPaid || b.bookingPrice || 5000);
+        } else if (b.status !== 'Cancelled' && b.paymentStatus === 'Paid') {
+          nonRefunded += Number(b.amountPaid || b.bookingPrice || 5000);
         }
       });
-      const totalNonRefunded = 1200000 + (this.revenueKPIs.total - 1245000);
-      const totalRefunded = 45000 + liveRefunded;
-      const grandTotal = totalNonRefunded + totalRefunded;
-      const refPct = Math.round((totalRefunded / grandTotal) * 100);
+      const grandTotal = nonRefunded + refunded;
+      const refPct = grandTotal ? Math.round((refunded / grandTotal) * 100) : 0;
       const nonRefPct = 100 - refPct;
       return {
-        refunded: totalRefunded,
-        nonRefunded: totalNonRefunded,
+        refunded: refunded,
+        nonRefunded: nonRefunded,
         refundedPct: refPct,
         nonRefundedPct: nonRefPct
       };
@@ -874,12 +909,20 @@ const TsAdminLayout = {
           digitsOnly.includes(q)
         );
       });
+    },
+    filteredStatesForRoute() {
+      if (!this.routeStateSearchQuery) return this.indianStates;
+      const q = this.routeStateSearchQuery.toLowerCase().trim();
+      return this.indianStates.filter(s => s.toLowerCase().includes(q));
     }
   },
 
   watch: {
     activeTab(newTab) {
       localStorage.setItem('adminActiveTab', newTab);
+    },
+    showRouteModal(val) {
+      if (!val) this.routeStateSearchQuery = '';
     },
     'trekForm.startDate'(newVal) {
       this.calculateEndDate();
@@ -898,6 +941,19 @@ const TsAdminLayout = {
   },
 
   methods: {
+    selectStateForRoute(state) {
+      this.routeForm.location = state;
+      this.showRouteStateDropdown = false;
+      this.routeStateSearchQuery = '';
+    },
+    handleGlobalClick(event) {
+      if (this.showRouteStateDropdown) {
+        const selector = event.target.closest('.route-state-dropdown-wrapper');
+        if (!selector) {
+          this.showRouteStateDropdown = false;
+        }
+      }
+    },
     selectRouteForBatch(route) {
       this.trekForm.trekRouteId = route.id;
       this.showRouteDropdown = false;
@@ -1350,7 +1406,7 @@ const TsAdminLayout = {
       this.editingRoute = route;
       this.routeForm = route
         ? { ...route }
-        : { name:'', location:'', difficulty:'Moderate', duration:5, distance:15, imageUrl:'', description:'', latitude:null, longitude:null };
+        : { name:'', location:'', place:'', difficulty:'Moderate', duration:5, distance:15, imageUrl:'', description:'', latitude:null, longitude:null };
       if (route && route.imageUrl && route.imageUrl.startsWith('/static/uploads')) {
         this.imageMode = 'upload';
       } else {
@@ -1797,6 +1853,12 @@ const TsAdminLayout = {
       this.showTrekkerModal = false;
       this.editingTrekker = null;
     },
+    async openHistoryModal(trek) {
+      this.selectedHistoryTrek = trek;
+      this.showHistoryModal = true;
+      await this.fetchBatchTrekkers(trek.id);
+    },
+
     async saveTrekker() {
       if (!this.trekkerForm.name || !this.trekkerForm.name.trim()) {
         this.showToast('Name is required');
@@ -2967,7 +3029,7 @@ const TsAdminLayout = {
         
         this.selectedReportType = report.type;
         if (report.type === 'monthly_activity') this.selectedReportMonth = 'May';
-        if (report.type === 'trek_route') this.selectedReportTrek = 'Everest Base Camp';
+        if (report.type === 'trek_route') this.selectedReportTrek = this.trekRoutes[0] ? this.trekRoutes[0].name : '';
         
         const compiled = this.compileReport();
         headers = compiled.headers;
@@ -3006,7 +3068,7 @@ const TsAdminLayout = {
         
         this.selectedReportType = report.type;
         if (report.type === 'monthly_activity') this.selectedReportMonth = 'May';
-        if (report.type === 'trek_route') this.selectedReportTrek = 'Everest Base Camp';
+        if (report.type === 'trek_route') this.selectedReportTrek = this.trekRoutes[0] ? this.trekRoutes[0].name : '';
         
         const compiled = this.compileReport();
         headers = compiled.headers;
@@ -3048,7 +3110,7 @@ const TsAdminLayout = {
         
         this.selectedReportType = report.type;
         if (report.type === 'monthly_activity') this.selectedReportMonth = 'May';
-        if (report.type === 'trek_route') this.selectedReportTrek = 'Everest Base Camp';
+        if (report.type === 'trek_route') this.selectedReportTrek = this.trekRoutes[0] ? this.trekRoutes[0].name : '';
         
         const compiled = this.compileReport();
         headers = compiled.headers;
@@ -3106,6 +3168,32 @@ const TsAdminLayout = {
       if (pct >= 70)  return 'occ-high';
       if (pct >= 40)  return 'occ-mid';
       return 'occ-low';
+    },
+
+    stateFromLocation(loc) {
+      const raw = String(loc || '').trim();
+      if (!raw) return 'Other';
+
+      const parts = raw.split(',').map(p => p.trim()).filter(Boolean);
+      const lastPart = parts.length ? parts[parts.length - 1] : raw;
+
+      const aliases = {
+        Uttaranchal: 'Uttarakhand',
+        Orissa: 'Odisha',
+        Tamilnadu: 'Tamil Nadu',
+      };
+
+      if (aliases[lastPart]) return aliases[lastPart];
+      if (this.indianStates.includes(lastPart)) return lastPart;
+
+      if (lastPart.includes('Himachal')) return 'Himachal Pradesh';
+      if (lastPart.includes('Uttarakhand') || lastPart.includes('Uttaranchal')) return 'Uttarakhand';
+      if (lastPart.includes('Kashmir')) return 'Jammu and Kashmir';
+      if (lastPart.includes('Sikkim')) return 'Sikkim';
+      if (lastPart.includes('Karnataka')) return 'Karnataka';
+      if (lastPart.includes('Ladakh') || lastPart.includes('Leh')) return 'Ladakh';
+
+      return 'Other';
     },
 
     // SVG line chart path builder
@@ -3197,6 +3285,9 @@ const TsAdminLayout = {
         <a class="nav-item" :class="{ active: activeTab==='blacklist' }" @click="activeTab='blacklist'">
           <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
           <span>Blacklisted Accounts</span>
+        </a>
+        <a class="nav-item" :class="{ active: activeTab==='trek_history' }" @click="activeTab='trek_history'">
+          <i class="bi bi-clock-history"></i> Trek History
         </a>
         <a class="nav-item" :class="{ active: activeTab==='support_tickets' }" @click="activeTab='support_tickets'">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
@@ -3638,7 +3729,7 @@ const TsAdminLayout = {
               <div class="route-card-code">{{ r.trekCode }}</div>
               <h4 class="route-card-name">{{ r.name }}</h4>
               <div class="route-card-meta">
-                <span>📍 {{ r.location }}</span>
+                <span>📍 {{ r.place ? r.place + ', ' : '' }}{{ r.location }}</span>
                 <span>⏱ {{ r.duration }} days</span>
                 <span>⛰ {{ r.distance }} km</span>
               </div>
@@ -3685,7 +3776,7 @@ const TsAdminLayout = {
               <tr v-for="r in filteredRoutes" :key="r.id">
                 <td class="mono font-bold">{{ r.trekCode }}</td>
                 <td class="trek-name-cell">{{ r.name }}</td>
-                <td>{{ r.location }}</td>
+                <td>{{ r.place ? r.place + ', ' : '' }}{{ r.location }}</td>
                 <td><span :class="'diff-pill pill-'+r.difficulty.toLowerCase()">{{ r.difficulty }}</span></td>
                 <td>
                   <span :class="['status-pill', r.active ? 'status-active' : 'status-inactive']">
@@ -3740,7 +3831,6 @@ const TsAdminLayout = {
               <tr>
                 <th>Batch ID</th>
                 <th>Trek Name</th>
-                <th>Location</th>
                 <th>Difficulty</th>
                 <th>Dates</th>
                 <th>Slots</th>
@@ -3754,7 +3844,6 @@ const TsAdminLayout = {
               <tr v-for="t in filteredTreks" :key="t.id">
                 <td class="mono font-bold">{{ t.batchCode }}</td>
                 <td class="trek-name-cell">{{ t.name }}</td>
-                <td>{{ t.location }}</td>
                 <td><span :class="'diff-pill pill-'+t.difficulty.toLowerCase()">{{ t.difficulty }}</span></td>
                 <td class="mono" style="white-space:nowrap">{{ formatDate(t.startDate) }} → {{ formatDate(t.endDate) }}</td>
                 <td class="mono">{{ t.booked }}/{{ t.slots }}</td>
@@ -4207,15 +4296,15 @@ const TsAdminLayout = {
         <div class="analytics-metrics-grid">
           <div class="metric-card-kpi">
             <div class="card-title">Total Bookings</div>
-            <div class="card-value">{{ allBookings.length || 124 }}</div>
+            <div class="card-value">{{ allBookings.length }}</div>
             <div class="card-formula">LIVE COUNT</div>
             <div class="card-desc">Total volume of trek reservations registered on the TrailSync platform.</div>
           </div>
           <div class="metric-card-kpi">
-            <div class="card-title">Booking Conversion Rate</div>
-            <div class="card-value">{{ (((allBookings.length || 124) / 2500) * 100).toFixed(1) }}%</div>
-            <div class="card-formula">Bookings / Trek Views × 100</div>
-            <div class="card-desc">Traffic conversion based on route listing views (Base traffic: 2,500 views).</div>
+            <div class="card-title">Confirmed Booking Rate</div>
+            <div class="card-value">{{ confirmedBookingRate }}%</div>
+            <div class="card-formula">Confirmed / Total Bookings × 100</div>
+            <div class="card-desc">Share of bookings with a confirmed paid status in the current mock dataset.</div>
           </div>
           <div class="metric-card-kpi">
             <div class="card-title">Average Occupancy</div>
@@ -4495,7 +4584,7 @@ const TsAdminLayout = {
                 </div>
               </div>
             </div>
-            <div class="chart-bars" style="margin-top: 1rem;">
+            <div class="chart-bars" style="margin-top: 1rem; max-height: 280px; overflow-y: auto; padding-right: 6px;">
               <div v-for="l in locationDemand" :key="l.state" class="chart-bar-item interactive-bar-item" style="margin-bottom: 0.75rem;">
                 <div class="chart-bar-label" style="font-size:0.8rem; font-weight:600;">{{ l.state }}</div>
                 <div class="chart-bar-track" style="height: 12px; border-radius: 6px;">
@@ -4664,14 +4753,14 @@ const TsAdminLayout = {
         <div class="dash-card" style="margin-bottom: 1.5rem;">
           <div class="dash-card-header">
             <div>
-              <span class="dash-card-title">Revenue Growth Trend & Forecast</span>
+              <span class="dash-card-title">Revenue Growth Trend</span>
               <div style="font-size:0.75rem; color:var(--stone); margin-top:2px;">
-                Shows monthly business revenue scaling and projecting the upcoming month using a Simple Moving Average (SMA).
-                <span style="display:inline-block; font-size:0.7rem; font-family:monospace; color:var(--gold-dark); background:rgba(200,146,42,0.06); padding:1px 4px; border-radius:2px; margin-left:6px;">Formula: SMA Forecast = (Sum of last 6 Months) / 6</span>
+                Shows monthly business revenue from the seeded bookings in the mock database.
+                <span style="display:inline-block; font-size:0.7rem; font-family:monospace; color:var(--gold-dark); background:rgba(200,146,42,0.06); padding:1px 4px; border-radius:2px; margin-left:6px;">Metric: SUM(amount_paid) Grouped By Month</span>
               </div>
             </div>
             <div class="forecast-badge" style="background: var(--cream); border: 1px solid var(--gold-mid); padding: 6px 12px; border-radius: 4px; font-size: 0.8rem; font-weight: 700; color: var(--forest);">
-              🔮 Next Month Forecast: ₹{{ revenueGrowthData[revenueGrowthData.length - 1].amount.toLocaleString() }}
+              Latest Month: ₹{{ revenueGrowthData.length ? revenueGrowthData[revenueGrowthData.length - 1].amount.toLocaleString() : '0' }}
             </div>
           </div>
           <div class="chart-svg-wrap">
@@ -4684,11 +4773,9 @@ const TsAdminLayout = {
               </defs>
               <line v-for="i in 4" :key="'rg'+i" :x1="30" :y1="30 + (i-1)*35" :x2="670" :y2="30+(i-1)*35" class="chart-grid-line"/>
               <!-- Area fill for historical line -->
-              <path :d="buildAreaPath(revenueGrowthData.slice(0, 6), 'amount', 700, 180, 30)" fill="url(#revAreaGrad)"/>
+              <path :d="buildAreaPath(revenueGrowthData, 'amount', 700, 180, 30)" fill="url(#revAreaGrad)"/>
               <!-- Solid line for historical -->
-              <path :d="buildLinePath(revenueGrowthData.slice(0, 6), 'amount', 700, 180, 30)" class="chart-line-path"/>
-              <!-- Dotted line for forecast -->
-              <path :d="buildLinePath(revenueGrowthData.slice(5), 'amount', 700, 180, 30)" class="chart-line-path" stroke-dasharray="5,5" style="stroke: var(--gold-dark);"/>
+              <path :d="buildLinePath(revenueGrowthData, 'amount', 700, 180, 30)" class="chart-line-path"/>
               
               <!-- Hover Guide Line -->
               <line
@@ -4707,11 +4794,11 @@ const TsAdminLayout = {
                 <circle
                   :cx="30 + (i/(revenueGrowthData.length-1))*(700-60)"
                   :cy="180 - 30 - (r.amount/maxRevenueGrowthAmount)*(180-60)"
-                  :r="hoveredRevenueGrowth && hoveredRevenueGrowth.index === i ? 6.5 : (r.isForecast ? 4.5 : 3.5)" 
+                  :r="hoveredRevenueGrowth && hoveredRevenueGrowth.index === i ? 6.5 : 3.5" 
                   :style="{
-                    fill: hoveredRevenueGrowth && hoveredRevenueGrowth.index === i ? 'var(--gold-light)' : (r.isForecast ? 'var(--gold)' : 'var(--forest)'),
-                    stroke: r.isForecast ? 'var(--forest)' : 'white',
-                    strokeWidth: r.isForecast ? '1.5px' : '1px'
+                    fill: hoveredRevenueGrowth && hoveredRevenueGrowth.index === i ? 'var(--gold-light)' : 'var(--forest)',
+                    stroke: 'white',
+                    strokeWidth: '1px'
                   }"
                   class="chart-dot"
                 />
@@ -4753,7 +4840,7 @@ const TsAdminLayout = {
                   font-weight="700"
                   font-family="'DM Sans', sans-serif"
                 >
-                  {{ hoveredRevenueGrowth.data.month }} {{ hoveredRevenueGrowth.data.isForecast ? '(Forecast)' : '' }}
+                  {{ hoveredRevenueGrowth.data.month }}
                 </text>
                 <text
                   :x="Math.max(10, Math.min(570, hoveredRevenueGrowth.x - 65)) + 65"
@@ -4774,17 +4861,17 @@ const TsAdminLayout = {
         <!-- split: Revenue by Trek & Revenue by Location -->
         <div class="charts-split-layout" style="margin-bottom: 1.5rem;">
           <!-- Revenue by Trek -->
-          <div class="dash-card">
-            <div class="dash-card-header">
-              <div>
-                <span class="dash-card-title">Revenue by Trek</span>
-                <div style="font-size:0.75rem; color:var(--stone); margin-top:2px;">
+            <div class="dash-card">
+              <div class="dash-card-header">
+                <div>
+                  <span class="dash-card-title">Revenue by Trek</span>
+                  <div style="font-size:0.75rem; color:var(--stone); margin-top:2px;">
                   Top performing treks by total billing collected.
                   <span style="display:inline-block; font-size:0.7rem; font-family:monospace; color:var(--gold-dark); background:rgba(200,146,42,0.06); padding:1px 4px; border-radius:2px; margin-left:6px;">Formula: SUM(amount_paid) GROUP BY trek</span>
                 </div>
+                </div>
               </div>
-            </div>
-            <div class="chart-bars" style="margin-top: 1rem;">
+            <div class="chart-bars" style="margin-top: 1rem; max-height: 280px; overflow-y: auto; padding-right: 6px;">
               <div v-for="t in revenueByTrek" :key="t.name" class="chart-bar-item interactive-bar-item" style="margin-bottom: 0.75rem;">
                 <div class="chart-bar-label" style="font-size:0.8rem; font-weight:600;">{{ t.name }}</div>
                 <div class="chart-bar-track" style="height: 12px; border-radius: 6px;">
@@ -4796,17 +4883,17 @@ const TsAdminLayout = {
           </div>
 
           <!-- Revenue by Location -->
-          <div class="dash-card">
-            <div class="dash-card-header">
-              <div>
-                <span class="dash-card-title">Revenue by Location</span>
+            <div class="dash-card">
+              <div class="dash-card-header">
+                <div>
+                  <span class="dash-card-title">Revenue by Location</span>
                 <div style="font-size:0.75rem; color:var(--stone); margin-top:2px;">
                   Regional billing totals grouped by route states.
                   <span style="display:inline-block; font-size:0.7rem; font-family:monospace; color:var(--gold-dark); background:rgba(200,146,42,0.06); padding:1px 4px; border-radius:2px; margin-left:6px;">Formula: SUM(amount_paid) GROUP BY State</span>
                 </div>
+                </div>
               </div>
-            </div>
-            <div class="chart-bars" style="margin-top: 1rem;">
+            <div class="chart-bars" style="margin-top: 1rem; max-height: 280px; overflow-y: auto; padding-right: 6px;">
               <div v-for="l in revenueByLocation" :key="l.state" class="chart-bar-item interactive-bar-item" style="margin-bottom: 0.75rem;">
                 <div class="chart-bar-label" style="font-size:0.8rem; font-weight:600;">{{ l.state }}</div>
                 <div class="chart-bar-track" style="height: 12px; border-radius: 6px;">
@@ -4953,17 +5040,17 @@ const TsAdminLayout = {
         <!-- split: Top Spenders & Refund Analytics -->
         <div class="charts-split-layout">
           <!-- Top Paying Users -->
-          <div class="dash-card">
-            <div class="dash-card-header">
-              <div>
-                <span class="dash-card-title">Top Paying Trekkers</span>
+            <div class="dash-card">
+              <div class="dash-card-header">
+                <div>
+                  <span class="dash-card-title">Top Paying Trekkers</span>
                 <div style="font-size:0.75rem; color:var(--stone); margin-top:2px;">
                   Highest lifetime spenders based on cumulative checkout transactions.
                   <span style="display:inline-block; font-size:0.7rem; font-family:monospace; color:var(--gold-dark); background:rgba(200,146,42,0.06); padding:1px 4px; border-radius:2px; margin-left:6px;">Metric: SUM(amount_paid) Grouped By User</span>
                 </div>
+                </div>
               </div>
-            </div>
-            <div class="ts-table-wrap" style="margin-top: 1rem;">
+            <div class="ts-table-wrap" style="margin-top: 1rem; max-height: 300px; overflow-y: auto;">
               <table class="ts-table" style="font-size: 0.8rem;">
                 <thead>
                   <tr>
@@ -4978,7 +5065,7 @@ const TsAdminLayout = {
                   <tr v-for="(u, index) in topPayingUsers" :key="u.name">
                     <td style="text-align: center; font-weight: 700;">{{ index + 1 }}</td>
                     <td style="font-weight: 600; color: var(--forest)">{{ u.name }}</td>
-                    <td class="mono" style="font-size: 0.75rem;">{{ u.email }}</td>
+                    <td class="mono" style="font-size: 0.75rem;">{{ u.email }}<span v-if="u.memberId"> / {{ u.memberId }}</span></td>
                     <td class="mono" style="text-align: center;">{{ u.bookingsCount }}</td>
                     <td class="mono" style="text-align: right; font-weight: 700; color: var(--gold-dark);">₹{{ u.spent.toLocaleString() }}</td>
                   </tr>
@@ -5451,6 +5538,59 @@ const TsAdminLayout = {
         </div>
       </section>
 
+      <!-- ════════ TREK HISTORY SECTION ════════ -->
+      <section v-if="activeTab==='trek_history'" class="tab-content">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem;">
+          <div style="font-weight:600; color:var(--forest)">Completed and Closed Batches</div>
+        </div>
+
+        <div v-if="completedTreks.length === 0" class="empty-state">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+          <p>No completed or closed trek history found.</p>
+        </div>
+        <div v-else class="ts-table-wrap">
+          <table class="ts-table">
+            <thead>
+              <tr>
+                <th>Batch ID</th>
+                <th>Trek Name</th>
+                <th>Dates</th>
+                <th>Guide (ID)</th>
+                <th>Total Participants</th>
+                <th>Price</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="t in completedTreks" :key="t.id">
+                <td class="mono font-bold">{{ t.batchCode }}</td>
+                <td class="trek-name-cell">{{ t.name }}</td>
+                <td class="mono" style="white-space:nowrap">{{ formatDate(t.startDate) }} → {{ formatDate(t.endDate) }}</td>
+                <td>
+                  <template v-if="t.staff">
+                    <div style="font-weight:600; color:var(--forest)">{{ t.staff }}</div>
+                    <div style="font-size:0.75rem; color:var(--stone)">ID: {{ 'TS26S' + String(t.staff_id).padStart(3, '0') }}</div>
+                  </template>
+                  <template v-else>
+                    <span style="color:var(--stone); font-style:italic;">Not Assigned</span>
+                  </template>
+                </td>
+                <td class="mono">{{ t.booked }}/{{ t.slots }}</td>
+                <td class="mono">₹{{ t.price ? t.price.toLocaleString() : '—' }}</td>
+                <td>
+                  <div class="batch-actions-layout">
+                    <button class="act-btn act-view" @click="openHistoryModal(t)">
+                      <svg viewBox="0 0 24 24" class="act-btn-icon" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                      View Details
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
     </main><!-- /ts-main -->
 
     <!-- ════════ TREK MODAL ════════ -->
@@ -5639,8 +5779,38 @@ const TsAdminLayout = {
               <input v-model="routeForm.name" type="text" placeholder="e.g. Garbhanga Forest Trek" />
             </div>
             <div class="form-group">
-              <label>Location <span style="color: var(--red); font-weight: bold;">*</span></label>
-              <input v-model="routeForm.location" type="text" placeholder="Assam" />
+              <label>Location (State) <span style="color: var(--red); font-weight: bold;">*</span></label>
+              <div class="route-state-dropdown-wrapper" :class="{ 'is-open': showRouteStateDropdown }">
+                <div class="route-state-trigger" @click.stop="showRouteStateDropdown = !showRouteStateDropdown">
+                  <span>{{ routeForm.location || 'Select State...' }}</span>
+                  <svg viewBox="0 0 24 24" class="route-state-arrow" :class="{ open: showRouteStateDropdown }"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+                <div v-if="showRouteStateDropdown" class="route-state-dropdown">
+                  <input
+                    v-model="routeStateSearchQuery"
+                    type="text"
+                    class="route-state-search"
+                    placeholder="Search states…"
+                    @click.stop
+                  />
+                  <div class="route-state-options">
+                    <div v-if="filteredStatesForRoute.length === 0" class="route-state-no-match">No states match</div>
+                    <div
+                      v-for="state in filteredStatesForRoute"
+                      :key="state"
+                      class="route-state-option"
+                      :class="{ selected: routeForm.location === state }"
+                      @click="selectStateForRoute(state)"
+                    >
+                      {{ state }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Place (e.g., Chamoli district) <span style="color: var(--stone); font-weight: normal;">*</span></label>
+              <input v-model="routeForm.place" type="text" placeholder="e.g., Chamoli district, Uttarakhand" />
             </div>
             <div class="form-group">
               <label>Difficulty <span style="color: var(--red); font-weight: bold;">*</span></label>
@@ -5713,6 +5883,7 @@ const TsAdminLayout = {
               <div class="route-detail-img" :style="{ backgroundImage: 'url(' + (selectedRouteDetails.route.imageUrl || 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=800&q=80') + ')' }"></div>
               <div class="route-detail-info-block">
                 <div><strong>Location:</strong> <span>{{ selectedRouteDetails.route.location }}</span></div>
+                <div><strong>Place:</strong> <span>{{ selectedRouteDetails.route.place || '—' }}</span></div>
                 <div><strong>Difficulty:</strong> <span :class="'diff-pill pill-'+selectedRouteDetails.route.difficulty.toLowerCase()">{{ selectedRouteDetails.route.difficulty }}</span></div>
                 <div><strong>Duration:</strong> <span>{{ selectedRouteDetails.route.duration }} Days</span></div>
                 <div><strong>Distance:</strong> <span>{{ selectedRouteDetails.route.distance }} km</span></div>
@@ -6230,7 +6401,7 @@ const TsAdminLayout = {
                     <tr v-for="b in selectedUserDetails.bookingsList" :key="b.id">
                       <td class="mono font-bold">{{ b.batchCode }}</td>
                       <td style="font-weight: 600; color: var(--forest);">{{ b.trek }}</td>
-                      <td class="mono">₹{{ b.paidAmount ? b.paidAmount.toLocaleString() : '0' }}</td>
+                      <td class="mono">₹{{ (b.amountPaid || b.bookingPrice || 0).toLocaleString() }}</td>
                       <td class="mono" style="white-space: nowrap;">{{ b.paidOn === '—' ? '—' : formatDate(b.paidOn) }}</td>
                       <td class="mono" style="font-size: 0.8rem;">{{ b.transactionId }}</td>
                       <td>
@@ -6288,7 +6459,7 @@ const TsAdminLayout = {
                     {{ selectedBookingDetails.booking.paid ? 'Paid' : 'Pending' }}
                   </span>
                 </div>
-                <div><strong>Amount Paid:</strong> <span class="mono">₹{{ selectedBookingDetails.booking.paidAmount ? selectedBookingDetails.booking.paidAmount.toLocaleString() : '0' }}</span></div>
+                <div><strong>Amount Paid:</strong> <span class="mono">₹{{ (selectedBookingDetails.booking.amountPaid || selectedBookingDetails.booking.bookingPrice || 0).toLocaleString() }}</span></div>
                 <div><strong>Transaction ID:</strong> <span class="mono">{{ selectedBookingDetails.booking.transactionId || '—' }}</span></div>
                 <div><strong>Paid On Date:</strong> <span class="mono">{{ selectedBookingDetails.booking.paidOn || '—' }}</span></div>
               </div>
@@ -6419,6 +6590,73 @@ const TsAdminLayout = {
             </button>
           </div>
           <button class="btn-primary-ts" @click="showReportPreviewModal = false" style="background: #e2e8f0; border-color: #cbd5e0; color: #4a5568;">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════ TREK HISTORY DETAILS MODAL ════════ -->
+    <div v-if="showHistoryModal && selectedHistoryTrek" class="ts-modal-overlay" @click.self="showHistoryModal = false">
+      <div class="ts-modal large">
+        <div class="ts-modal-header">
+          <h3 class="ts-modal-title">Trek Batch History: {{ selectedHistoryTrek.batchCode || ('B' + selectedHistoryTrek.id) }}</h3>
+          <button class="modal-close" @click="showHistoryModal = false">✕</button>
+        </div>
+        <div class="ts-modal-body" style="padding: 1.5rem; max-height: 480px; overflow-y: auto;">
+          <div class="details-modal-grid">
+            <!-- Left Side: Batch Summary -->
+            <div style="border-right: 1px solid var(--stone-light); padding-right: 1.5rem;">
+              <h4 style="font-weight: 700; color: var(--forest); margin-bottom: 1rem;">Batch Overview</h4>
+              <div class="route-detail-info-block" style="display: flex; flex-direction: column; gap: 0.5rem; font-size: 0.9rem;">
+                <div><strong>Trek Name:</strong> <span>{{ selectedHistoryTrek.name }}</span></div>
+                <div><strong>Location:</strong> <span>{{ selectedHistoryTrek.location }}</span></div>
+                <div v-if="selectedHistoryTrek.place"><strong>Place:</strong> <span>{{ selectedHistoryTrek.place }}</span></div>
+                <div><strong>Difficulty:</strong> <span :class="'diff-pill pill-'+selectedHistoryTrek.difficulty.toLowerCase()">{{ selectedHistoryTrek.difficulty }}</span></div>
+                <div><strong>Start Date:</strong> <span class="mono">{{ formatDate(selectedHistoryTrek.startDate) }}</span></div>
+                <div><strong>End Date:</strong> <span class="mono">{{ formatDate(selectedHistoryTrek.endDate) }}</span></div>
+                <div><strong>Duration:</strong> <span class="mono">{{ selectedHistoryTrek.duration }} Days</span></div>
+                <div><strong>Price per Participant:</strong> <span class="mono">₹{{ selectedHistoryTrek.price ? selectedHistoryTrek.price.toLocaleString() : '0' }}</span></div>
+                <div><strong>Status:</strong> <span :class="'status-pill status-'+selectedHistoryTrek.status.toLowerCase()">{{ selectedHistoryTrek.status }}</span></div>
+              </div>
+
+              <h4 style="font-weight: 700; color: var(--forest); margin-top: 1.5rem; margin-bottom: 1rem;">Assigned Staff (Guide)</h4>
+              <div v-if="selectedHistoryTrek.staff" class="staff-detail-info" style="background: var(--snow); padding: 1rem; border-radius: 6px; border: 1px solid var(--stone-light); font-size: 0.85rem;">
+                <div><strong>Name:</strong> <span>{{ selectedHistoryTrek.staff }}</span></div>
+                <div><strong>ID:</strong> <span class="mono">{{ 'TS26S' + String(selectedHistoryTrek.staff_id).padStart(3, '0') }}</span></div>
+              </div>
+              <div v-else style="color: var(--stone); font-style: italic; background: var(--snow); padding: 1rem; border-radius: 6px; border: 1px dashed var(--stone);">
+                No staff member was assigned to this batch.
+              </div>
+            </div>
+
+            <!-- Right Side: Participant List -->
+            <div>
+              <h4 style="font-weight: 700; color: var(--forest); margin-bottom: 1rem;">Participants ({{ batchTrekkers.length }})</h4>
+              <div v-if="batchTrekkers.length === 0" style="text-align: center; padding: 2rem 1rem; background: var(--snow); border-radius: 6px; border: 1px dashed var(--stone);">
+                <p style="color: var(--stone); margin: 0;">No participants registered for this batch.</p>
+              </div>
+              <div v-else style="max-height: 350px; overflow-y: auto;">
+                <table class="ts-table" style="font-size: 0.82rem;">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Member ID</th>
+                      <th>Email</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="u in batchTrekkers" :key="u.bookingId || u.userId">
+                      <td style="font-weight: 600; color: var(--forest);">{{ u.userName }}</td>
+                      <td class="mono" style="font-size: 0.8rem;">{{ u.memberId || ('U' + u.userId) }}</td>
+                      <td>{{ u.userEmail }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="ts-modal-footer">
+          <button class="btn-primary-ts" @click="showHistoryModal = false">Close</button>
         </div>
       </div>
     </div>

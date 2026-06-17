@@ -583,17 +583,47 @@ def seed_db(force=False):
         db.session.add(tk)
     db.session.commit()
 
+def normalize_mock_booking_payments():
+    from random import Random
+
+    bookings = Booking.query.all()
+    for booking in bookings:
+        if booking.status == 'Cancelled':
+            booking.paid = False
+            booking.payment_status = 'Refunded'
+            booking.amount_paid = 0
+            continue
+
+        base_price = booking.booking_price or (booking.trek.price if booking.trek else 5000)
+        seed = (booking.id or 1) * 7919
+        rng = Random(seed)
+        delta = rng.randint(-650, 1600)
+        amount = max(0, base_price + delta)
+
+        booking.booking_price = base_price
+        booking.amount_paid = amount
+        booking.paid = True
+        booking.payment_status = 'Paid'
+
+    db.session.commit()
+
 # Ensure tables are created and seeded
 with app.app_context():
     db.create_all()
     if User.query.first() is None:
         seed_db(force=False)
+    normalize_mock_booking_payments()
 
 
 @app.route('/api/public/treks', methods=['GET'])
 def get_public_treks():
     treks = Trek.query.all()
     return jsonify([t.to_json() for t in treks])
+
+@app.route('/api/public/trek_routes', methods=['GET'])
+def get_public_trek_routes():
+    routes = TrekRoute.query.all()
+    return jsonify([r.to_json() for r in routes])
 
 # ── PAGES ────────────────────────────────────────────────────
 
@@ -1258,7 +1288,11 @@ def admin_dashboard_data():
             'status': b.status,
             'paid': b.paid,
             'bookingPrice': b.booking_price or (b.trek.price if b.trek else 5000),
-            'amountPaid': b.amount_paid if b.amount_paid is not None else (b.trek.price if (b.paid and b.trek) else 0),
+            'amountPaid': b.amount_paid if b.amount_paid not in (None, 0)
+                else (
+                    b.booking_price if (b.paid or b.payment_status == 'Paid')
+                    else (b.trek.price if (b.paid and b.trek) else 0)
+                ),
             'paymentStatus': b.payment_status or ('Paid' if b.paid else 'Pending'),
             'paidOn': b.booked_on.strftime('%Y-%m-%d') if b.paid else '—',
             'transactionId': f"TXN{b.booked_on.strftime('%y%m%d')}{b.id:04d}" if b.paid else '—',
@@ -1355,42 +1389,76 @@ def admin_dashboard_data():
     }
     
     from collections import defaultdict
+    from datetime import date
+    current_year = date.today().year
+    current_month_num = date.today().month
+    
     months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    active_months = months[:current_month_num]
+    
     monthly_counts = defaultdict(int)
-    for b in Booking.query.all():
+    for b in Booking.query.filter(db.extract('year', Booking.booked_on) == current_year).all():
         if b.booked_on:
             m_name = b.booked_on.strftime('%b')
             monthly_counts[m_name] += 1
             
-    monthly_bookings = [
-        {'month': 'Jan', 'count': 120},
-        {'month': 'Feb', 'count': 160},
-        {'month': 'Mar', 'count': 210},
-        {'month': 'Apr', 'count': 180},
-        {'month': 'May', 'count': 250},
-        {'month': 'Jun', 'count': 300}
-    ]
+    monthly_bookings = []
+    for m in active_months:
+        monthly_bookings.append({
+            'month': m,
+            'count': monthly_counts[m]
+        })
         
     easy_c = Trek.query.filter_by(difficulty='Easy').count()
     mod_c = Trek.query.filter_by(difficulty='Moderate').count()
     hard_c = Trek.query.filter_by(difficulty='Hard').count()
+    total_batches = Trek.query.count()
     difficulty_dist = [
-        {'level': 'Easy', 'pct': int((easy_c / total_treks * 100) if total_treks else 38), 'color': '#4ade80'},
-        {'level': 'Moderate', 'pct': int((mod_c / total_treks * 100) if total_treks else 45), 'color': '#fbbf24'},
-        {'level': 'Hard', 'pct': int((hard_c / total_treks * 100) if total_treks else 17), 'color': '#ef4444'}
+        {'level': 'Easy', 'pct': int((easy_c / total_batches * 100) if total_batches else 0), 'color': '#4ade80'},
+        {'level': 'Moderate', 'pct': int((mod_c / total_batches * 100) if total_batches else 0), 'color': '#fbbf24'},
+        {'level': 'Hard', 'pct': int((hard_c / total_batches * 100) if total_batches else 0), 'color': '#ef4444'}
     ]
     
     user_growth = []
-    for i, m in enumerate(['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun']):
-        user_growth.append({'month': m, 'users': max(10, registered_users - (5 - i) * 8)})
+    monthly_users = defaultdict(int)
+    for u in User.query.filter(db.extract('year', User.registered_at) == current_year, User.role == 'user').all():
+        if u.registered_at:
+            m_name = u.registered_at.strftime('%b')
+            monthly_users[m_name] += 1
+    cumulative = 0
+    for m in active_months:
+        cumulative += monthly_users[m]
+        user_growth.append({
+            'month': m,
+            'users': cumulative
+        })
         
-    paid_bookings = Booking.query.filter(Booking.status != 'Cancelled').all()
-    tot_rev = sum(b.trek.price for b in paid_bookings)
+    paid_bookings = Booking.query.filter(Booking.status != 'Cancelled', Booking.payment_status == 'Paid').all()
+    tot_rev = sum(b.amount_paid or b.booking_price or (b.trek.price if b.trek else 5000) for b in paid_bookings)
+    
+    trek_revenue = defaultdict(int)
+    for b in paid_bookings:
+        if b.trek:
+            trek_revenue[b.trek.name] += b.amount_paid or b.booking_price or b.trek.price
+            
+    top_trek = 'None'
+    top_rev_val = 0
+    if trek_revenue:
+        top_trek = max(trek_revenue, key=trek_revenue.get)
+        top_rev_val = trek_revenue[top_trek]
+
+    from datetime import date
+    current_month_name = date.today().strftime('%b')
+    monthly_rev_val = 0
+    for b in paid_bookings:
+        if b.booked_on and b.booked_on.strftime('%b') == current_month_name:
+            monthly_rev_val += b.amount_paid or b.booking_price or b.trek.price
+
     revenue_data = {
         'total': f"₹{tot_rev:,}",
-        'monthly': f"₹{int(tot_rev / 6):,}",
-        'topTrek': 'Valley of Flowers',
-        'topRevenue': f"₹{int(tot_rev * 0.3):,}"
+        'monthly': f"₹{monthly_rev_val:,}",
+        'topTrek': top_trek,
+        'topRevenue': f"₹{top_rev_val:,}"
     }
     
     blacklisted_users = []
@@ -1508,6 +1576,7 @@ def admin_save_trek_route():
     route_id = data.get('id')
     name = data.get('name')
     location = data.get('location')
+    place = data.get('place')
     difficulty = data.get('difficulty', 'Moderate')
     duration = data.get('duration', 5)
     distance = data.get('distance', 15)
@@ -1529,6 +1598,7 @@ def admin_save_trek_route():
             return jsonify({'error': 'Trek Route not found'}), 404
         route.name = name
         route.location = location
+        route.place = place
         route.difficulty = difficulty
         route.duration = duration
         route.distance = distance
@@ -1544,6 +1614,7 @@ def admin_save_trek_route():
             trek_code=trek_code,
             name=name,
             location=location,
+            place=place,
             difficulty=difficulty,
             duration=duration,
             distance=distance,
@@ -2572,6 +2643,11 @@ def get_social_groups():
         
     groups = []
     for t in treks:
+        # Only include active groups (must have at least one message/been created)
+        msg_count = ChatMessage.query.filter_by(trek_id=t.id).count()
+        if msg_count == 0:
+            continue
+            
         # Check locked state
         settings = TrekGroupSetting.query.filter_by(trek_id=t.id).first()
         is_locked = settings.is_locked if settings else False

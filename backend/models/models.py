@@ -34,12 +34,38 @@ class User(db.Model, UserMixin):
     bookings = db.relationship('Booking', backref='user', lazy=True, cascade="all, delete-orphan")
     assigned_treks = db.relationship('Trek', backref='staff', lazy=True)
 
+    def effective_paid_amount(self):
+        if self.role in ('staff', 'admin'):
+            return 0
+
+        for booking in self.bookings:
+            if booking.status == 'Cancelled':
+                continue
+            if booking.payment_status == 'Paid' or booking.paid:
+                if booking.amount_paid not in (None, 0):
+                    return booking.amount_paid
+                if booking.booking_price is not None:
+                    return booking.booking_price
+                if booking.trek and booking.trek.price is not None:
+                    return booking.trek.price
+        return 0
+
     def to_json(self):
         year_str = self.registered_at.strftime('%y') if self.registered_at else '26'
         if self.role in ('staff', 'admin'):
             member_id = f"TS{year_str}S{self.id:03d}"
+            total_spent = 0
         else:
             member_id = f"TS{year_str}T{self.id:04d}"
+            paid_bookings = [
+                b for b in self.bookings
+                if b.status != 'Cancelled' and (b.payment_status == 'Paid' or b.paid)
+            ]
+            total_spent = sum(
+                b.amount_paid if b.amount_paid not in (None, 0)
+                else (b.booking_price or (b.trek.price if b.trek else 0))
+                for b in paid_bookings
+            )
         return {
             'id': self.id,
             'memberId': member_id,
@@ -59,6 +85,7 @@ class User(db.Model, UserMixin):
             'preferred_difficulty': self.preferred_difficulty,
             'preferred_duration': self.preferred_duration,
             'preferred_regions': self.preferred_regions,
+            'totalSpent': total_spent,
             'active': self.active,
             'blacklisted': self.blacklisted,
             'blacklistReason': self.blacklist_reason or '',
@@ -72,6 +99,7 @@ class TrekRoute(db.Model):
     trek_code = db.Column(db.String(20), unique=True, nullable=False) # e.g. 'TID001'
     name = db.Column(db.String(150), nullable=False)
     location = db.Column(db.String(150), nullable=False)
+    place = db.Column(db.String(200), nullable=True)  # e.g. 'Chamoli district'
     difficulty = db.Column(db.String(20), nullable=False, default='Moderate')
     duration = db.Column(db.Integer, nullable=False, default=5)
     distance = db.Column(db.Integer, nullable=True, default=15)
@@ -90,6 +118,7 @@ class TrekRoute(db.Model):
             'trekCode': self.trek_code,
             'name': self.name,
             'location': self.location,
+            'place': self.place or '',
             'difficulty': self.difficulty,
             'duration': self.duration,
             'distance': self.distance,
@@ -137,6 +166,7 @@ class Trek(db.Model):
             'batchCode': self.batch_code or f"TID{self.id:03d}B01",
             'name': self.name,
             'location': self.location,
+            'place': self.route.place if self.route else '',
             'difficulty': self.difficulty,
             'duration': self.duration,
             'startDate': self.start_date.strftime('%Y-%m-%d') if self.start_date else '',
@@ -212,6 +242,7 @@ class Booking(db.Model):
             'trekId': self.trek_id,
             'trekName': self.trek.name,
             'location': self.trek.location,
+            'place': self.trek.route.place if self.trek and self.trek.route else '',
             'difficulty': self.trek.difficulty,
             'startDate': self.trek.start_date.strftime('%Y-%m-%d') if self.trek.start_date else '',
             'endDate': self.trek.end_date.strftime('%Y-%m-%d') if self.trek.end_date else '',
@@ -220,7 +251,8 @@ class Booking(db.Model):
             'price': self.trek.price,
             'paid': self.paid,
             'bookingPrice': self.booking_price or (self.trek.price if self.trek else 5000),
-            'amountPaid': self.amount_paid or (self.trek.price if (self.paid and self.trek) else 0),
+            'amountPaid': self.amount_paid if self.amount_paid not in (None, 0)
+                else (self.booking_price if (self.paid or self.payment_status == 'Paid') else (self.trek.price if (self.paid and self.trek) else 0)),
             'paymentStatus': self.payment_status or ('Paid' if self.paid else 'Pending'),
             'latitude': self.trek.latitude,
             'longitude': self.trek.longitude,
@@ -402,4 +434,3 @@ class UserAnnouncementRead(db.Model):
     # Relationships
     user = db.relationship('User', backref=db.backref('announcement_reads', lazy=True, cascade="all, delete-orphan"))
     trek = db.relationship('Trek', backref=db.backref('announcement_reads', lazy=True, cascade="all, delete-orphan"))
-

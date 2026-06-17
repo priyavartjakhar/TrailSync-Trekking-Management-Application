@@ -140,8 +140,10 @@ const TsUserLayout = {
       const completed = this.trekHistory.filter(h => h.status === 'Completed').length;
       const totalSpent = this.trekHistory
         .filter(h => h.status === 'Completed')
-        .reduce((a, h) => a + h.price, 0)
-        + this.myBookings.filter(b => b.status === 'Booked').reduce((a, b) => a + b.price, 0);
+        .reduce((a, h) => a + (h.amountPaid || h.bookingPrice || h.price || 0), 0)
+        + this.myBookings
+          .filter(b => b.status === 'Booked')
+          .reduce((a, b) => a + (b.amountPaid || b.bookingPrice || b.price || 0), 0);
       return [
         { label: 'Active Bookings', value: active, icon: 'calendar', color: 'si-gold', trend: '' },
         { label: 'Treks Completed', value: completed, icon: 'check', color: 'si-forest', trend: '' },
@@ -1232,7 +1234,10 @@ const TsUserLayout = {
 
       <!-- User chip -->
       <div class="sidebar-user">
-        <div class="sidebar-avatar">{{ userInitial }}</div>
+        <div class="sidebar-avatar">
+          <img v-if="profile.profile_image_url" :src="profile.profile_image_url" alt="avatar" style="width:100%; height:100%; object-fit:cover; border-radius:50%;" />
+          <span v-else>{{ userInitial }}</span>
+        </div>
         <div class="sidebar-user-info">
           <div class="sidebar-user-name">{{ profile.name }}</div>
           <div class="sidebar-user-role">Trekker</div>
@@ -1429,7 +1434,7 @@ const TsUserLayout = {
                       <div class="booking-accent" :class="'ba-' + b.difficulty.toLowerCase()"></div>
                       <div class="booking-main">
                         <div class="booking-trek-name">{{ b.trekName }}</div>
-                        <div class="booking-loc"><span class="css-loc-pin"></span>{{ b.location }}</div>
+                        <div class="booking-loc"><span class="css-loc-pin"></span>{{ b.place ? b.place + ', ' : '' }}{{ b.location }}</div>
                         <div class="booking-dates mono">{{ formatDate(b.startDate) }} → {{ formatDate(b.endDate) }}</div>
                         <div v-if="b.guide" class="booking-guide-info" style="font-size: 0.78rem; color: var(--stone); margin-top: 6px; display: flex; align-items: center; gap: 8px;">
                           <span>👤 Guide: <strong>{{ b.guide.name }}</strong> ({{ b.guide.phone }})</span>
@@ -1438,7 +1443,7 @@ const TsUserLayout = {
                       </div>
                       <div class="booking-meta">
                         <div class="bm-row"><span class="bm-label">Status</span><span class="status-pill status-booked">Booked</span></div>
-                        <div class="bm-row"><span class="bm-label">Amount</span><span class="bm-price">₹{{ b.price.toLocaleString() }}</span></div>
+                        <div class="bm-row"><span class="bm-label">Amount</span><span class="bm-price">₹{{ (b.amountPaid || b.bookingPrice || b.price || 0).toLocaleString() }}</span></div>
                         <div class="bm-row"><span class="bm-label">Difficulty</span><span :class="'diff-pill pill-'+b.difficulty.toLowerCase()">{{b.difficulty}}</span></div>
                         <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem; width: 100%;">
                           <button class="btn-cancel" @click="cancelBooking(b)" style="flex: 1;">Cancel</button>
@@ -1460,7 +1465,7 @@ const TsUserLayout = {
                 <div>
                   <div class="up-label">⏱ Next Trek In</div>
                   <div class="up-name">{{ nextTrek.trekName }}</div>
-                  <div class="up-loc"><span class="css-loc-pin"></span>{{ nextTrek.location }}</div>
+                  <div class="up-loc"><span class="css-loc-pin"></span>{{ nextTrek.place ? nextTrek.place + ', ' : '' }}{{ nextTrek.location }}</div>
                 </div>
                 <div class="up-countdown">
                   <div class="countdown-unit">
@@ -1511,7 +1516,7 @@ const TsUserLayout = {
                     <div class="trek-name-user">{{ t.name }}</div>
                     <div class="trek-loc-user" style="margin-bottom: 0.4rem;">
                       <svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                      {{ t.location }}
+                      {{ t.place ? t.place + ", " : "" }}{{ t.location }}
                     </div>
                     <div style="font-size:0.78rem; color:var(--stone); margin-bottom:0.75rem; line-height:1.5; flex-grow: 1;">{{ cleanDescription(t) }}</div>
                     <div class="trek-row-meta" style="margin-bottom:1rem; border-top: 1px solid var(--stone-light); padding-top: 8px;">
@@ -1552,7 +1557,7 @@ const TsUserLayout = {
                     <div class="trek-name-user">{{ t.name }}</div>
                     <div class="trek-loc-user" style="margin-bottom: 0.4rem;">
                       <svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                      {{ t.location }}
+                      {{ t.place ? t.place + ", " : "" }}{{ t.location }}
                     </div>
                     <div style="font-size:0.78rem; color:var(--stone); margin-bottom:0.75rem; line-height:1.5; flex-grow: 1;">{{ cleanDescription(t) }}</div>
                     <div class="trek-row-meta" style="margin-bottom:1rem; border-top: 1px solid var(--stone-light); padding-top: 8px;">
@@ -1593,7 +1598,7 @@ const TsUserLayout = {
                     <div class="trek-name-user">{{ t.name }}</div>
                     <div class="trek-loc-user" style="margin-bottom: 0.4rem;">
                       <svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                      {{ t.location }}
+                      {{ t.place ? t.place + ", " : "" }}{{ t.location }}
                     </div>
                     <div style="font-size:0.78rem; color:var(--stone); margin-bottom:0.75rem; line-height:1.5; flex-grow: 1;">{{ cleanDescription(t) }}</div>
                     <div class="trek-row-meta" style="margin-bottom:1rem; border-top: 1px solid var(--stone-light); padding-top: 8px;">
@@ -1757,7 +1762,7 @@ const TsUserLayout = {
                 <div class="trek-name-user">{{ t.name }}</div>
                 <div class="trek-loc-user" style="margin-bottom: 0.4rem;">
                   <svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                  {{ t.location }}
+                  {{ t.place ? t.place + ", " : "" }}{{ t.location }}
                 </div>
                 <div style="font-size:0.78rem; color:var(--stone); margin-bottom:0.75rem; line-height:1.5; flex-grow: 1;">{{ cleanDescription(t) }}</div>
                 <div class="trek-row-meta" style="margin-bottom:1rem; border-top: 1px solid var(--stone-light); padding-top: 8px;">
@@ -1808,7 +1813,7 @@ const TsUserLayout = {
                   <div class="booking-accent" :class="'ba-' + b.difficulty.toLowerCase()"></div>
                   <div class="booking-main">
                     <div class="booking-trek-name">{{ b.trekName }}</div>
-                    <div class="booking-loc"><span class="css-loc-pin"></span>{{ b.location }}</div>
+                    <div class="booking-loc"><span class="css-loc-pin"></span>{{ b.place ? b.place + ', ' : '' }}{{ b.location }}</div>
                     <div class="booking-dates mono">{{ formatDate(b.startDate) }} → {{ formatDate(b.endDate) }}</div>
                     <div v-if="b.guide" class="booking-guide-info" style="font-size: 0.78rem; color: var(--stone); margin-top: 6px; display: flex; align-items: center; gap: 8px;">
                       <span>👤 Guide: <strong>{{ b.guide.name }}</strong> ({{ b.guide.phone }})</span>
@@ -1827,11 +1832,11 @@ const TsUserLayout = {
                     </div>
                     <div class="bm-row">
                       <span class="bm-label">Amount</span>
-                      <span class="bm-price">₹{{ (b.bookingPrice || b.price).toLocaleString() }}</span>
+                      <span class="bm-price">₹{{ (b.amountPaid || b.bookingPrice || b.price || 0).toLocaleString() }}</span>
                     </div>
-                    <div v-if="b.paymentStatus !== 'Paid'" class="bm-row">
+                    <div class="bm-row">
                       <span class="bm-label">Paid</span>
-                      <span style="font-weight:600; color:var(--red);">₹{{ (b.amountPaid || 0).toLocaleString() }}</span>
+                      <span style="font-weight:600; color:var(--forest);">₹{{ (b.amountPaid || b.bookingPrice || b.price || 0).toLocaleString() }}</span>
                     </div>
                     <div class="bm-row">
                       <span class="bm-label">Difficulty</span>
@@ -1880,12 +1885,12 @@ const TsUserLayout = {
                     <div class="booking-accent" style="background: var(--stone)"></div>
                     <div class="booking-main">
                       <div class="booking-trek-name">{{ h.trekName }}</div>
-                      <div class="booking-loc"><span class="css-loc-pin"></span>{{ h.location }}</div>
+                      <div class="booking-loc"><span class="css-loc-pin"></span>{{ h.place ? h.place + ', ' : '' }}{{ h.location }}</div>
                       <div class="booking-dates mono">{{ formatDate(h.startDate) }} → {{ formatDate(h.endDate) }}</div>
                     </div>
                     <div class="booking-meta">
                       <div class="bm-row"><span class="bm-label">Status</span><span class="status-pill status-completed" style="background: var(--mist); color: var(--forest)">{{ h.status }}</span></div>
-                      <div class="bm-row"><span class="bm-label">Amount</span><span class="bm-price">₹{{ h.price.toLocaleString() }}</span></div>
+                      <div class="bm-row"><span class="bm-label">Amount</span><span class="bm-price">₹{{ (h.amountPaid || h.bookingPrice || h.price || 0).toLocaleString() }}</span></div>
                     </div>
                   </div>
                 </div>
@@ -1945,6 +1950,10 @@ const TsUserLayout = {
                       <div>
                         <div style="font-size: 0.75rem; font-weight: 600; color: var(--stone); text-transform: uppercase; margin-bottom: 0.2rem">Location</div>
                         <div style="color: var(--forest); font-weight: 500">{{ profile.city || '—' }}</div>
+                      </div>
+                      <div>
+                        <div style="font-size: 0.75rem; font-weight: 600; color: var(--stone); text-transform: uppercase; margin-bottom: 0.2rem">Total Spent</div>
+                        <div style="color: var(--forest); font-weight: 700">₹{{ (profile.totalSpent || 0).toLocaleString() }}</div>
                       </div>
                     </div>
                     
@@ -2529,7 +2538,7 @@ const TsUserLayout = {
                   <img :src="bookingTarget.imageUrl" :alt="bookingTarget.name" style="width: 100%; height: 100%; object-fit: cover;" />
                 </div>
                 <div style="font-size: 1.2rem; font-weight: 700; color: var(--forest); margin-bottom: 4px;">{{ bookingTarget.name }}</div>
-                <div style="font-size: 0.85rem; color: var(--stone); margin-bottom: 0.75rem;"><span class="css-loc-pin" style="background:var(--gold)"></span>{{ bookingTarget.location }}</div>
+                <div style="font-size: 0.85rem; color: var(--stone); margin-bottom: 0.75rem;"><span class="css-loc-pin" style="background:var(--gold)"></span>{{ bookingTarget.place ? bookingTarget.place + ', ' : '' }}{{ bookingTarget.location }}</div>
 
                 <div style="margin-top: 0.5rem; background: var(--snow); padding: 10px; border-radius: 4px; border: 1px solid var(--stone-light); font-size: 0.82rem; display: flex; flex-direction: column; gap: 6px;">
                   <div style="display: flex; justify-content: space-between;"><strong>Difficulty:</strong> <span :class="'diff-pill pill-'+bookingTarget.difficulty.toLowerCase()">{{ bookingTarget.difficulty }}</span></div>
@@ -2693,7 +2702,7 @@ const TsUserLayout = {
                 <div class="pay-sim-receipt-title">{{ paymentTrekBatch.name }}</div>
                 <div class="pay-sim-row">
                   <span>Location</span>
-                  <strong><i class="bi bi-geo-alt-fill"></i> {{ paymentTrekBatch.location }}</strong>
+                  <strong><i class="bi bi-geo-alt-fill"></i> {{ paymentTrekBatch.place ? paymentTrekBatch.place + ', ' : '' }}{{ paymentTrekBatch.location }}</strong>
                 </div>
                 <div class="pay-sim-row" v-if="paymentTrekBatch.batchCode">
                   <span>Batch ID</span>

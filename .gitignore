@@ -31,3 +31,6 @@ scratch/
 flask.log
 celery.log
 
+# Vite build output
+frontend/dist/
+dist/

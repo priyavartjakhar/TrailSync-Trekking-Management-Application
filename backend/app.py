@@ -1,7 +1,7 @@
 import os
 import jwt
 from functools import wraps
-from flask import Flask, render_template, request, jsonify, redirect, url_for, make_response, g
+from flask import Flask, send_from_directory, request, jsonify, redirect, url_for, make_response, g
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, date, timedelta
@@ -625,45 +625,16 @@ def get_public_trek_routes():
     routes = TrekRoute.query.all()
     return jsonify([r.to_json() for r in routes])
 
-# ── PAGES ────────────────────────────────────────────────────
+# ── SPA CATCH-ALL ─────────────────────────────────────────────
+FRONTEND_DIR = os.path.join(os.path.dirname(__file__), '..', 'frontend')
 
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def serve_spa(path):
+    if path.startswith('api/') or path.startswith('static/'):
+        return jsonify({'error': 'Not found'}), 404
+    return send_from_directory(FRONTEND_DIR, 'index.html')
 
-@app.route('/')
-def home():
-    return render_template('index.html')
-
-@app.route('/admin')
-@login_required
-def admin():
-    if current_user.role != 'admin':
-        return redirect(url_for('home'))
-    return render_template('admin.html')
-
-@app.route('/staff')
-@login_required
-def staff():
-    if current_user.role != 'staff':
-        return redirect(url_for('home'))
-    return render_template('staff.html')
-
-@app.route('/dashboard')
-@login_required
-def dashboard():
-    if current_user.role != 'user':
-        return redirect(url_for('home'))
-    return render_template('user.html')
-
-@app.route('/login/<role>')
-def login_role_page(role):
-    return render_template('login.html')
-
-@app.route('/login')
-def login_page():
-    return render_template('login.html')
-
-@app.route('/register')
-def register_page():
-    return render_template('register.html')
 
 
 # ── AUTH API ─────────────────────────────────────────────────

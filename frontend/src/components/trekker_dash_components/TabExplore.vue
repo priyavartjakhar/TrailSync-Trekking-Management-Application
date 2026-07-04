@@ -13,62 +13,70 @@
 
     <!-- Search & Filters -->
     <div class="ts-card" style="margin-bottom:1.5rem; padding:1.25rem 1.5rem; overflow:visible;">
-      <div style="display:flex; gap:1rem; flex-wrap:wrap; align-items:flex-end">
-        <div style="flex:1; min-width:200px">
+      <div class="explore-toolbar-row">
+        <div class="explore-search-column">
           <label style="font-size:0.72rem; font-weight:600; color:var(--forest); text-transform:uppercase; letter-spacing:0.06em; display:block; margin-bottom:5px">Search</label>
           <div class="topbar-search" style="width:100%; max-width:100%; border-radius:var(--radius)">
             <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             <input v-model="searchQuery" type="text" placeholder="Trek name, location…" />
           </div>
         </div>
-        <div style="min-width:160px">
-          <label style="font-size:0.72rem; font-weight:600; color:var(--forest); text-transform:uppercase; letter-spacing:0.06em; display:block; margin-bottom:5px">Difficulty</label>
-          <div class="custom-select-wrapper" :class="{ 'is-open': showDiffFilterDropdown }">
-            <div class="custom-select-trigger" @click.stop="toggleFilterDropdown('showDiffFilterDropdown')">
-              <span>{{ difficultyFilter || 'All Levels' }}</span>
-              <svg viewBox="0 0 24 24" class="custom-select-arrow" :class="{ open: showDiffFilterDropdown }"><polyline points="6 9 12 15 18 9"/></svg>
-            </div>
-            <div v-if="showDiffFilterDropdown" class="custom-select-dropdown">
-              <div class="custom-select-options">
-                <div class="custom-select-option" :class="{ selected: !difficultyFilter || difficultyFilter === 'All' }" @click="difficultyFilter = ''; showDiffFilterDropdown = false;">All Levels</div>
-                <div v-for="opt in ['Easy', 'Moderate', 'Hard']" :key="opt" class="custom-select-option" :class="{ selected: difficultyFilter === opt }" @click="difficultyFilter = opt; showDiffFilterDropdown = false;">{{ opt }}</div>
+        <button v-if="isMobileView" class="btn-outline explore-filters-toggle" @click="toggleMobileFilters">
+          {{ showMobileFilters ? 'Hide Filters' : 'Filters' }}
+        </button>
+      </div>
+
+      <div v-if="!isMobileView || showMobileFilters" class="explore-filter-panel">
+        <div class="explore-filter-grid">
+          <div style="min-width:160px">
+            <label style="font-size:0.72rem; font-weight:600; color:var(--forest); text-transform:uppercase; letter-spacing:0.06em; display:block; margin-bottom:5px">Difficulty</label>
+            <div class="custom-select-wrapper" :class="{ 'is-open': showDiffFilterDropdown }">
+              <div class="custom-select-trigger" @click.stop="toggleFilterDropdown('showDiffFilterDropdown')">
+                <span>{{ difficultyFilter || 'All Levels' }}</span>
+                <svg viewBox="0 0 24 24" class="custom-select-arrow" :class="{ open: showDiffFilterDropdown }"><polyline points="6 9 12 15 18 9"/></svg>
+              </div>
+              <div v-if="showDiffFilterDropdown" class="custom-select-dropdown">
+                <div class="custom-select-options">
+                  <div class="custom-select-option" :class="{ selected: !difficultyFilter || difficultyFilter === 'All' }" @click="difficultyFilter = ''; showDiffFilterDropdown = false;">All Levels</div>
+                  <div v-for="opt in ['Easy', 'Moderate', 'Hard']" :key="opt" class="custom-select-option" :class="{ selected: difficultyFilter === opt }" @click="difficultyFilter = opt; showDiffFilterDropdown = false;">{{ opt }}</div>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-        <div style="min-width:160px">
-          <label style="font-size:0.72rem; font-weight:600; color:var(--forest); text-transform:uppercase; letter-spacing:0.06em; display:block; margin-bottom:5px">Location</label>
-          <div class="custom-select-wrapper" :class="{ 'is-open': showLocFilterDropdown }">
-            <div class="custom-select-trigger" @click.stop="toggleFilterDropdown('showLocFilterDropdown')">
-              <span>{{ locationFilter || 'All Locations' }}</span>
-              <svg viewBox="0 0 24 24" class="custom-select-arrow" :class="{ open: showLocFilterDropdown }"><polyline points="6 9 12 15 18 9"/></svg>
-            </div>
-            <div v-if="showLocFilterDropdown" class="custom-select-dropdown">
-              <div class="custom-select-options">
-                <div class="custom-select-option" :class="{ selected: !locationFilter || locationFilter === 'All' }" @click="locationFilter = ''; showLocFilterDropdown = false;">All Locations</div>
-                <div v-for="loc in uniqueLocations" :key="loc" class="custom-select-option" :class="{ selected: locationFilter === loc }" @click="locationFilter = loc; showLocFilterDropdown = false;">{{ loc }}</div>
+          <div style="min-width:160px">
+            <label style="font-size:0.72rem; font-weight:600; color:var(--forest); text-transform:uppercase; letter-spacing:0.06em; display:block; margin-bottom:5px">Location</label>
+            <div class="custom-select-wrapper" :class="{ 'is-open': showLocFilterDropdown }">
+              <div class="custom-select-trigger" @click.stop="toggleFilterDropdown('showLocFilterDropdown')">
+                <span>{{ locationFilter || 'All Locations' }}</span>
+                <svg viewBox="0 0 24 24" class="custom-select-arrow" :class="{ open: showLocFilterDropdown }"><polyline points="6 9 12 15 18 9"/></svg>
+              </div>
+              <div v-if="showLocFilterDropdown" class="custom-select-dropdown">
+                <div class="custom-select-options">
+                  <div class="custom-select-option" :class="{ selected: !locationFilter || locationFilter === 'All' }" @click="locationFilter = ''; showLocFilterDropdown = false;">All Locations</div>
+                  <div v-for="loc in uniqueLocations" :key="loc" class="custom-select-option" :class="{ selected: locationFilter === loc }" @click="locationFilter = loc; showLocFilterDropdown = false;">{{ loc }}</div>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-        <div style="min-width:160px">
-          <label style="font-size:0.72rem; font-weight:600; color:var(--forest); text-transform:uppercase; letter-spacing:0.06em; display:block; margin-bottom:5px">Duration</label>
-          <div class="custom-select-wrapper" :class="{ 'is-open': showDurFilterDropdown }">
-            <div class="custom-select-trigger" @click.stop="toggleFilterDropdown('showDurFilterDropdown')">
-              <span>{{ durationFilter === '1-5' ? '1–5 days' : durationFilter === '6-9' ? '6–9 days' : durationFilter === '10+' ? '10+ days' : 'Any Duration' }}</span>
-              <svg viewBox="0 0 24 24" class="custom-select-arrow" :class="{ open: showDurFilterDropdown }"><polyline points="6 9 12 15 18 9"/></svg>
-            </div>
-            <div v-if="showDurFilterDropdown" class="custom-select-dropdown">
-              <div class="custom-select-options">
-                <div class="custom-select-option" :class="{ selected: !durationFilter }" @click="durationFilter = ''; showDurFilterDropdown = false;">Any Duration</div>
-                <div class="custom-select-option" :class="{ selected: durationFilter === '1-5' }" @click="durationFilter = '1-5'; showDurFilterDropdown = false;">1–5 days</div>
-                <div class="custom-select-option" :class="{ selected: durationFilter === '6-9' }" @click="durationFilter = '6-9'; showDurFilterDropdown = false;">6–9 days</div>
-                <div class="custom-select-option" :class="{ selected: durationFilter === '10+' }" @click="durationFilter = '10+'; showDurFilterDropdown = false;">10+ days</div>
+          <div style="min-width:160px">
+            <label style="font-size:0.72rem; font-weight:600; color:var(--forest); text-transform:uppercase; letter-spacing:0.06em; display:block; margin-bottom:5px">Duration</label>
+            <div class="custom-select-wrapper" :class="{ 'is-open': showDurFilterDropdown }">
+              <div class="custom-select-trigger" @click.stop="toggleFilterDropdown('showDurFilterDropdown')">
+                <span>{{ durationFilter === '1-5' ? '1–5 days' : durationFilter === '6-9' ? '6–9 days' : durationFilter === '10+' ? '10+ days' : 'Any Duration' }}</span>
+                <svg viewBox="0 0 24 24" class="custom-select-arrow" :class="{ open: showDurFilterDropdown }"><polyline points="6 9 12 15 18 9"/></svg>
+              </div>
+              <div v-if="showDurFilterDropdown" class="custom-select-dropdown">
+                <div class="custom-select-options">
+                  <div class="custom-select-option" :class="{ selected: !durationFilter }" @click="durationFilter = ''; showDurFilterDropdown = false;">Any Duration</div>
+                  <div class="custom-select-option" :class="{ selected: durationFilter === '1-5' }" @click="durationFilter = '1-5'; showDurFilterDropdown = false;">1–5 days</div>
+                  <div class="custom-select-option" :class="{ selected: durationFilter === '6-9' }" @click="durationFilter = '6-9'; showDurFilterDropdown = false;">6–9 days</div>
+                  <div class="custom-select-option" :class="{ selected: durationFilter === '10+' }" @click="durationFilter = '10+'; showDurFilterDropdown = false;">10+ days</div>
+                </div>
               </div>
             </div>
           </div>
+          <button class="btn-outline" style="white-space:nowrap; align-self:flex-end" @click="resetFilters">Reset</button>
         </div>
-        <button class="btn-outline" style="white-space:nowrap; align-self:flex-end" @click="resetFilters">Reset</button>
       </div>
 
       <!-- Quick filter chips -->
@@ -153,7 +161,9 @@ export default {
       showBookableOnly: false,
       showDiffFilterDropdown: false,
       showLocFilterDropdown: false,
-      showDurFilterDropdown: false
+      showDurFilterDropdown: false,
+      showMobileFilters: false,
+      isMobileView: false
     };
   },
   computed: {
@@ -191,12 +201,21 @@ export default {
     }
   },
   mounted() {
+    this.handleViewport();
+    window.addEventListener('resize', this.handleViewport);
     document.addEventListener('click', this.clickListener);
   },
   beforeUnmount() {
+    window.removeEventListener('resize', this.handleViewport);
     document.removeEventListener('click', this.clickListener);
   },
   methods: {
+    handleViewport() {
+      this.isMobileView = window.innerWidth <= 900;
+      if (!this.isMobileView) {
+        this.showMobileFilters = false;
+      }
+    },
     goTab(tab) {
       this.$emit('change-tab', tab);
     },
@@ -206,6 +225,9 @@ export default {
       this.showLocFilterDropdown = false;
       this.showDurFilterDropdown = false;
       this[type] = !current;
+    },
+    toggleMobileFilters() {
+      this.showMobileFilters = !this.showMobileFilters;
     },
     clickListener(e) {
       if (!e.target.closest('.custom-select-wrapper')) {

@@ -1,5 +1,5 @@
 <template>
-  <aside class="ts-sidebar" :class="{ open: sidebarOpen, collapsed: sidebarCollapsed }">
+  <aside class="ts-sidebar" :class="{ open: isDrawerVisible, collapsed: sidebarCollapsed }" :style="isDrawerVisible ? 'transform: translateX(0); pointer-events: auto;' : ''">
     <!-- Brand -->
     <div class="sidebar-brand">
       <span class="sidebar-brand-name">Trail<span>Sync</span></span>
@@ -85,6 +85,9 @@ export default {
   },
   emits: ['close-sidebar', 'change-tab', 'logout'],
   computed: {
+    isDrawerVisible() {
+      return this.sidebarOpen || (!this.sidebarCollapsed && window.innerWidth > 900);
+    },
     userName() {
       return this.profile.name || '';
     },
@@ -98,6 +101,9 @@ export default {
   methods: {
     goTab(tab) {
       this.$emit('change-tab', tab);
+      if (window.innerWidth <= 900) {
+        this.$emit('close-sidebar');
+      }
     }
   }
 };

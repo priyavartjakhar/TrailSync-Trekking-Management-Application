@@ -1,10 +1,14 @@
 <template>
         <section  class="tab-section-content">
-          <div class="page-header">
+          <div class="page-header" style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap;">
             <div class="page-header-left">
               <div class="page-eyebrow">Past Journeys</div>
               <div class="page-title">Trek <em>History</em></div>
             </div>
+            <button class="btn-outline" style="padding: 0.45rem 0.9rem; font-size: 0.82rem; display: inline-flex; align-items: center; gap: 0.45rem;" :disabled="exportPending" @click="$emit('request-export')">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              {{ exportPending ? 'Preparing CSV...' : 'Export as CSV' }}
+            </button>
           </div>
 
           <div style="max-width: 900px;">
@@ -48,9 +52,10 @@
 export default {
   name: 'TabHistory',
   props: {
-    trekHistory: { type: Array, default: () => [] }
+    trekHistory: { type: Array, default: () => [] },
+    exportPending: { type: Boolean, default: false }
   },
-  emits: ['change-tab'],
+  emits: ['change-tab', 'request-export'],
   methods: {
     goTab(tab) {
       this.$emit('change-tab', tab);

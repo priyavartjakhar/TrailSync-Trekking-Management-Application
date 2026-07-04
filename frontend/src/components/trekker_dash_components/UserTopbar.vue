@@ -1,6 +1,6 @@
 <template>
   <div class="ts-topbar" :class="{ 'sidebar-closed': sidebarCollapsed }">
-    <button v-if="sidebarCollapsed" class="btn-sidebar-open" @click="$emit('open-sidebar')" title="Open Sidebar">
+    <button v-if="showSidebarToggle && sidebarCollapsed" class="btn-sidebar-open" @click="$emit('open-sidebar')" title="Open Sidebar">
       <svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
     </button>
     <div class="topbar-brand-group">
@@ -14,16 +14,6 @@
       </template>
     </div>
     <div class="topbar-spacer"></div>
-    <div class="topbar-search">
-      <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input 
-        :value="searchQuery" 
-        @input="$emit('update:searchQuery', $event.target.value)" 
-        type="text" 
-        placeholder="Search treks…" 
-        @keyup.enter="goTab('explore')" 
-      />
-    </div>
     <div class="topbar-actions">
       <!-- Staff-style profile dropdown -->
       <div class="topbar-profile" style="position: relative;" ref="profileDropdown">
@@ -66,6 +56,7 @@ export default {
   props: {
     activeTab: { type: String, required: true },
     sidebarCollapsed: { type: Boolean, default: false },
+    showSidebarToggle: { type: Boolean, default: true },
     profile: { type: Object, required: true },
     searchQuery: { type: String, default: '' }
   },

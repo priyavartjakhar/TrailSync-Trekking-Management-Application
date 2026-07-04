@@ -999,6 +999,9 @@ body {
   display: flex;
   gap: 0.75rem;
   margin-top: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  width: 100%;
   animation: heroFadeUp 0.7s ease both 0.5s;
 }
 
@@ -2060,6 +2063,69 @@ body {
   .treks-grid-user { grid-template-columns: repeat(2, 1fr); }
 }
 
+.explore-toolbar-row {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+.explore-search-column {
+  flex: 1;
+  min-width: 200px;
+}
+.explore-filter-panel {
+  margin-top: 1rem;
+}
+.explore-filter-grid {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+.explore-filters-toggle {
+  white-space: nowrap;
+  align-self: flex-end;
+}
+.support-layout {
+  display: grid;
+  grid-template-columns: 1.2fr 1.8fr;
+  gap: 2rem;
+  align-items: start;
+}
+.social-tab-shell {
+  display: flex;
+  gap: 1.5rem;
+  flex: 1;
+  min-height: 0;
+}
+.social-desktop-layout {
+  display: flex;
+  gap: 1.5rem;
+  flex: 1;
+  min-height: 0;
+}
+.social-mobile-chat-shell {
+  flex: 1;
+  min-width: 0;
+}
+.social-mobile-chat-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+.social-mobile-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+.social-mobile-members-panel {
+  margin-top: 0.75rem;
+  border: 1px solid rgba(26,46,26,0.08);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
 @media (max-width: 900px) {
   .booking-row { flex-direction: column; }
   .booking-accent { width: 100%; height: 5px; }
@@ -2080,6 +2146,17 @@ body {
   .ts-main-content { margin-left: 0; padding-left: 0; }
   .sidebar-mobile-toggle { display: flex; }
   .sidebar-overlay.visible { display: block; }
+  .explore-toolbar-row { flex-direction: column; align-items: stretch; }
+  .explore-filters-toggle { width: 100%; }
+  .explore-filter-grid { flex-direction: column; align-items: stretch; }
+  .support-layout { grid-template-columns: 1fr; gap: 1.25rem; }
+  .support-form-card { order: 1; }
+  .support-history-card { order: 2; }
+  .social-tab-shell { flex-direction: column; }
+  .social-channels-panel { width: 100%; }
+  .social-desktop-layout { display: none; }
+  .social-mobile-chat-shell { display: flex; }
+  .social-mobile-chat-card { height: calc(100vh - 220px); }
 }
 
 @media (max-width: 650px) {

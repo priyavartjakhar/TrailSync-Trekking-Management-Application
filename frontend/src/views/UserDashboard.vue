@@ -17,27 +17,29 @@
     </transition>
 
     <!-- Sidebar component -->
-    <UserSidebar
-      :active-tab="activeTab"
-      :sidebar-open="sidebarOpen"
-      :sidebar-collapsed="sidebarCollapsed"
-      :profile="profile"
-      :my-bookings="myBookings"
-      :unread-count="hasUnreadAnnouncements ? 1 : 0"
-      @change-tab="goTab"
-      @close-sidebar="closeSidebar"
-      @logout="handleLogout"
-    />
+    <template v-if="showSidebar">
+      <UserSidebar
+        :active-tab="activeTab"
+        :sidebar-open="sidebarOpen"
+        :sidebar-collapsed="sidebarCollapsed"
+        :profile="profile"
+        :my-bookings="myBookings"
+        :unread-count="hasUnreadAnnouncements ? 1 : 0"
+        @change-tab="goTab"
+        @close-sidebar="closeSidebar"
+        @logout="handleLogout"
+      />
 
-    <!-- Main Content wrapper -->
-    <div class="ts-main-content" :class="{ expanded: sidebarCollapsed }">
-      <!-- Overlay for mobile drawer -->
-      <div class="sidebar-overlay" :class="{ visible: sidebarOpen }" @click="closeSidebar"></div>
+      <!-- Main Content wrapper -->
+      <div class="ts-main-content" :class="{ expanded: sidebarCollapsed }">
+        <!-- Overlay for mobile drawer -->
+        <div class="sidebar-overlay" :class="{ visible: sidebarOpen }" @click="closeSidebar"></div>
 
       <!-- Topbar component -->
       <UserTopbar
         :active-tab="activeTab"
         :sidebar-collapsed="sidebarCollapsed"
+        :show-sidebar-toggle="showSidebar"
         :profile="profile"
         v-model:search-query="searchQuery"
         @open-sidebar="openSidebar"
@@ -89,7 +91,9 @@
         <TabHistory
           v-if="activeTab === 'history'"
           :trek-history="trekHistory"
+          :export-pending="exportPending"
           @change-tab="goTab"
+          @request-export="requestExport"
         />
 
         <!-- Profile Tab -->
@@ -133,7 +137,104 @@
           @view-fellow-profile="openSocialProfileModal"
         />
       </div>
-    </div>
+      </div>
+    </template>
+
+    <template v-else>
+      <div class="ts-main-content" :class="{ expanded: true }">
+        <UserTopbar
+          :active-tab="activeTab"
+          :sidebar-collapsed="true"
+          :show-sidebar-toggle="false"
+          :profile="profile"
+          v-model:search-query="searchQuery"
+          @change-tab="goTab"
+          @logout="handleLogout"
+        />
+
+        <div class="page-content">
+          <TabDashboard
+            v-if="activeTab === 'dashboard'"
+            :profile="profile"
+            :my-bookings="myBookings"
+            :trek-history="trekHistory"
+            :available-treks="availableTreks"
+            :achievements="achievements"
+            :weather="weather"
+            :countdown-vals="countdownVals"
+            :community-posts="communityPosts"
+            @view-guide="openGuideModal"
+            @view-checklist="openChecklistModal"
+            @change-tab="goTab"
+            @update-search="searchQuery = $event"
+            @cancel-booking="cancelBooking"
+          />
+
+          <TabExplore
+            v-if="activeTab === 'explore'"
+            :available-treks="availableTreks"
+            @book-trek="openBookingModal"
+            @change-tab="goTab"
+          />
+
+          <TabBookings
+            v-if="activeTab === 'bookings'"
+            :my-bookings="myBookings"
+            :trek-history="trekHistory"
+            @view-checklist="openChecklistModal"
+            @view-guide="openGuideModal"
+            @cancel-booking="cancelBooking"
+            @pay-booking="payPendingBooking"
+            @change-tab="goTab"
+          />
+
+          <TabHistory
+            v-if="activeTab === 'history'"
+            :trek-history="trekHistory"
+            :export-pending="exportPending"
+            @change-tab="goTab"
+            @request-export="requestExport"
+          />
+
+          <TabProfile
+            v-if="activeTab === 'profile'"
+            :profile="profile"
+            :export-pending="exportPending"
+            @update-profile="saveProfile"
+            @update-password="changePassword"
+            @change-tab="goTab"
+            @request-export="requestExport"
+            @delete-account="deleteAccount"
+          />
+
+          <TabSupport
+            v-if="activeTab === 'support'"
+            :profile="profile"
+            :support-tickets="supportTickets"
+            :loading-support="loadingSupport"
+            :submitting-support="submittingSupport"
+            @submit-ticket="submitSupportTicket"
+            @change-tab="goTab"
+          />
+
+          <TabSocial
+            v-if="activeTab === 'social'"
+            :profile="profile"
+            :social-groups="socialGroups"
+            :selected-social-trek-id="selectedSocialTrekId"
+            :social-group-members-list="socialGroupMembersList"
+            :current-group-messages="currentGroupMessages"
+            :current-group-announcements="currentGroupAnnouncements"
+            :selected-social-group-trek="selectedSocialGroupTrek"
+            @change-tab="goTab"
+            @select-group="selectSocialGroup"
+            @close-chat="closeSocialChat"
+            @send-message="sendSocialMessage"
+            @view-fellow-profile="openSocialProfileModal"
+          />
+        </div>
+      </div>
+    </template>
 
     <!-- ── FELLOW TREKKER/GUIDE PROFILE MODAL ──────────────────────── ── -->
     <transition name="toast">
@@ -700,7 +801,8 @@ export default {
       // ── UI STATE ──────────────────────────────────
       activeTab: 'dashboard',
       sidebarOpen: false,
-      sidebarCollapsed: true,
+      sidebarCollapsed: false,
+      showSidebar: false,
       toast: { show: false, msg: '', type: 'success' },
       showProfileDropdown: false,
 
@@ -1050,6 +1152,17 @@ export default {
   },
 
   methods: {
+    handleViewportResize() {
+      const isMobile = window.innerWidth <= 900;
+      if (!isMobile) {
+        this.sidebarOpen = false;
+        this.sidebarCollapsed = false;
+      } else if (this.sidebarOpen) {
+        this.sidebarCollapsed = false;
+      } else {
+        this.sidebarCollapsed = true;
+      }
+    },
     // ── NAV ────────────────────────────────────────
     goTab(tab, options = {}) {
       const validTabs = ['dashboard', 'explore', 'bookings', 'history', 'profile', 'support', 'social'];
@@ -1120,16 +1233,26 @@ export default {
       });
     },
     openSidebar() {
-      this.sidebarOpen = false;
-      this.sidebarCollapsed = false;
+      if (window.innerWidth <= 900) {
+        this.sidebarOpen = true;
+        this.sidebarCollapsed = false;
+      } else {
+        this.sidebarOpen = false;
+        this.sidebarCollapsed = false;
+      }
     },
     closeSidebar() {
       this.sidebarOpen = false;
       this.sidebarCollapsed = true;
     },
     toggleMobileSidebar() {
-      this.sidebarOpen = !this.sidebarOpen;
-      this.sidebarCollapsed = !this.sidebarOpen;
+      if (window.innerWidth <= 900) {
+        this.sidebarOpen = !this.sidebarOpen;
+        this.sidebarCollapsed = !this.sidebarOpen;
+      } else {
+        this.sidebarOpen = false;
+        this.sidebarCollapsed = false;
+      }
     },
     goProfileTab() {
       this.showProfileDropdown = false;
@@ -2007,6 +2130,8 @@ export default {
   },
 
   mounted() {
+    window.addEventListener('resize', this.handleViewportResize);
+    this.handleViewportResize();
     this.fetchUserData();
     this.startCountdown();
 
@@ -2049,6 +2174,7 @@ export default {
   },
 
   beforeUnmount() {
+    window.removeEventListener('resize', this.handleViewportResize);
     if (this.countdownTimer) clearInterval(this.countdownTimer);
     if (this.socialPollInterval) clearInterval(this.socialPollInterval);
     window.removeEventListener('hashchange', this.hashListener);

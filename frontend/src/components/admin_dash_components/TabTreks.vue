@@ -7,19 +7,19 @@
         </button>
 
         <!-- Filters Bar -->
-        <div class="route-filters-bar" :class="{ 'show-mobile': showMobileFilters }" style="flex-wrap: wrap; gap: 1rem; margin-bottom: 1.25rem; background: var(--snow); padding: 1.25rem; border-radius: 8px; border: 1px solid var(--stone-light); align-items: flex-end;">
+        <div class="route-filters-bar" :class="{ 'show-mobile': showMobileFilters }" style="display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.25rem; background: var(--snow); padding: 1.25rem; border-radius: 8px; border: 1px solid var(--stone-light); align-items: flex-end;">
           
           <!-- Difficulty Dropdown -->
-          <div class="filter-group" style="display: flex; flex-direction: column; gap: 4px; min-width: 140px;">
+          <div class="filter-group" style="display: flex; flex-direction: column; gap: 4px; flex: 1 1 150px; min-width: 140px; max-width: 190px;">
             <label style="font-size: 0.72rem; font-weight: 600; color: var(--forest-mid);">DIFFICULTY</label>
             <div class="custom-select-wrapper" :class="{ 'is-open': showDiffFilterDropdown }">
               <div class="custom-select-trigger" @click.stop="toggleRouteFilterDropdown('showDiffFilterDropdown')" style="padding: 6px 12px; font-size: 0.84rem; border-radius: 4px; background: white; border: 1px solid var(--stone);">
-                <span>{{ tempRouteDiffFilter }}</span>
+                <span>{{ routeDiffFilter }}</span>
                 <svg viewBox="0 0 24 24" class="custom-select-arrow" :class="{ open: showDiffFilterDropdown }"><polyline points="6 9 12 15 18 9"/></svg>
               </div>
               <div v-if="showDiffFilterDropdown" class="custom-select-dropdown" style="top: 100%; margin-top: 4px; z-index: 1050;">
                 <div class="custom-select-options" style="max-height: 200px; overflow-y: auto;">
-                  <div v-for="opt in ['All', 'Easy', 'Moderate', 'Hard']" :key="opt" class="custom-select-option" :class="{ selected: tempRouteDiffFilter === opt }" @click="tempRouteDiffFilter = opt; showDiffFilterDropdown = false;">
+                  <div v-for="opt in ['All', 'Easy', 'Moderate', 'Hard']" :key="opt" class="custom-select-option" :class="{ selected: routeDiffFilter === opt }" @click="setRouteFilter('routeDiffFilter', opt); showDiffFilterDropdown = false;">
                     <span class="option-name">{{ opt }}</span>
                   </div>
                 </div>
@@ -28,25 +28,25 @@
           </div>
 
           <!-- Duration Dropdown -->
-          <div class="filter-group" style="display: flex; flex-direction: column; gap: 4px; min-width: 140px;">
+          <div class="filter-group" style="display: flex; flex-direction: column; gap: 4px; flex: 1 1 150px; min-width: 140px; max-width: 190px;">
             <label style="font-size: 0.72rem; font-weight: 600; color: var(--forest-mid);">DURATION</label>
             <div class="custom-select-wrapper" :class="{ 'is-open': showDaysFilterDropdown }">
               <div class="custom-select-trigger" @click.stop="toggleRouteFilterDropdown('showDaysFilterDropdown')" style="padding: 6px 12px; font-size: 0.84rem; border-radius: 4px; background: white; border: 1px solid var(--stone);">
-                <span>{{ tempRouteDaysFilter === 'All' ? 'All' : (tempRouteDaysFilter === '<5' ? '< 5 Days' : (tempRouteDaysFilter === '5-7' ? '5 - 7 Days' : '> 7 Days')) }}</span>
+                <span>{{ routeDaysFilter === 'All' ? 'All' : (routeDaysFilter === '<5' ? '< 5 Days' : (routeDaysFilter === '5-7' ? '5 - 7 Days' : '> 7 Days')) }}</span>
                 <svg viewBox="0 0 24 24" class="custom-select-arrow" :class="{ open: showDaysFilterDropdown }"><polyline points="6 9 12 15 18 9"/></svg>
               </div>
               <div v-if="showDaysFilterDropdown" class="custom-select-dropdown" style="top: 100%; margin-top: 4px; z-index: 1050;">
                 <div class="custom-select-options" style="max-height: 200px; overflow-y: auto;">
-                  <div class="custom-select-option" :class="{ selected: tempRouteDaysFilter === 'All' }" @click="tempRouteDaysFilter = 'All'; showDaysFilterDropdown = false;">
+                  <div class="custom-select-option" :class="{ selected: routeDaysFilter === 'All' }" @click="setRouteFilter('routeDaysFilter', 'All'); showDaysFilterDropdown = false;">
                     <span class="option-name">All</span>
                   </div>
-                  <div class="custom-select-option" :class="{ selected: tempRouteDaysFilter === '<5' }" @click="tempRouteDaysFilter = '<5'; showDaysFilterDropdown = false;">
+                  <div class="custom-select-option" :class="{ selected: routeDaysFilter === '<5' }" @click="setRouteFilter('routeDaysFilter', '<5'); showDaysFilterDropdown = false;">
                     <span class="option-name">&lt; 5 Days</span>
                   </div>
-                  <div class="custom-select-option" :class="{ selected: tempRouteDaysFilter === '5-7' }" @click="tempRouteDaysFilter = '5-7'; showDaysFilterDropdown = false;">
+                  <div class="custom-select-option" :class="{ selected: routeDaysFilter === '5-7' }" @click="setRouteFilter('routeDaysFilter', '5-7'); showDaysFilterDropdown = false;">
                     <span class="option-name">5 - 7 Days</span>
                   </div>
-                  <div class="custom-select-option" :class="{ selected: tempRouteDaysFilter === '>7' }" @click="tempRouteDaysFilter = '>7'; showDaysFilterDropdown = false;">
+                  <div class="custom-select-option" :class="{ selected: routeDaysFilter === '>7' }" @click="setRouteFilter('routeDaysFilter', '>7'); showDaysFilterDropdown = false;">
                     <span class="option-name">&gt; 7 Days</span>
                   </div>
                 </div>
@@ -55,16 +55,16 @@
           </div>
 
           <!-- Status Dropdown -->
-          <div class="filter-group" style="display: flex; flex-direction: column; gap: 4px; min-width: 140px;">
+          <div class="filter-group" style="display: flex; flex-direction: column; gap: 4px; flex: 1 1 150px; min-width: 140px; max-width: 190px;">
             <label style="font-size: 0.72rem; font-weight: 600; color: var(--forest-mid);">STATUS</label>
             <div class="custom-select-wrapper" :class="{ 'is-open': showActiveFilterDropdown }">
               <div class="custom-select-trigger" @click.stop="toggleRouteFilterDropdown('showActiveFilterDropdown')" style="padding: 6px 12px; font-size: 0.84rem; border-radius: 4px; background: white; border: 1px solid var(--stone);">
-                <span>{{ tempRouteActiveFilter }}</span>
+                <span>{{ routeActiveFilter }}</span>
                 <svg viewBox="0 0 24 24" class="custom-select-arrow" :class="{ open: showActiveFilterDropdown }"><polyline points="6 9 12 15 18 9"/></svg>
               </div>
               <div v-if="showActiveFilterDropdown" class="custom-select-dropdown" style="top: 100%; margin-top: 4px; z-index: 1050;">
                 <div class="custom-select-options" style="max-height: 200px; overflow-y: auto;">
-                  <div v-for="opt in ['All', 'Active', 'Closed']" :key="opt" class="custom-select-option" :class="{ selected: tempRouteActiveFilter === opt }" @click="tempRouteActiveFilter = opt; showActiveFilterDropdown = false;">
+                  <div v-for="opt in ['All', 'Active', 'Closed']" :key="opt" class="custom-select-option" :class="{ selected: routeActiveFilter === opt }" @click="setRouteFilter('routeActiveFilter', opt); showActiveFilterDropdown = false;">
                     <span class="option-name">{{ opt }}</span>
                   </div>
                 </div>
@@ -73,19 +73,19 @@
           </div>
 
           <!-- State Dropdown -->
-          <div class="filter-group" style="display: flex; flex-direction: column; gap: 4px; min-width: 160px;">
+          <div class="filter-group" style="display: flex; flex-direction: column; gap: 4px; flex: 1 1 170px; min-width: 160px; max-width: 220px;">
             <label style="font-size: 0.72rem; font-weight: 600; color: var(--forest-mid);">STATE</label>
             <div class="custom-select-wrapper" :class="{ 'is-open': showStateFilterDropdown }">
               <div class="custom-select-trigger" @click.stop="toggleRouteFilterDropdown('showStateFilterDropdown')" style="padding: 6px 12px; font-size: 0.84rem; border-radius: 4px; background: white; border: 1px solid var(--stone);">
-                <span>{{ tempRouteStateFilter === 'All' ? 'All States' : tempRouteStateFilter }}</span>
+                <span>{{ routeStateFilter === 'All' ? 'All States' : routeStateFilter }}</span>
                 <svg viewBox="0 0 24 24" class="custom-select-arrow" :class="{ open: showStateFilterDropdown }"><polyline points="6 9 12 15 18 9"/></svg>
               </div>
               <div v-if="showStateFilterDropdown" class="custom-select-dropdown" style="top: 100%; margin-top: 4px; z-index: 1050; max-height: 400px;">
                 <div class="custom-select-options" style="max-height: 380px; overflow-y: auto;">
-                  <div class="custom-select-option" :class="{ selected: tempRouteStateFilter === 'All' }" @click="tempRouteStateFilter = 'All'; showStateFilterDropdown = false;">
+                  <div class="custom-select-option" :class="{ selected: routeStateFilter === 'All' }" @click="setRouteFilter('routeStateFilter', 'All'); showStateFilterDropdown = false;">
                     <span class="option-name">All States</span>
                   </div>
-                  <div v-for="st in routeStates" :key="st" class="custom-select-option" :class="{ selected: tempRouteStateFilter === st }" @click="tempRouteStateFilter = st; showStateFilterDropdown = false;">
+                  <div v-for="st in routeStates" :key="st" class="custom-select-option" :class="{ selected: routeStateFilter === st }" @click="setRouteFilter('routeStateFilter', st); showStateFilterDropdown = false;">
                     <span class="option-name">{{ st }}</span>
                   </div>
                 </div>
@@ -94,25 +94,25 @@
           </div>
 
           <!-- Distance Dropdown -->
-          <div class="filter-group" style="display: flex; flex-direction: column; gap: 4px; min-width: 150px;">
+          <div class="filter-group" style="display: flex; flex-direction: column; gap: 4px; flex: 1 1 160px; min-width: 150px; max-width: 200px;">
             <label style="font-size: 0.72rem; font-weight: 600; color: var(--forest-mid);">DISTANCE RANGE</label>
             <div class="custom-select-wrapper" :class="{ 'is-open': showDistFilterDropdown }">
               <div class="custom-select-trigger" @click.stop="toggleRouteFilterDropdown('showDistFilterDropdown')" style="padding: 6px 12px; font-size: 0.84rem; border-radius: 4px; background: white; border: 1px solid var(--stone);">
-                <span>{{ tempRouteDistFilter === 'All' ? 'All' : (tempRouteDistFilter === '<10' ? '< 10 km' : (tempRouteDistFilter === '10-20' ? '10 - 20 km' : '> 20 km')) }}</span>
+                <span>{{ routeDistFilter === 'All' ? 'All' : (routeDistFilter === '<10' ? '< 10 km' : (routeDistFilter === '10-20' ? '10 - 20 km' : '> 20 km')) }}</span>
                 <svg viewBox="0 0 24 24" class="custom-select-arrow" :class="{ open: showDistFilterDropdown }"><polyline points="6 9 12 15 18 9"/></svg>
               </div>
               <div v-if="showDistFilterDropdown" class="custom-select-dropdown" style="top: 100%; margin-top: 4px; z-index: 1050;">
                 <div class="custom-select-options" style="max-height: 200px; overflow-y: auto;">
-                  <div class="custom-select-option" :class="{ selected: tempRouteDistFilter === 'All' }" @click="tempRouteDistFilter = 'All'; showDistFilterDropdown = false;">
+                  <div class="custom-select-option" :class="{ selected: routeDistFilter === 'All' }" @click="setRouteFilter('routeDistFilter', 'All'); showDistFilterDropdown = false;">
                     <span class="option-name">All</span>
                   </div>
-                  <div class="custom-select-option" :class="{ selected: tempRouteDistFilter === '<10' }" @click="tempRouteDistFilter = '<10'; showDistFilterDropdown = false;">
+                  <div class="custom-select-option" :class="{ selected: routeDistFilter === '<10' }" @click="setRouteFilter('routeDistFilter', '<10'); showDistFilterDropdown = false;">
                     <span class="option-name">&lt; 10 km</span>
                   </div>
-                  <div class="custom-select-option" :class="{ selected: tempRouteDistFilter === '10-20' }" @click="tempRouteDistFilter = '10-20'; showDistFilterDropdown = false;">
+                  <div class="custom-select-option" :class="{ selected: routeDistFilter === '10-20' }" @click="setRouteFilter('routeDistFilter', '10-20'); showDistFilterDropdown = false;">
                     <span class="option-name">10 - 20 km</span>
                   </div>
-                  <div class="custom-select-option" :class="{ selected: tempRouteDistFilter === '>20' }" @click="tempRouteDistFilter = '>20'; showDistFilterDropdown = false;">
+                  <div class="custom-select-option" :class="{ selected: routeDistFilter === '>20' }" @click="setRouteFilter('routeDistFilter', '>20'); showDistFilterDropdown = false;">
                     <span class="option-name">&gt; 20 km</span>
                   </div>
                 </div>
@@ -121,7 +121,7 @@
           </div>
 
           <!-- Buttons Group -->
-          <div style="display: flex; gap: 0.5rem; align-self: flex-end;">
+          <div style="display: flex; gap: 0.5rem; align-self: flex-end; margin-left: auto; flex-wrap: wrap;">
             <button class="filter-btn reset-btn" style="padding: 6px 14px; font-size: 0.8rem; border-radius: 4px; background: white; border: 1px solid var(--stone); color: var(--stone-dark);" @click="resetRouteFilters">
               Clear Filters
             </button>
@@ -130,8 +130,10 @@
             </button>
           </div>
         </div>
-        <!-- View switch controls -->
-        <div style="display: flex; justify-content: flex-end; margin-bottom: 1.25rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1.25rem; flex-wrap: wrap;">
+          <div style="font-size: 0.85rem; color: var(--stone-dark);">
+            Showing <strong>{{ filteredRoutes.length }}</strong> of <strong>{{ trekRoutes.length }}</strong> routes
+          </div>
           <div class="view-switch-btns" style="display: flex; gap: 0.5rem;">
             <button class="filter-btn" :class="{ active: routeViewMode === 'cards' }" @click="routeViewMode = 'cards'">
               Card View

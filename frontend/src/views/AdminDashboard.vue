@@ -104,6 +104,9 @@ export default {
       lastIsSmall: null,
       searchQuery: '',
       trekFilter: 'All',
+      batchGuideFilter: 'All',
+      batchDateFilter: 'All',
+      batchSortFilter: 'Default',
       bookingFilter: 'All',
       userFilter: 'All',
       auditFilter: 'All',
@@ -426,14 +429,61 @@ export default {
     },
     filteredTreks() {
       const todayStr = new Date().toLocaleDateString('en-CA');
+      const today = new Date();
+      const startOfWeek = new Date(today);
+      startOfWeek.setDate(today.getDate() - today.getDay());
+      const endOfWeek = new Date(today);
+      endOfWeek.setDate(startOfWeek.getDate() + 6);
+      const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+      const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+
       let activeTreks = this.treks.filter(t => t.status !== 'Completed' && (!t.endDate || t.endDate >= todayStr));
+
+      if (this.batchGuideFilter === 'Assigned') {
+        activeTreks = activeTreks.filter(t => t.staff && !String(t.staff).toLowerCase().includes('unassigned') && !String(t.staff).toLowerCase().includes('not assigned'));
+      } else if (this.batchGuideFilter === 'Unassigned') {
+        activeTreks = activeTreks.filter(t => !t.staff || String(t.staff).toLowerCase().includes('unassigned') || String(t.staff).toLowerCase().includes('not assigned'));
+      }
+
+      if (this.batchDateFilter === 'Upcoming') {
+        activeTreks = activeTreks.filter(t => t.startDate && new Date(t.startDate) >= today);
+      } else if (this.batchDateFilter === 'This Week') {
+        activeTreks = activeTreks.filter(t => {
+          const d = t.startDate ? new Date(t.startDate) : null;
+          return d && d >= startOfWeek && d <= endOfWeek;
+        });
+      } else if (this.batchDateFilter === 'This Month') {
+        activeTreks = activeTreks.filter(t => {
+          const d = t.startDate ? new Date(t.startDate) : null;
+          return d && d >= startOfMonth && d <= endOfMonth;
+        });
+      }
+
       let list = this.trekFilter === 'All'
         ? activeTreks
         : activeTreks.filter(t => t.status === this.trekFilter);
-      if (this.searchQuery)
-        list = list.filter(t => t.name.toLowerCase().includes(this.searchQuery.toLowerCase())
-          || t.location.toLowerCase().includes(this.searchQuery.toLowerCase())
-          || (t.batchCode && t.batchCode.toLowerCase().includes(this.searchQuery.toLowerCase())));
+
+      if (this.searchQuery) {
+        const q = this.searchQuery.toLowerCase();
+        list = list.filter(t => t.name.toLowerCase().includes(q)
+          || t.location.toLowerCase().includes(q)
+          || (t.batchCode && t.batchCode.toLowerCase().includes(q)));
+      }
+
+      if (this.batchSortFilter === 'High Occupancy') {
+        list = [...list].sort((a, b) => {
+          const aPct = a.slots ? (a.booked || 0) / a.slots : 0;
+          const bPct = b.slots ? (b.booked || 0) / b.slots : 0;
+          return bPct - aPct;
+        });
+      } else if (this.batchSortFilter === 'Low Occupancy') {
+        list = [...list].sort((a, b) => {
+          const aPct = a.slots ? (a.booked || 0) / a.slots : 0;
+          const bPct = b.slots ? (b.booked || 0) / b.slots : 0;
+          return aPct - bPct;
+        });
+      }
+
       return list;
     },
     filteredStaff() {
@@ -1300,13 +1350,27 @@ export default {
       this.routeDistFilter = 'All';
       this.searchQuery = '';
     },
+    setRouteFilter(filterKey, value) {
+      this[filterKey] = value;
+      if (filterKey === 'routeDiffFilter') {
+        this.tempRouteDiffFilter = value;
+      } else if (filterKey === 'routeDaysFilter') {
+        this.tempRouteDaysFilter = value;
+      } else if (filterKey === 'routeActiveFilter') {
+        this.tempRouteActiveFilter = value;
+      } else if (filterKey === 'routeStateFilter') {
+        this.tempRouteStateFilter = value;
+      } else if (filterKey === 'routeDistFilter') {
+        this.tempRouteDistFilter = value;
+      }
+    },
     applyRouteFilters() {
       this.routeDiffFilter = this.tempRouteDiffFilter;
       this.routeDaysFilter = this.tempRouteDaysFilter;
       this.routeActiveFilter = this.tempRouteActiveFilter;
       this.routeStateFilter = this.tempRouteStateFilter;
       this.routeDistFilter = this.tempRouteDistFilter;
-      this.showToast('Filters applied');
+      this.showToast('Filters updated');
     },
     toggleRouteFilterDropdown(type) {
       const current = this[type];

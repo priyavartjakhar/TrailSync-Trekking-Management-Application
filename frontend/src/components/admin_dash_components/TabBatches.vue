@@ -1,8 +1,56 @@
 <template>
       <section v-if="activeTab==='batches'" class="tab-content">
-        <div class="filter-bar">
-          <button v-for="f in ['All','Open','Closed']" :key="f"
-            class="filter-btn" :class="{ active: trekFilter===f }" @click="trekFilter=f">{{ f }}</button>
+        <div class="route-filters-bar" style="display:flex; flex-wrap:wrap; gap:1rem; margin-bottom:1.25rem; background:var(--snow); padding:1rem 1.15rem; border-radius:8px; border:1px solid var(--stone-light); align-items:flex-end;">
+          <div class="filter-group" style="display:flex; flex-direction:column; gap:4px; flex:1 1 160px; min-width:160px;">
+            <label style="font-size:0.72rem; font-weight:600; color:var(--forest-mid);">GUIDE</label>
+            <div class="custom-select-wrapper" :class="{ 'is-open': showBatchGuideDropdown }">
+              <div class="custom-select-trigger" @click.stop="showBatchGuideDropdown = !showBatchGuideDropdown" style="padding:6px 12px; font-size:0.84rem; border-radius:4px; background:white; border:1px solid var(--stone);">
+                <span>{{ batchGuideFilter }}</span>
+                <svg viewBox="0 0 24 24" class="custom-select-arrow" :class="{ open: showBatchGuideDropdown }"><polyline points="6 9 12 15 18 9"/></svg>
+              </div>
+              <div v-if="showBatchGuideDropdown" class="custom-select-dropdown" style="top:100%; margin-top:4px; z-index:1050;">
+                <div class="custom-select-options" style="max-height:200px; overflow-y:auto;">
+                  <div v-for="opt in ['All','Assigned','Unassigned']" :key="opt" class="custom-select-option" :class="{ selected: batchGuideFilter === opt }" @click="batchGuideFilter = opt; showBatchGuideDropdown = false;">
+                    <span class="option-name">{{ opt }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="filter-group" style="display:flex; flex-direction:column; gap:4px; flex:1 1 160px; min-width:160px;">
+            <label style="font-size:0.72rem; font-weight:600; color:var(--forest-mid);">DATE</label>
+            <div class="custom-select-wrapper" :class="{ 'is-open': showBatchDateDropdown }">
+              <div class="custom-select-trigger" @click.stop="showBatchDateDropdown = !showBatchDateDropdown" style="padding:6px 12px; font-size:0.84rem; border-radius:4px; background:white; border:1px solid var(--stone);">
+                <span>{{ batchDateFilter }}</span>
+                <svg viewBox="0 0 24 24" class="custom-select-arrow" :class="{ open: showBatchDateDropdown }"><polyline points="6 9 12 15 18 9"/></svg>
+              </div>
+              <div v-if="showBatchDateDropdown" class="custom-select-dropdown" style="top:100%; margin-top:4px; z-index:1050;">
+                <div class="custom-select-options" style="max-height:200px; overflow-y:auto;">
+                  <div v-for="opt in ['All','Upcoming','This Week','This Month']" :key="opt" class="custom-select-option" :class="{ selected: batchDateFilter === opt }" @click="batchDateFilter = opt; showBatchDateDropdown = false;">
+                    <span class="option-name">{{ opt }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="filter-group" style="display:flex; flex-direction:column; gap:4px; flex:1 1 180px; min-width:180px;">
+            <label style="font-size:0.72rem; font-weight:600; color:var(--forest-mid);">SORT BY OCCUPANCY</label>
+            <div class="custom-select-wrapper" :class="{ 'is-open': showBatchSortDropdown }">
+              <div class="custom-select-trigger" @click.stop="showBatchSortDropdown = !showBatchSortDropdown" style="padding:6px 12px; font-size:0.84rem; border-radius:4px; background:white; border:1px solid var(--stone);">
+                <span>{{ batchSortFilter }}</span>
+                <svg viewBox="0 0 24 24" class="custom-select-arrow" :class="{ open: showBatchSortDropdown }"><polyline points="6 9 12 15 18 9"/></svg>
+              </div>
+              <div v-if="showBatchSortDropdown" class="custom-select-dropdown" style="top:100%; margin-top:4px; z-index:1050;">
+                <div class="custom-select-options" style="max-height:200px; overflow-y:auto;">
+                  <div v-for="opt in ['Default','High Occupancy','Low Occupancy']" :key="opt" class="custom-select-option" :class="{ selected: batchSortFilter === opt }" @click="batchSortFilter = opt; showBatchSortDropdown = false;">
+                    <span class="option-name">{{ opt }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
         <div class="ts-table-wrap">
           <table class="ts-table">
@@ -49,11 +97,6 @@
                         <svg viewBox="0 0 24 24" class="act-btn-icon"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
                         <span class="btn-text-hide-mobile">Edit</span>
                       </button>
-                      <button class="act-btn" :class="t.status === 'Open' ? 'act-close' : 'act-open'" @click="toggleBatchStatus(t)" :title="t.status === 'Open' ? 'Close' : 'Open'">
-                        <svg v-if="t.status === 'Open'" viewBox="0 0 24 24" class="act-btn-icon"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                        <svg v-else viewBox="0 0 24 24" class="act-btn-icon"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
-                        <span class="btn-text-hide-mobile">{{ t.status === 'Open' ? 'Close' : 'Open' }}</span>
-                      </button>
                       <button class="act-btn act-delete-btn" @click="deleteTrek(t.id)" title="Delete">
                         <svg viewBox="0 0 24 24" class="act-btn-icon"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
                         <span class="btn-text-hide-mobile">Delete</span>
@@ -80,5 +123,14 @@
 <script>
 import { adminDashComponent } from './adminDashProxy';
 
-export default adminDashComponent('TabBatches');
+export default {
+  ...adminDashComponent('TabBatches'),
+  data() {
+    return {
+      showBatchGuideDropdown: false,
+      showBatchDateDropdown: false,
+      showBatchSortDropdown: false
+    };
+  }
+};
 </script>

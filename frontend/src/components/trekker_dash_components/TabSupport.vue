@@ -9,9 +9,9 @@
 
     <div style="display: grid; grid-template-columns: 1fr; gap: 2rem; align-items: start;">
       <!-- Submit Ticket Form & History List container -->
-      <div style="display: grid; grid-template-columns: 1.2fr 1.8fr; gap: 2rem; align-items: start;">
+      <div class="support-layout">
         <!-- Left: Submit Ticket -->
-        <div class="ts-card">
+        <div class="ts-card support-form-card">
           <div class="ts-card-body" style="padding: 2rem">
             <h3 style="font-family:'Playfair Display',serif; font-size: 1.4rem; color: var(--forest); margin-bottom: 1.5rem; border-bottom: 1px solid rgba(26,46,26,0.08); padding-bottom: 0.75rem">Submit a Ticket</h3>
             <form @submit.prevent="submitSupportTicket" style="display: flex; flex-direction: column; gap: 1.25rem">
@@ -60,7 +60,7 @@
         </div>
 
         <!-- Right: Ticket History -->
-        <div class="ts-card" style="min-height: 400px">
+        <div class="ts-card support-history-card" style="min-height: 400px">
           <div class="ts-card-body" style="padding: 2rem">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid rgba(26,46,26,0.08); padding-bottom: 0.75rem">
               <h3 style="font-family:'Playfair Display',serif; font-size: 1.4rem; color: var(--forest)">Ticket History</h3>

@@ -12,10 +12,10 @@
           </div>
           <div class="ts-card" style="max-width: 900px;">
             <div class="ts-card-body">
-              <div v-if="myBookings.filter(b=>b.status==='Booked').length === 0" class="empty-state">
+              <div v-if="myBookings.filter(b=>b.status==='Booked').length === 0" class="empty-state" style="display:flex; flex-direction:column; align-items:center;">
                 <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                 <p>You have no active bookings.</p>
-                <button class="btn-book" style="margin-top: 1rem" @click="goTab('explore')">Find a Trek</button>
+                <button class="btn-book" style="margin-top: 1rem; max-width: 220px; display:inline-flex; align-items:center; justify-content:center;" @click="goTab('explore')">Find a Trek</button>
               </div>
               <div class="bookings-stack">
                 <div v-for="b in myBookings.filter(b=>b.status==='Booked')" :key="b.id" class="booking-row">

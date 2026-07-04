@@ -28,6 +28,13 @@
                       <span>👤 Guide: <strong>{{ b.guide.name }}</strong> ({{ b.guide.phone }})</span>
                       <button style="color: var(--forest); font-weight: 600; cursor: pointer; border: none; background: none; padding: 0; font-size: 0.78rem; text-decoration: underline;" @click="openGuideModal(b.guide)">View Profile</button>
                     </div>
+                    <div class="booking-details-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin-top: 10px; padding-top: 8px; border-top: 1px dashed rgba(26,46,26,0.08); font-size: 0.78rem; color: var(--stone);">
+                      <div><strong>Booking ID:</strong> <span class="mono" style="color: var(--bark);">{{ b.bookingId || ('#' + b.id) }}</span></div>
+                      <div><strong>Trek ID:</strong> <span class="mono" style="color: var(--bark);">{{ b.trekCode || ('TID' + String(b.trekId).padStart(3, '0')) }}</span></div>
+                      <div><strong>Batch ID:</strong> <span class="mono" style="color: var(--bark);">{{ b.batchCode || b.batchId || '—' }}</span></div>
+                      <div><strong>Payment Method:</strong> <span style="color: var(--bark);">{{ b.paymentMethod || 'Pending' }}</span></div>
+                      <div><strong>Payment Details:</strong> <span style="color: var(--bark);">{{ b.paymentDetails || 'Pending' }}</span></div>
+                    </div>
                   </div>
                   <div class="booking-meta">
                     <div class="bm-row">
@@ -53,7 +60,7 @@
                     </div>
                     <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem; width: 100%;">
                       <div style="display: flex; gap: 0.5rem; width: 100%;">
-                        <button class="btn-cancel" @click="cancelBooking(b)" style="flex: 1;">Cancel</button>
+                        <button v-if="isTrekDateNotPassed(b.startDate)" class="btn-cancel" @click="cancelBooking(b)" style="flex: 1;">Cancel</button>
                         <button class="btn-outline" @click="openChecklistModal(b)" style="flex: 1.5; padding: 0.35rem 0.5rem; font-size: 0.72rem; border-radius: 4px; border: 1px solid var(--forest); color: var(--forest); background: transparent; cursor: pointer; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 2px;"><i class="bi bi-list-check"></i> Checklist</button>
                       </div>
                       <button v-if="b.paymentStatus === 'Pending'" class="btn-book" @click="payPendingBooking(b)" style="width: 100%; padding: 6px; font-size: 0.78rem; background: var(--gold); border-radius: 4px; border: none; font-weight: 700; color: var(--forest); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;">
@@ -62,6 +69,37 @@
                       <button v-else-if="b.paymentStatus === 'Failed'" class="btn-book" @click="payPendingBooking(b)" style="width: 100%; padding: 6px; font-size: 0.78rem; background: var(--red); border-radius: 4px; border: none; font-weight: 700; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;">
                         <i class="bi bi-arrow-repeat"></i> Retry Payment
                       </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Cancelled Bookings Sub-section -->
+              <div v-if="trekHistory.filter(b=>b.status==='Cancelled').length > 0" class="cancelled-bookings-section" style="margin-top: 2rem; border-top: 1px dashed rgba(26,46,26,0.15); padding-top: 1.5rem;">
+                <h4 style="color: var(--stone); margin-bottom: 1.25rem; font-family: 'Playfair Display', serif; font-size: 1.2rem; font-weight: 700;">Cancelled Bookings</h4>
+                <div class="bookings-stack">
+                  <div v-for="b in trekHistory.filter(b=>b.status==='Cancelled')" :key="b.id" class="booking-row cancelled-booking-row" style="opacity: 0.85; border: 1px dashed rgba(26,46,26,0.18); background: #fbfbfc; box-shadow: none;">
+                    <div class="booking-accent" style="background: var(--stone);"></div>
+                    <div class="booking-main">
+                      <div class="booking-trek-name" style="text-decoration: line-through; color: var(--stone);">{{ b.trekName }}</div>
+                      <div class="booking-loc"><span class="css-loc-pin"></span>{{ b.place ? b.place + ', ' : '' }}{{ b.location }}</div>
+                      <div class="booking-dates mono">{{ formatDate(b.startDate) }} → {{ formatDate(b.endDate) }}</div>
+                      
+                      <!-- Notice message requested by user -->
+                      <div style="margin-top: 12px; padding: 10px 12px; background: rgba(220,53,69,0.04); border-radius: 6px; border: 1px solid rgba(220,53,69,0.12); color: var(--stone); font-size: 0.82rem; line-height: 1.45; display: flex; align-items: start; gap: 8px;">
+                        <span style="color: var(--red); font-weight: 700; font-size: 0.9rem; line-height: 1;">⚠️</span>
+                        <span>refund related updates will be sent to you via email for any query raise a ticket from support tab</span>
+                      </div>
+                    </div>
+                    <div class="booking-meta" style="min-width: 120px;">
+                      <div class="bm-row">
+                        <span class="bm-label">Status</span>
+                        <span class="status-pill status-closed" style="font-size:0.75rem; padding: 2px 8px; font-weight:700; background: var(--stone); color: white;">Cancelled</span>
+                      </div>
+                      <div v-if="b.refundAmount > 0" class="bm-row" style="margin-top: 8px;">
+                        <span class="bm-label" style="color: var(--forest); font-weight: 600;">Refunded</span>
+                        <span style="font-weight:700; color: var(--forest);">₹{{ b.refundAmount.toLocaleString() }}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -75,7 +113,8 @@
 export default {
   name: 'TabBookings',
   props: {
-    myBookings: { type: Array, default: () => [] }
+    myBookings: { type: Array, default: () => [] },
+    trekHistory: { type: Array, default: () => [] }
   },
   emits: ['cancel-booking', 'view-checklist', 'view-guide', 'pay-booking', 'change-tab'],
   methods: {
@@ -98,6 +137,14 @@ export default {
       if (!dateStr) return '';
       const d = new Date(dateStr);
       return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    },
+    isTrekDateNotPassed(dateStr) {
+      if (!dateStr || dateStr === '—') return false;
+      const parts = dateStr.split('-');
+      const start = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      return start >= today;
     }
   }
 };

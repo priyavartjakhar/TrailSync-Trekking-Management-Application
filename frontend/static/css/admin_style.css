@@ -1996,3 +1996,17 @@ body { font-family:'DM Sans',sans-serif; background:var(--snow); color:var(--bar
 .tester-input:focus {
   border-color: var(--forest);
 }
+
+/* Mark as Completed Button Style */
+.act-complete {
+  background: rgba(13, 148, 136, 0.06);
+  color: #0d9488;
+  border-color: rgba(13, 148, 136, 0.25) !important;
+}
+.act-complete:hover {
+  background: #0d9488;
+  color: #fff;
+  border-color: #0d9488 !important;
+  box-shadow: 0 4px 12px rgba(13, 148, 136, 0.2);
+  transform: translateY(-1px);
+}

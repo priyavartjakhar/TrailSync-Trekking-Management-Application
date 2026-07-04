@@ -69,29 +69,36 @@
                   <button class="ts-card-action" @click="goTab('bookings')">View all →</button>
                 </div>
                 <div class="ts-card-body">
-                  <div v-if="myBookings.filter(b=>b.status==='Booked').length === 0" class="empty-state">
+                  <div v-if="!nextTrek" class="empty-state">
                     <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                     <p>No upcoming treks. <a @click="goTab('explore')">Browse open treks →</a></p>
                   </div>
-                  <div class="bookings-stack">
-                    <div v-for="b in myBookings.filter(b=>b.status==='Booked')" :key="b.id" class="booking-row">
-                      <div class="booking-accent" :class="'ba-' + b.difficulty.toLowerCase()"></div>
+                  <div v-else class="bookings-stack">
+                    <div v-if="nextTrek" class="booking-row">
+                      <div class="booking-accent" :class="'ba-' + nextTrek.difficulty.toLowerCase()"></div>
                       <div class="booking-main">
-                        <div class="booking-trek-name">{{ b.trekName }}</div>
-                        <div class="booking-loc"><span class="css-loc-pin"></span>{{ b.place ? b.place + ', ' : '' }}{{ b.location }}</div>
-                        <div class="booking-dates mono">{{ formatDate(b.startDate) }} → {{ formatDate(b.endDate) }}</div>
-                        <div v-if="b.guide" class="booking-guide-info" style="font-size: 0.78rem; color: var(--stone); margin-top: 6px; display: flex; align-items: center; gap: 8px;">
-                          <span>👤 Guide: <strong>{{ b.guide.name }}</strong> ({{ b.guide.phone }})</span>
-                          <button style="color: var(--forest); font-weight: 600; cursor: pointer; border: none; background: none; padding: 0; font-size: 0.78rem; text-decoration: underline;" @click="openGuideModal(b.guide)">View Profile</button>
+                        <div class="booking-trek-name">{{ nextTrek.trekName }}</div>
+                        <div class="booking-loc"><span class="css-loc-pin"></span>{{ nextTrek.place ? nextTrek.place + ', ' : '' }}{{ nextTrek.location }}</div>
+                        <div class="booking-dates mono">{{ formatDate(nextTrek.startDate) }} → {{ formatDate(nextTrek.endDate) }}</div>
+                        <div v-if="nextTrek.guide" class="booking-guide-info" style="font-size: 0.78rem; color: var(--stone); margin-top: 6px; display: flex; align-items: center; gap: 8px;">
+                          <span>👤 Guide: <strong>{{ nextTrek.guide.name }}</strong> ({{ nextTrek.guide.phone }})</span>
+                          <button style="color: var(--forest); font-weight: 600; cursor: pointer; border: none; background: none; padding: 0; font-size: 0.78rem; text-decoration: underline;" @click="openGuideModal(nextTrek.guide)">View Profile</button>
+                        </div>
+                        <div class="booking-details-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin-top: 10px; padding-top: 8px; border-top: 1px dashed rgba(26,46,26,0.08); font-size: 0.78rem; color: var(--stone);">
+                          <div><strong>Booking ID:</strong> <span class="mono" style="color: var(--bark);">{{ nextTrek.bookingId || ('#' + nextTrek.id) }}</span></div>
+                          <div><strong>Trek ID:</strong> <span class="mono" style="color: var(--bark);">{{ nextTrek.trekCode || ('TID' + String(nextTrek.trekId).padStart(3, '0')) }}</span></div>
+                          <div><strong>Batch ID:</strong> <span class="mono" style="color: var(--bark);">{{ nextTrek.batchCode || nextTrek.batchId || '—' }}</span></div>
+                          <div><strong>Payment Method:</strong> <span style="color: var(--bark);">{{ nextTrek.paymentMethod || 'Pending' }}</span></div>
+                          <div><strong>Payment Details:</strong> <span style="color: var(--bark);">{{ nextTrek.paymentDetails || 'Pending' }}</span></div>
                         </div>
                       </div>
                       <div class="booking-meta">
                         <div class="bm-row"><span class="bm-label">Status</span><span class="status-pill status-booked">Booked</span></div>
-                        <div class="bm-row"><span class="bm-label">Amount</span><span class="bm-price">₹{{ (b.amountPaid || b.bookingPrice || b.price || 0).toLocaleString() }}</span></div>
-                        <div class="bm-row"><span class="bm-label">Difficulty</span><span :class="'diff-pill pill-'+b.difficulty.toLowerCase()">{{b.difficulty}}</span></div>
+                        <div class="bm-row"><span class="bm-label">Amount</span><span class="bm-price">₹{{ (nextTrek.amountPaid || nextTrek.bookingPrice || nextTrek.price || 0).toLocaleString() }}</span></div>
+                        <div class="bm-row"><span class="bm-label">Difficulty</span><span :class="'diff-pill pill='+nextTrek.difficulty.toLowerCase()">{{nextTrek.difficulty}}</span></div>
                         <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem; width: 100%;">
-                          <button class="btn-cancel" @click="cancelBooking(b)" style="flex: 1;">Cancel</button>
-                          <button class="btn-outline" @click="openChecklistModal(b)" style="flex: 1.5; padding: 0.35rem 0.5rem; font-size: 0.72rem; border-radius: 4px; border: 1px solid var(--forest); color: var(--forest); background: transparent; cursor: pointer; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 2px;">📋 Checklist</button>
+                          <button v-if="isTrekDateNotPassed(nextTrek.startDate)" class="btn-cancel" @click="cancelBooking(nextTrek)" style="flex: 1;">Cancel</button>
+                          <button class="btn-outline" @click="openChecklistModal(nextTrek)" style="flex: 1.5; padding: 0.35rem 0.5rem; font-size: 0.72rem; border-radius: 4px; border: 1px solid var(--forest); color: var(--forest); background: transparent; cursor: pointer; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 2px;">📋 Checklist</button>
                         </div>
                       </div>
                     </div>
@@ -340,7 +347,16 @@ export default {
       ];
     },
     nextTrek() {
-      const booked = this.myBookings.filter(b => b.status === 'Booked');
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const booked = this.myBookings.filter(b => {
+        if (b.status !== 'Booked') return false;
+        if (!b.endDate) return true;
+        const parts = b.endDate.split('-');
+        if (parts.length !== 3) return true;
+        const end = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+        return end >= today;
+      });
       if (!booked.length) return null;
       return booked.sort((a, b) => new Date(a.startDate) - new Date(b.startDate))[0];
     },
@@ -377,6 +393,14 @@ export default {
       if (!dateStr) return '';
       const d = new Date(dateStr);
       return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    },
+    isTrekDateNotPassed(dateStr) {
+      if (!dateStr || dateStr === '—') return false;
+      const parts = dateStr.split('-');
+      const start = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      return start >= today;
     },
     getGradient(t) {
       const diff = t.difficulty.toLowerCase();

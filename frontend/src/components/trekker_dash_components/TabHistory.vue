@@ -24,6 +24,13 @@
                       <div class="booking-trek-name">{{ h.trekName }}</div>
                       <div class="booking-loc"><span class="css-loc-pin"></span>{{ h.place ? h.place + ', ' : '' }}{{ h.location }}</div>
                       <div class="booking-dates mono">{{ formatDate(h.startDate) }} → {{ formatDate(h.endDate) }}</div>
+                      <div class="booking-details-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin-top: 10px; padding-top: 8px; border-top: 1px dashed rgba(26,46,26,0.08); font-size: 0.78rem; color: var(--stone);">
+                        <div><strong>Booking ID:</strong> <span class="mono" style="color: var(--bark);">{{ h.bookingId || ('#' + h.id) }}</span></div>
+                        <div><strong>Trek ID:</strong> <span class="mono" style="color: var(--bark);">{{ h.trekCode || ('TID' + String(h.trekId).padStart(3, '0')) }}</span></div>
+                        <div><strong>Batch ID:</strong> <span class="mono" style="color: var(--bark);">{{ h.batchCode || h.batchId || '—' }}</span></div>
+                        <div><strong>Payment Method:</strong> <span style="color: var(--bark);">{{ h.paymentMethod || 'Pending' }}</span></div>
+                        <div><strong>Payment Details:</strong> <span style="color: var(--bark);">{{ h.paymentDetails || 'Pending' }}</span></div>
+                      </div>
                     </div>
                     <div class="booking-meta">
                       <div class="bm-row"><span class="bm-label">Status</span><span class="status-pill status-completed" style="background: var(--mist); color: var(--forest)">{{ h.status }}</span></div>

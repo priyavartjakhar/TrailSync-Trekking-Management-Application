@@ -63,6 +63,11 @@
                 <label for="r_email" class="field-label">Email address <span class="req">*</span></label>
                 <input id="r_email" type="email" class="ts-input" :class="{'is-invalid': v.email}" v-model="form.email" placeholder="arjun@email.com" required />
                 <div class="invalid-msg" v-if="v.email">{{ v.email }}</div>
+                <div class="availability-status mt-1 d-flex align-items-center gap-1" :class="{'text-success': emailAvailable === true, 'text-muted': emailChecking}" v-if="(emailChecking || emailAvailable === true) && !v.email" style="font-size: 0.8rem; font-weight: 500;">
+                  <span v-if="emailChecking" class="spinner-border spinner-border-sm" role="status" style="width: 0.85rem; height: 0.85rem; border-width: 1.5px; display: inline-block;"></span>
+                  <i v-else-if="emailAvailable === true" class="bi bi-check-circle-fill text-success"></i>
+                  <span>{{ emailStatusMessage }}</span>
+                </div>
               </div>
               <div class="col-12 col-md-6">
                 <label for="r_password" class="field-label">Password <span class="req">*</span></label>
@@ -119,6 +124,11 @@
                 <label for="r_phone" class="field-label">Phone number <span class="req">*</span></label>
                 <input id="r_phone" type="tel" class="ts-input" :class="{'is-invalid': v.phone}" v-model="form.phone" placeholder="+91 98765 43210" required />
                 <div class="invalid-msg" v-if="v.phone">{{ v.phone }}</div>
+                <div class="availability-status mt-1 d-flex align-items-center gap-1" :class="{'text-success': phoneAvailable === true, 'text-muted': phoneChecking}" v-if="(phoneChecking || phoneAvailable === true) && !v.phone" style="font-size: 0.8rem; font-weight: 500;">
+                  <span v-if="phoneChecking" class="spinner-border spinner-border-sm" role="status" style="width: 0.85rem; height: 0.85rem; border-width: 1.5px; display: inline-block;"></span>
+                  <i v-else-if="phoneAvailable === true" class="bi bi-check-circle-fill text-success"></i>
+                  <span>{{ phoneStatusMessage }}</span>
+                </div>
               </div>
               <div class="col-12 col-md-6">
                 <label for="r_blood" class="field-label">Blood group <span class="req">*</span></label>
@@ -311,7 +321,7 @@
 </template>
 
 <script>
-import { ref, computed, reactive } from 'vue';
+import { ref, computed, reactive, watch } from 'vue';
 import { useRouter } from 'vue-router';
 
 export default {
@@ -428,6 +438,114 @@ export default {
       return labels[passwordStrength.value];
     });
 
+    const emailStatusMessage = ref('');
+    const emailAvailable = ref(null); // null, true, or false
+    const emailChecking = ref(false);
+
+    const phoneStatusMessage = ref('');
+    const phoneAvailable = ref(null); // null, true, or false
+    const phoneChecking = ref(false);
+
+    let emailDebounceTimer = null;
+    let phoneDebounceTimer = null;
+
+    // Watchers for email and phone live availability checks
+    watch(() => form.value.email, (newVal) => {
+      if (emailDebounceTimer) clearTimeout(emailDebounceTimer);
+      
+      const emailVal = newVal.trim();
+      if (!emailVal) {
+        emailStatusMessage.value = '';
+        emailAvailable.value = null;
+        v.email = '';
+        return;
+      }
+      
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal)) {
+        emailStatusMessage.value = 'Invalid email format.';
+        emailAvailable.value = false;
+        return;
+      }
+      
+      emailChecking.value = true;
+      emailStatusMessage.value = 'Checking availability...';
+      emailAvailable.value = null;
+      
+      emailDebounceTimer = setTimeout(async () => {
+        try {
+          const res = await fetch(`/api/auth/check-availability?email=${encodeURIComponent(emailVal)}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.email) {
+              emailAvailable.value = data.email.available;
+              emailStatusMessage.value = data.email.message;
+              if (!data.email.available) {
+                v.email = 'Email is already registered.';
+              } else {
+                v.email = '';
+              }
+            }
+          } else {
+            emailStatusMessage.value = 'Error checking availability.';
+            emailAvailable.value = null;
+          }
+        } catch (err) {
+          emailStatusMessage.value = 'Error connecting to server.';
+          emailAvailable.value = null;
+        } finally {
+          emailChecking.value = false;
+        }
+      }, 500);
+    });
+
+    watch(() => form.value.phone, (newVal) => {
+      if (phoneDebounceTimer) clearTimeout(phoneDebounceTimer);
+      
+      const phoneVal = newVal.trim();
+      if (!phoneVal) {
+        phoneStatusMessage.value = '';
+        phoneAvailable.value = null;
+        v.phone = '';
+        return;
+      }
+      
+      if (phoneVal.length < 8) {
+        phoneStatusMessage.value = 'Phone number is too short.';
+        phoneAvailable.value = false;
+        return;
+      }
+      
+      phoneChecking.value = true;
+      phoneStatusMessage.value = 'Checking availability...';
+      phoneAvailable.value = null;
+      
+      phoneDebounceTimer = setTimeout(async () => {
+        try {
+          const res = await fetch(`/api/auth/check-availability?phone=${encodeURIComponent(phoneVal)}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.phone) {
+              phoneAvailable.value = data.phone.available;
+              phoneStatusMessage.value = data.phone.message;
+              if (!data.phone.available) {
+                v.phone = 'Phone number is already registered.';
+              } else {
+                v.phone = '';
+              }
+            }
+          } else {
+            phoneStatusMessage.value = 'Error checking availability.';
+            phoneAvailable.value = null;
+          }
+        } catch (err) {
+          phoneStatusMessage.value = 'Error connecting to server.';
+          phoneAvailable.value = null;
+        } finally {
+          phoneChecking.value = false;
+        }
+      }, 500);
+    });
+
     function toggleRegion(region) {
       const idx = form.value.preferred_regions.indexOf(region);
       if (idx > -1) {
@@ -450,6 +568,10 @@ export default {
           v.email = 'Email is required.';
         } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.value.email)) {
           v.email = 'Please enter a valid email address.';
+        } else if (emailAvailable.value === false) {
+          v.email = 'Email is already registered.';
+        } else if (emailChecking.value) {
+          v.email = 'Checking email availability, please wait...';
         } else {
           v.email = '';
         }
@@ -487,6 +609,13 @@ export default {
         }
 
         v.phone = form.value.phone.trim() ? '' : 'Phone number is required.';
+        if (!v.phone) {
+          if (phoneAvailable.value === false) {
+            v.phone = 'Phone number is already registered.';
+          } else if (phoneChecking.value) {
+            v.phone = 'Checking phone availability, please wait...';
+          }
+        }
         v.blood_group = form.value.blood_group ? '' : 'Please select your blood group.';
         
         v.emergency_name = form.value.emergency_name.trim() ? '' : 'Required.';
@@ -577,7 +706,9 @@ export default {
       form, showPass, showConfirm, profileImageFile, handleFileChange,
       bloodGroups, difficulties, durations, regions,
       v, passwordStrength, strengthLabel,
-      toggleRegion, nextStep, handleRegister
+      toggleRegion, nextStep, handleRegister,
+      emailStatusMessage, emailAvailable, emailChecking,
+      phoneStatusMessage, phoneAvailable, phoneChecking
     };
   }
 };

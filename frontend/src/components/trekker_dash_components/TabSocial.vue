@@ -20,7 +20,7 @@
               <div class="social-channels-list" style="flex: 1; overflow-y: auto; padding: 0.75rem;">
                 <div v-for="g in socialGroups" :key="g.id"
                      :class="['social-channel-item', { active: selectedSocialTrekId === g.id }]"
-                     @click="selectSocialGroup(g.id)"
+                     @click="selectGroup(g.id)"
                      style="padding: 0.75rem; border-radius: 6px; cursor: pointer; margin-bottom: 0.5rem; transition: var(--transition);">
                   <div class="d-flex justify-content-between align-items-start mb-1">
                     <span class="channel-name fw-bold" style="font-size: 0.85rem; color: var(--forest); display: flex; align-items: center; gap: 4px;">
@@ -55,17 +55,17 @@
                 <div class="ts-card-header d-flex justify-content-between align-items-center">
                   <div>
                     <div class="ts-card-title m-0 d-flex align-items-center" v-if="selectedSocialGroupTrek">
-                          <i class="bi bi-chat-left-dots-fill"></i>
-                          <span style="margin-left:8px">Group Chat: {{ selectedSocialGroupTrek.name }}</span>
-                        </div>
-                    <div>
-                      <button class="btn btn-sm btn-outline-secondary" @click="closeSocialChat" title="Close chat" style="font-size:0.78rem; padding:4px 8px;">
-                        <i class="bi bi-x-lg"></i>
-                      </button>
+                      <i class="bi bi-chat-left-dots-fill"></i>
+                      <span style="margin-left:8px">Group Chat: {{ selectedSocialGroupTrek.name }}</span>
                     </div>
                     <div class="text-muted" style="font-size: 0.72rem; margin-top: 2px;" v-if="selectedSocialGroupTrek">
                       Batch Code: {{ selectedSocialGroupTrek.batchCode }} | Status: {{ selectedSocialGroupTrek.status }}
                     </div>
+                  </div>
+                  <div>
+                    <button class="btn btn-sm btn-outline-secondary" @click="closeChat" title="Close chat" style="font-size:0.78rem; padding:4px 8px;">
+                      <i class="bi bi-x-lg"></i>
+                    </button>
                   </div>
                 </div>
 
@@ -111,8 +111,8 @@
                     <i class="bi bi-lock-fill"></i> This group chat has been locked by the guide. Only guides can post messages.
                   </div>
                   <!-- Standard Input Form -->
-                  <form v-else @submit.prevent="sendSocialMessage" class="d-flex gap-2">
-                    <input v-model="newSocialMessageText" type="text" class="form-control" placeholder="Type a message to the group..." style="font-size: 0.85rem; border-radius: 6px;" required />
+                  <form v-else @submit.prevent="sendMessage" class="d-flex gap-2">
+                    <input v-model="newMessage" type="text" class="form-control" placeholder="Type a message to the group..." style="font-size: 0.85rem; border-radius: 6px;" required />
                     <button type="submit" class="btn btn-primary-ts px-4" style="font-size: 0.85rem;">
                       <i class="bi bi-send-fill"></i> Send
                     </button>
@@ -123,31 +123,6 @@
               <!-- Sidebar: Announcements + Members (rightmost) -->
               <div class="d-flex flex-column gap-3" style="width: 320px; flex-shrink: 0;">
                 
-                <!-- Pinned Announcements -->
-                <div class="ts-card d-flex flex-column" style="flex: 1; min-height: 0; border: 1px solid var(--stone-light);">
-                  <div class="ts-card-header bg-gold-subtle" style="padding: 0.75rem 1rem;">
-                    <div class="ts-card-title" style="color: var(--bark); font-weight: 700; font-size: 0.82rem; margin: 0;">
-                      <i class="bi bi-pin-angle-fill text-gold"></i> Pinned Announcements
-                    </div>
-                  </div>
-                  <div class="ts-card-body" style="padding: 0.75rem; overflow-y: auto; flex: 1;">
-                    <div class="announcements-list d-flex flex-column" style="gap: 0.6rem; display: flex; flex-direction: column;">
-                      <div v-for="a in currentGroupAnnouncements" :key="a.id" 
-                           class="announcement-item p-2 border-start border-3 border-gold" 
-                           style="background: var(--snow); border-radius: 0 4px 4px 0; font-size: 0.74rem;">
-                        <div class="d-flex justify-content-between align-items-center mb-1">
-                          <span class="fw-bold" style="color: var(--forest);">{{ a.title }}</span>
-                          <span class="text-muted" style="font-size: 0.62rem;">{{ a.date }}</span>
-                        </div>
-                        <div class="text-muted" style="line-height: 1.35;">{{ a.content }}</div>
-                      </div>
-                      <div v-if="!currentGroupAnnouncements.length" class="text-center py-4 text-muted" style="font-size: 0.72rem;">
-                        No announcements posted.
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
                 <!-- Group Members directory -->
                 <div class="ts-card d-flex flex-column" style="flex: 1; min-height: 0; border: 1px solid var(--stone-light);">
                   <div class="ts-card-header" style="padding: 0.75rem 1rem;">
@@ -156,7 +131,7 @@
                   <div class="ts-card-body" style="padding: 0.5rem; overflow-y: auto; flex: 1;">
                     <div style="display: flex; flex-direction: column; gap: 0.4rem;">
                       <div v-for="p in socialGroupMembersList" :key="p.id" 
-                           @click="openSocialProfileModal(p)"
+                           @click="viewFellowProfile(p)"
                            class="member-dir-item d-flex align-items-center justify-content-between p-2" 
                            style="border-radius: 6px; cursor: pointer; transition: var(--transition); background: p.role === 'guide' ? 'var(--cream)' : 'transparent'; border: 1px solid transparent;">
                         <div class="d-flex align-items-center gap-2">
@@ -228,6 +203,31 @@ export default {
       if (!timeStr) return '';
       const d = new Date(timeStr);
       return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    },
+    getChatBubbleStyle(m) {
+      if (m.isAnnouncement) {
+        return {
+          background: '#fef2f2',
+          border: '1px solid #fca5a5',
+          color: '#991b1b',
+          borderTopRightRadius: m.sender === 'guide' ? '0px' : '8px',
+          borderTopLeftRadius: m.sender === 'guide' ? '8px' : '0px'
+        };
+      }
+      if (m.sender === 'guide') {
+        return {
+          background: 'var(--cream)',
+          border: '1px solid rgba(200, 146, 42, 0.25)',
+          color: 'var(--bark)',
+          borderTopRightRadius: '0px'
+        };
+      }
+      return {
+        background: '#ffffff',
+        border: '1px solid rgba(26, 46, 26, 0.08)',
+        color: 'var(--bark)',
+        borderTopLeftRadius: '0px'
+      };
     }
   }
 };

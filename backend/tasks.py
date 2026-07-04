@@ -102,8 +102,9 @@ def update_job_run(name, status):
 def send_email_helper(subject, recipient, body, is_html=False, attachment_path=None):
     """
     Helper function to send emails via Gmail SMTP using provided app credentials.
-    Falls back to writing to local scratch/emails directory if SMTP is offline.
+    Retries up to 3 times with 2s backoff before falling back to a local file.
     """
+    import time
     from email.utils import formataddr
     sender_email = "23f2005399@ds.study.iitm.ac.in"
     sender_password = "fvmj mlwu aabm wmxq"
@@ -113,61 +114,69 @@ def send_email_helper(subject, recipient, body, is_html=False, attachment_path=N
     email_dir = os.path.join(os.path.dirname(__file__), '../scratch/emails')
     os.makedirs(email_dir, exist_ok=True)
     
-    try:
-        # Build MIME message
-        if attachment_path:
-            msg = MIMEMultipart()
-            msg["Subject"] = subject
-            msg["From"] = from_addr
-            msg["To"] = recipient
-            
-            # Attach body
-            body_part = MIMEText(body, 'html' if is_html else 'plain')
-            msg.attach(body_part)
-            
-            # Attach file
-            filename = os.path.basename(attachment_path)
-            with open(attachment_path, 'rb') as attachment:
-                file_part = MIMEBase("application", "octet-stream")
-                file_part.set_payload(attachment.read())
-            encoders.encode_base64(file_part)
-            file_part.add_header(
-                "Content-Disposition",
-                f"attachment; filename= {filename}",
-            )
-            msg.attach(file_part)
-        else:
-            if is_html:
-                msg = MIMEText(body, 'html')
+    last_error = None
+    for attempt in range(1, 4):  # Try up to 3 times
+        try:
+            # Build MIME message
+            if attachment_path:
+                msg = MIMEMultipart()
+                msg["Subject"] = subject
+                msg["From"] = from_addr
+                msg["To"] = recipient
+                
+                body_part = MIMEText(body, 'html' if is_html else 'plain')
+                msg.attach(body_part)
+                
+                filename = os.path.basename(attachment_path)
+                with open(attachment_path, 'rb') as attachment:
+                    file_part = MIMEBase("application", "octet-stream")
+                    file_part.set_payload(attachment.read())
+                encoders.encode_base64(file_part)
+                file_part.add_header(
+                    "Content-Disposition",
+                    f"attachment; filename= {filename}",
+                )
+                msg.attach(file_part)
             else:
-                msg = MIMEText(body, 'plain')
-            msg["Subject"] = subject
-            msg["From"] = from_addr
-            msg["To"] = recipient
+                if is_html:
+                    msg = MIMEText(body, 'html')
+                else:
+                    msg = MIMEText(body, 'plain')
+                msg["Subject"] = subject
+                msg["From"] = from_addr
+                msg["To"] = recipient
+                
+            # Send via Gmail SMTP
+            with smtplib.SMTP("smtp.gmail.com", 587, timeout=15) as server:
+                server.ehlo()
+                server.starttls()
+                server.ehlo()
+                server.login(sender_email, sender_password)
+                server.send_message(msg)
+                
+            print(f"SMTP email sent successfully to {recipient} (attempt {attempt})")
+            return True
             
-        # Send via Gmail SMTP
-        with smtplib.SMTP("smtp.gmail.com", 587, timeout=10) as server:
-            server.starttls()
-            server.login(sender_email, sender_password)
-            server.send_message(msg)
-            
-        print(f"SMTP email sent successfully to {recipient}")
-        return True
+        except Exception as e:
+            last_error = e
+            print(f"SMTP send attempt {attempt}/3 failed for {recipient}: {e}")
+            if attempt < 3:
+                time.sleep(2 * attempt)  # 2s, then 4s backoff
+    
+    print(f"All SMTP attempts failed for {recipient}. Writing to fallback file...")
+    
+    # Write to local file as fallback
+    timestamp = int(datetime.now().timestamp())
+    file_ext = "html" if is_html else "txt"
+    filepath = os.path.join(email_dir, f"fallback_{recipient}_{timestamp}.{file_ext}")
+    
+    attachment_info = f"\n[Attachment: {attachment_path}]\n" if attachment_path else ""
+    content = f"Subject: {subject}\nTo: {recipient}\nDate: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n{attachment_info}\n{body}"
+    with open(filepath, 'w') as f:
+        f.write(content)
         
-    except Exception as e:
-        print(f"SMTP send failed: {e}. Writing to fallback file...")
-        
-        # Write to local file as fallback
-        timestamp = int(datetime.now().timestamp())
-        file_ext = "html" if is_html else "txt"
-        filepath = os.path.join(email_dir, f"fallback_{recipient}_{timestamp}.{file_ext}")
-        
-        attachment_info = f"\n[Attachment: {attachment_path}]\n" if attachment_path else ""
-        content = f"Subject: {subject}\nTo: {recipient}\nDate: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n{attachment_info}\n{body}"
-        with open(filepath, 'w') as f:
-            f.write(content)
-            
-        return False
+    return False
+
 
 @celery_app.task
 def send_daily_reminders(is_manual=False):
@@ -177,8 +186,7 @@ def send_daily_reminders(is_manual=False):
     from backend.app import app
     from backend.models.models import db, Booking, Trek
     
-    if is_manual:
-        update_job_run('Daily Prep Reminders', 'Running')
+    update_job_run('Daily Prep Reminders', 'Running')
         
     TIPS = [
         "Stay hydrated: Drink at least 4-5 liters of water daily to prevent AMS (Acute Mountain Sickness).",
@@ -343,12 +351,10 @@ def send_daily_reminders(is_manual=False):
                 
                 count += 1
                 
-            if is_manual:
-                update_job_run('Daily Prep Reminders', 'Success')
+            update_job_run('Daily Prep Reminders', 'Success')
             return f"Dispatched {count} daily reminders."
     except Exception as e:
-        if is_manual:
-            update_job_run('Daily Prep Reminders', 'Failed')
+        update_job_run('Daily Prep Reminders', 'Failed')
         raise e
 
 @celery_app.task
@@ -446,13 +452,8 @@ def send_welcome_email(user_id):
 def generate_monthly_report(is_manual=False):
     from backend.app import app
     from backend.models.models import db, Booking, Trek, User
-    from reportlab.lib.pagesizes import letter
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-    from reportlab.lib import colors
     
-    if is_manual:
-        update_job_run('Monthly Activity Report', 'Running')
+    update_job_run('Monthly Activity Report', 'Running')
         
     try:
         with app.app_context():
@@ -472,44 +473,53 @@ def generate_monthly_report(is_manual=False):
                 end_date = last_day_of_prev_month
                 report_type_label = "Automated Monthly Summary"
                 
-            # Treks conducted (starts within the period)
-            conducted_treks = Trek.query.filter(Trek.start_date.between(start_date, end_date)).all()
-            conducted_trek_ids = [t.id for t in conducted_treks]
+            # Treks conducted (completed batches starting within the period)
+            conducted_treks = Trek.query.filter(
+                Trek.status == 'Completed',
+                Trek.start_date.between(start_date, end_date)
+            ).all()
             
-            if conducted_trek_ids:
-                total_participants = db.session.query(Booking).filter(
-                    Booking.trek_id.in_(conducted_trek_ids),
-                    Booking.status == 'Booked',
-                    (Booking.payment_status != 'Failed') | (Booking.payment_status == None)
-                ).count()
-            else:
-                total_participants = 0
-                
-            # Analytics: 1. Total Revenue Generated
-            total_revenue = db.session.query(db.func.sum(Booking.amount_paid)).filter(
-                Booking.booked_on.between(start_date, end_date),
-                Booking.status == 'Booked',
-                (Booking.payment_status != 'Failed') | (Booking.payment_status == None)
-            ).scalar() or 0
-            
-            # Analytics: 2. New Registered Users
-            # We filter by registered_at
-            # registered_at is a DateTime field, so we convert start_date/end_date to datetime
             start_datetime = datetime.combine(start_date, datetime.min.time())
             end_datetime = datetime.combine(end_date, datetime.max.time())
-            new_users = User.query.filter(
+            
+            # Total Trekkers (registered this month)
+            total_trekkers_joined = User.query.filter(
                 User.registered_at.between(start_datetime, end_datetime),
                 User.role == 'user'
             ).count()
             
-            # Analytics: 3. Active Staff Guide count
+            # Total Staff (added this month)
+            total_staff_added = User.query.filter(
+                User.registered_at.between(start_datetime, end_datetime),
+                User.role == 'staff'
+            ).count()
+            
+            # Total Bookings (this month)
+            total_bookings_count = Booking.query.filter(
+                Booking.booked_on.between(start_date, end_date)
+            ).count()
+            
+            # Total Revenue Generated (bookings made in this period)
+            bookings_in_period = Booking.query.filter(
+                Booking.booked_on.between(start_date, end_date)
+            ).all()
+            total_revenue = 0
+            for b in bookings_in_period:
+                if b.payment_status == 'Paid':
+                    total_revenue += b.amount_paid or b.booking_price or 5000
+                elif b.payment_status == 'Refunded':
+                    paid = b.amount_paid or b.booking_price or 5000
+                    ref = b.refund_amount or 0
+                    total_revenue += max(0, paid - ref)
+            
+            # Active Staff Guide count
             active_staff = User.query.filter_by(role='staff', active=True).count()
             
-            # Analytics: 4. Difficulty breakdown of bookings
+            # Difficulty breakdown of bookings made in period
             difficulty_counts = {'Easy': 0, 'Moderate': 0, 'Hard': 0}
             difficulty_breakdown = db.session.query(Trek.difficulty, db.func.count(Booking.id)).join(Trek).filter(
                 Booking.booked_on.between(start_date, end_date),
-                Booking.status == 'Booked',
+                Booking.status.in_(['Booked', 'Completed']),
                 (Booking.payment_status != 'Failed') | (Booking.payment_status == None)
             ).group_by(Trek.difficulty).all()
             
@@ -517,157 +527,37 @@ def generate_monthly_report(is_manual=False):
                 if diff in difficulty_counts:
                     difficulty_counts[diff] = cnt
             
-            # Compute trek stats (bookings count)
-            trek_stats = []
+            # Popular treks booked this month (grouped by TrekRoute)
+            bookings_this_month = Booking.query.filter(
+                Booking.booked_on.between(start_date, end_date),
+                Booking.status.in_(['Booked', 'Completed']),
+                (Booking.payment_status != 'Failed') | (Booking.payment_status == None)
+            ).all()
+            
+            trek_route_booking_counts = {}
+            for b in bookings_this_month:
+                if b.trek and b.trek.route:
+                    route = b.trek.route
+                    if route.id not in trek_route_booking_counts:
+                        trek_route_booking_counts[route.id] = {
+                            'route': route,
+                            'count': 0
+                        }
+                    trek_route_booking_counts[route.id]['count'] += 1
+            
+            popular_routes_list = sorted(trek_route_booking_counts.values(), key=lambda x: x['count'], reverse=True)
+            
+            # Conducted treks ranked: completed batches this month ranked by participant count
+            conducted_trek_stats = []
             for t in conducted_treks:
                 cnt = db.session.query(Booking).filter(
                     Booking.trek_id == t.id,
-                    Booking.status == 'Booked',
+                    Booking.status.in_(['Booked', 'Completed']),
                     (Booking.payment_status != 'Failed') | (Booking.payment_status == None)
                 ).count()
-                trek_stats.append((t, cnt))
+                conducted_trek_stats.append((t, cnt))
+            conducted_trek_stats.sort(key=lambda x: x[1], reverse=True)
             
-            trek_stats.sort(key=lambda x: x[1], reverse=True)
-            popular_treks = trek_stats[:5]
-            
-            # 1. Generate PDF Report using reportlab
-            pdf_dir = os.path.join(os.path.dirname(__file__), '../scratch/reports')
-            os.makedirs(pdf_dir, exist_ok=True)
-            pdf_filename = f"monthly_report_{int(datetime.now().timestamp())}.pdf"
-            pdf_path = os.path.join(pdf_dir, pdf_filename)
-            
-            doc = SimpleDocTemplate(pdf_path, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=40, bottomMargin=40)
-            styles = getSampleStyleSheet()
-            
-            title_style = ParagraphStyle(
-                'TitleStyle',
-                parent=styles['Heading1'],
-                textColor=colors.HexColor('#1e3f20'),
-                fontSize=22,
-                spaceAfter=10,
-                fontName='Helvetica-Bold'
-            )
-            subtitle_style = ParagraphStyle(
-                'SubTitleStyle',
-                parent=styles['Normal'],
-                textColor=colors.HexColor('#c8922a'),
-                fontSize=11,
-                spaceAfter=20,
-                fontName='Helvetica-Bold'
-            )
-            heading_style = ParagraphStyle(
-                'HeadingStyle',
-                parent=styles['Heading2'],
-                textColor=colors.HexColor('#1e3f20'),
-                fontSize=13,
-                spaceBefore=15,
-                spaceAfter=8,
-                fontName='Helvetica-Bold'
-            )
-            body_style = ParagraphStyle(
-                'BodyStyle',
-                parent=styles['Normal'],
-                textColor=colors.HexColor('#2d3748'),
-                fontSize=9.5,
-                leading=13,
-                fontName='Helvetica'
-            )
-            header_style = ParagraphStyle(
-                'HeaderStyle',
-                parent=styles['Normal'],
-                textColor=colors.white,
-                fontSize=9.5,
-                fontName='Helvetica-Bold'
-            )
-            
-            story = []
-            story.append(Paragraph("TrailSync Monthly Activity Report", title_style))
-            story.append(Paragraph(f"Period: {start_date.strftime('%B %d, %Y')} to {end_date.strftime('%B %d, %Y')} ({report_type_label})", subtitle_style))
-            story.append(Spacer(1, 10))
-            
-            # KPI Metrics Table
-            story.append(Paragraph("Key Metrics & Financials", heading_style))
-            kpi_data = [
-                [Paragraph("Metric", body_style), Paragraph("Value", body_style)],
-                [Paragraph("Treks Conducted", body_style), Paragraph(str(len(conducted_treks)), body_style)],
-                [Paragraph("Total Participants", body_style), Paragraph(str(total_participants), body_style)],
-                [Paragraph("Average Participants Per Trek", body_style), Paragraph(f"{total_participants / len(conducted_treks):.1f}" if conducted_treks else "0.0", body_style)],
-                [Paragraph("Total Revenue Generated", body_style), Paragraph(f"INR {total_revenue:,}", body_style)],
-                [Paragraph("New Users Registered", body_style), Paragraph(str(new_users), body_style)],
-                [Paragraph("Active Guides on Duty", body_style), Paragraph(str(active_staff), body_style)]
-            ]
-            t_kpi = Table(kpi_data, colWidths=[200, 100])
-            t_kpi.setStyle(TableStyle([
-                ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#f7faf7')),
-                ('GRID', (0,0), (-1,-1), 1, colors.HexColor('#e2e8f0')),
-                ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-                ('PADDING', (0,0), (-1,-1), 6),
-            ]))
-            story.append(t_kpi)
-            story.append(Spacer(1, 10))
-            
-            # Difficulty Breakdown Table
-            story.append(Paragraph("Participation by Difficulty Level", heading_style))
-            diff_data = [
-                [Paragraph("Difficulty", body_style), Paragraph("Bookings Count", body_style)],
-                [Paragraph("Easy", body_style), Paragraph(str(difficulty_counts['Easy']), body_style)],
-                [Paragraph("Moderate", body_style), Paragraph(str(difficulty_counts['Moderate']), body_style)],
-                [Paragraph("Hard", body_style), Paragraph(str(difficulty_counts['Hard']), body_style)]
-            ]
-            t_diff = Table(diff_data, colWidths=[200, 100])
-            t_diff.setStyle(TableStyle([
-                ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#f7faf7')),
-                ('GRID', (0,0), (-1,-1), 1, colors.HexColor('#e2e8f0')),
-                ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-                ('PADDING', (0,0), (-1,-1), 6),
-            ]))
-            story.append(t_diff)
-            story.append(Spacer(1, 15))
-            
-            # Conducted Treks Table
-            story.append(Paragraph("Conducted Treks Details", heading_style))
-            trek_data = [
-                [
-                    Paragraph("Trek Name", header_style),
-                    Paragraph("Location", header_style),
-                    Paragraph("Start Date", header_style),
-                    Paragraph("Duration", header_style),
-                    Paragraph("Slots Booked", header_style)
-                ]
-            ]
-            for t, cnt in trek_stats:
-                trek_data.append([
-                    Paragraph(t.name, body_style),
-                    Paragraph(t.location, body_style),
-                    Paragraph(t.start_date.strftime('%Y-%m-%d'), body_style),
-                    Paragraph(f"{t.duration} Days", body_style),
-                    Paragraph(str(cnt), body_style)
-                ])
-                
-            if len(trek_stats) == 0:
-                trek_data.append([Paragraph("No treks conducted during this period.", body_style), "", "", "", ""])
-                
-            t_treks = Table(trek_data, colWidths=[150, 110, 80, 80, 80])
-            t_treks.setStyle(TableStyle([
-                ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#1e3f20')),
-                ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cbd5e0')),
-                ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-                ('PADDING', (0,0), (-1,-1), 6),
-            ]))
-            story.append(t_treks)
-            story.append(Spacer(1, 15))
-            
-            # Popular Treks Summary
-            story.append(Paragraph("Top Popular Treks", heading_style))
-            for idx, (t, cnt) in enumerate(popular_treks):
-                story.append(Paragraph(f"<b>{idx+1}. {t.name}</b> - {cnt} active bookings ({t.location})", body_style))
-                story.append(Spacer(1, 4))
-            if not popular_treks:
-                story.append(Paragraph("No treks recorded during this period.", body_style))
-                
-            doc.build(story)
-            
-            # 2. HTML Email Body with charts & visual analytics
             # Difficulty stats visual bars
             total_b = max(1, sum(difficulty_counts.values()))
             easy_pct = int((difficulty_counts['Easy'] / total_b) * 100)
@@ -698,6 +588,45 @@ def generate_monthly_report(is_manual=False):
                 </div>
             </div>"""
             
+            # HTML popular treks segment
+            popular_treks_html = ""
+            for idx, item in enumerate(popular_routes_list[:5]):
+                r = item['route']
+                cnt = item['count']
+                popular_treks_html += f"""
+                <div style="padding: 10px; border-bottom: 1px solid #edf2f7; font-size: 0.95rem;">
+                    <span style="font-weight: bold; color: #1e3f20;">#{idx+1} {r.name}</span> 
+                    <span style="color: #718096; font-size: 0.85rem;">({r.trek_code})</span> - 
+                    <strong>{cnt}</strong> bookings this month ({r.location})
+                </div>"""
+            if not popular_treks_html:
+                popular_treks_html = '<div style="padding: 10px; color: #718096;">No bookings recorded for any treks this month.</div>'
+                
+            # HTML conducted treks ranked segment
+            conducted_ranked_html = ""
+            for idx, (t, cnt) in enumerate(conducted_trek_stats):
+                conducted_ranked_html += f"""
+                <div style="padding: 10px; border-bottom: 1px solid #edf2f7; font-size: 0.95rem;">
+                    <span style="font-weight: bold; color: #c8922a;">Rank {idx+1}. {t.name}</span> 
+                    <span style="color: #718096; font-size: 0.85rem;">({t.batch_code or 'B01'})</span> - 
+                    <strong>{cnt}</strong> trekkers participated
+                </div>"""
+            if not conducted_ranked_html:
+                conducted_ranked_html = '<div style="padding: 10px; color: #718096;">No completed treks recorded in this range.</div>'
+
+            # Detail of batches conducted this month segment
+            conducted_details_html = ""
+            for idx, t in enumerate(conducted_treks):
+                start_date_str = t.start_date.strftime('%B %d, %Y') if t.start_date else 'N/A'
+                conducted_details_html += f"""
+                <div style="margin-bottom: 10px; padding: 10px; border: 1px solid #e2e8f0; border-radius: 6px; background-color: #fcfcfc;">
+                    <p style="margin: 4px 0; font-size: 0.95rem; color: #1e3f20;">
+                        <strong>Batch ID:</strong> {t.batch_code or 'B01'} | <strong>Start Date:</strong> {start_date_str}
+                    </p>
+                </div>"""
+            if not conducted_details_html:
+                conducted_details_html = '<div style="padding: 15px; border: 1px dashed #cbd5e0; border-radius: 8px; color: #718096; text-align: center;">No batches completed during this period.</div>'
+                
             report_html = f"""<!DOCTYPE html>
 <html>
 <head>
@@ -711,7 +640,6 @@ def generate_monthly_report(is_manual=False):
         .kpi-card {{ flex: 1; min-width: 130px; background-color: #f7faf7; border: 1px solid #edf2f7; padding: 12px; border-radius: 8px; text-align: center; }}
         .kpi-val {{ font-size: 1.5rem; font-weight: bold; color: #1e3f20; }}
         .kpi-lbl {{ font-size: 0.75rem; color: #718096; text-transform: uppercase; margin-top: 4px; }}
-        .list-item {{ padding: 10px; border-bottom: 1px solid #edf2f7; font-size: 0.95rem; }}
         .footer {{ background-color: #f7faf7; padding: 20px; text-align: center; font-size: 0.8rem; color: #718096; border-top: 1px solid #edf2f7; }}
     </style>
 </head>
@@ -719,21 +647,21 @@ def generate_monthly_report(is_manual=False):
     <div class="container">
         <div class="header">
             <h1>TrailSync Monthly Report</h1>
-            <p style="margin: 5px 0 0 0; color: #c8922a; font-weight: bold;">{start_date.strftime('%B %d, %Y')} to {end_date.strftime('%B %d, %Y')}</p>
+            <p style="margin: 5px 0 0 0; color: #c8922a; font-weight: bold;">{start_date.strftime('%B %d, %Y')} to {end_date.strftime('%B %d, %Y')} ({report_type_label})</p>
         </div>
         <div class="content">
             <p>Hello Admin,</p>
-            <p>The monthly trekking activity report has been compiled successfully. Below is a high-level summary of operations and participation. A detailed PDF version is attached to this email.</p>
+            <p>The monthly trekking activity report has been compiled successfully. Below is a high-level summary of operations, participation, and popularity rankings.</p>
             
             <h3 style="color: #1e3f20; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; margin-top: 20px;">📊 Key Metrics</h3>
             <div class="kpi-row">
                 <div class="kpi-card">
                     <div class="kpi-val">{len(conducted_treks)}</div>
-                    <div class="kpi-lbl">Treks Run</div>
+                    <div class="kpi-lbl">Treks Conducted</div>
                 </div>
                 <div class="kpi-card">
-                    <div class="kpi-val">{total_participants}</div>
-                    <div class="kpi-lbl">Total Trekkers</div>
+                    <div class="kpi-val">{total_bookings_count}</div>
+                    <div class="kpi-lbl">Total Bookings</div>
                 </div>
                 <div class="kpi-card">
                     <div class="kpi-val">₹{total_revenue:,}</div>
@@ -742,8 +670,12 @@ def generate_monthly_report(is_manual=False):
             </div>
             <div class="kpi-row" style="margin-top: 0;">
                 <div class="kpi-card">
-                    <div class="kpi-val">+{new_users}</div>
-                    <div class="kpi-lbl">New Accounts</div>
+                    <div class="kpi-val">+{total_trekkers_joined}</div>
+                    <div class="kpi-lbl">Trekkers Joined</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-val">+{total_staff_added}</div>
+                    <div class="kpi-lbl">Staff Added</div>
                 </div>
                 <div class="kpi-card">
                     <div class="kpi-val">{active_staff}</div>
@@ -751,15 +683,24 @@ def generate_monthly_report(is_manual=False):
                 </div>
             </div>
             
-            <h3 style="color: #1e3f20; margin-top: 25px; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px;">🧭 Difficulty Analytics</h3>
-            {difficulty_bars_html}
-            
-            <h3 style="color: #1e3f20; margin-top: 25px; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px;">🔥 Top Popular Treks</h3>
-            <div style="margin-top: 10px;">
-                {"".join([f'<div class="list-item"><strong>{idx+1}. {t[0].name}</strong> - {t[1]} bookings ({t[0].location})</div>' for idx, t in enumerate(popular_treks)]) if popular_treks else '<div class="list-item">No bookings recorded.</div>'}
+            <h3 style="color: #1e3f20; margin-top: 25px; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px;">🔥 Popular Treks (Bookings Created This Month)</h3>
+            <div style="margin-top: 10px; margin-bottom: 25px;">
+                {popular_treks_html}
             </div>
             
-            <p style="margin-top: 25px; font-size: 0.9rem; color: #718096;">The full report includes a breakdown of each trek batch conducted and is saved locally at <code>scratch/reports/</code>.</p>
+            <h3 style="color: #1e3f20; margin-top: 25px; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px;">🏆 Conducted Treks Rank-Wise (Conducted This Month)</h3>
+            <div style="margin-top: 10px; margin-bottom: 25px;">
+                {conducted_ranked_html}
+            </div>
+            
+            <h3 style="color: #1e3f20; margin-top: 25px; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px;">🏔️ Detailed Conducted Batches</h3>
+            <div style="margin-top: 15px;">
+                {conducted_details_html}
+            </div>
+            
+            <h3 style="color: #1e3f20; margin-top: 25px; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px;">🟢 Difficulty Analytics (Bookings Created This Month)</h3>
+            {difficulty_bars_html}
+            
         </div>
         <div class="footer">
             <p>Generated automatically on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}.</p>
@@ -774,16 +715,20 @@ def generate_monthly_report(is_manual=False):
                 subject=f"TrailSync Monthly Report - {start_date.strftime('%B %Y')}",
                 recipient=admin_email,
                 body=report_html,
-                is_html=True,
-                attachment_path=pdf_path
+                is_html=True
             )
             
-            if is_manual:
-                update_job_run('Monthly Activity Report', 'Success')
-            return f"Generated monthly report and emailed to {admin_email} with PDF attached."
+            # Save HTML locally as history/cache in scratch
+            report_dir = os.path.join(os.path.dirname(__file__), '../scratch/emails')
+            os.makedirs(report_dir, exist_ok=True)
+            report_path = os.path.join(report_dir, f"monthly_report_{int(datetime.now().timestamp())}.html")
+            with open(report_path, 'w') as f_out:
+                f_out.write(report_html)
+            
+            update_job_run('Monthly Activity Report', 'Success')
+            return f"Generated monthly report and emailed to {admin_email}."
     except Exception as e:
-        if is_manual:
-            update_job_run('Monthly Activity Report', 'Failed')
+        update_job_run('Monthly Activity Report', 'Failed')
         raise e
 
 @celery_app.task
@@ -791,8 +736,7 @@ def send_marketing_campaign(is_manual=False):
     from backend.app import app
     from backend.models.models import db, User, Trek
     
-    if is_manual:
-        update_job_run('Daily Marketing Campaign', 'Running')
+    update_job_run('Daily Marketing Campaign', 'Running')
         
     try:
         with app.app_context():
@@ -885,12 +829,10 @@ def send_marketing_campaign(is_manual=False):
                 )
                 count += 1
                 
-            if is_manual:
-                update_job_run('Daily Marketing Campaign', 'Success')
+            update_job_run('Daily Marketing Campaign', 'Success')
             return f"Marketing campaign sent to {count} users."
     except Exception as e:
-        if is_manual:
-            update_job_run('Daily Marketing Campaign', 'Failed')
+        update_job_run('Daily Marketing Campaign', 'Failed')
         raise e
 
 @celery_app.task
@@ -1005,7 +947,7 @@ def send_test_staff_welcome(recipient_email):
         <div class="content">
             <p class="welcome-msg">Hi Guide,</p>
             
-            <p>Welcome to the TrailSync Trek Operations Team! We are thrilled to have you join our community of professional guides and outdoor leaders. Your expertise is what keeps our trekkers safe and inspired in the mountains.</p>
+            <p>Welcome to the TrailSync Trek Staff Team! We are thrilled to have you join our community of professional guides and outdoor leaders. Your expertise is what keeps our trekkers safe and inspired in the mountains.</p>
             
             <p>A staff account has been set up for you. Below are your temporary login details:</p>
             
@@ -1126,7 +1068,7 @@ def send_staff_creation_email(staff_id, password):
         <div class="content">
             <p class="welcome-msg">Hi <strong>{staff.name}</strong>,</p>
             
-            <p>Welcome to the TrailSync Trek Operations Team! We are thrilled to have you join our community of professional guides and outdoor leaders. Your expertise is what keeps our trekkers safe and inspired in the mountains.</p>
+            <p>Welcome to the TrailSync Trek Staff Team! We are thrilled to have you join our community of professional guides and outdoor leaders. Your expertise is what keeps our trekkers safe and inspired in the mountains.</p>
             
             <p>A staff account has been set up for you. Below are your temporary login details:</p>
             
@@ -1159,3 +1101,122 @@ def send_staff_creation_email(staff_id, password):
         )
             
         return f"Sent welcome email to staff guide {staff.email}"
+
+@celery_app.task
+def send_guide_assignment_email(staff_id, trek_id, recipient_email=None, trek_name=None, batch_code=None, start_date_str=None, end_date_str=None, total_slots=None):
+    if recipient_email and trek_name:
+        # Use passed parameters directly to avoid database queries and transaction lag
+        body = f"""{trek_name} trek is assigned to you
+Trek details
+trek id: {trek_id}
+trek name: {trek_name}
+batch id: {batch_code or f"TID{trek_id:03d}B01"}
+batch dates : {start_date_str or 'N/A'} - {end_date_str or 'N/A'}
+total slots : {total_slots if total_slots is not None else 'N/A'}
+for any query contact support@trailsync.com
+thankyou
+TrailSync Team"""
+        
+        send_email_helper(
+            subject=f"{trek_name} trek is assigned to you",
+            recipient=recipient_email,
+            body=body,
+            is_html=False
+        )
+        return f"Sent assignment email to {recipient_email} for trek {trek_id}"
+
+    from backend.app import app
+    from backend.models.models import User, Trek
+    
+    with app.app_context():
+        staff = User.query.get(staff_id)
+        trek = Trek.query.get(trek_id)
+        if not staff:
+            return f"Staff {staff_id} not found."
+        if not trek:
+            return f"Trek {trek_id} not found."
+            
+        batch_id = trek.batch_code or f"TID{trek.id:03d}B01"
+        start_date = trek.start_date.strftime('%Y-%m-%d') if trek.start_date else 'N/A'
+        end_date = trek.end_date.strftime('%Y-%m-%d') if trek.end_date else 'N/A'
+        total_slots = trek.slots if trek.slots is not None else 'N/A'
+        
+        body = f"""{trek.name} trek is assigned to you
+Trek details
+trek id: {trek.id}
+trek name: {trek.name}
+batch id: {batch_id}
+batch dates : {start_date} - {end_date}
+total slots : {total_slots}
+for any query contact support@trailsync.com
+thankyou
+TrailSync Team"""
+        
+        send_email_helper(
+            subject=f"{trek.name} trek is assigned to you",
+            recipient=staff.email,
+            body=body,
+            is_html=False
+        )
+        
+        return f"Sent assignment email to {staff.email} for trek {trek.id}"
+
+@celery_app.task
+def send_booking_email(booking_id, payment_method=None, payment_details=None):
+    from backend.app import app
+    from backend.models.models import Booking, User, Trek
+    import random
+    
+    with app.app_context():
+        booking = Booking.query.get(booking_id)
+        if not booking:
+            return f"Booking {booking_id} not found."
+            
+        user = booking.user
+        trek = booking.trek
+        
+        batch_id = trek.batch_code or f"TID{trek.id:03d}B01"
+        start_date = trek.start_date.strftime('%Y-%m-%d') if trek.start_date else 'N/A'
+        end_date = trek.end_date.strftime('%Y-%m-%d') if trek.end_date else 'N/A'
+        
+        txn_id = f"TS-TXN-{random.randint(10000000, 99999999)}" if booking.paid else None
+        
+        # Format payment details
+        details_list = []
+        if payment_details and isinstance(payment_details, dict):
+            for k, v in payment_details.items():
+                pretty_key = k.replace('_', ' ').title()
+                if 'Number' in pretty_key and len(str(v)) > 4:
+                    val_str = str(v)
+                    v = f"•••• •••• •••• {val_str[-4:]}"
+                details_list.append(f"{pretty_key}: {v}")
+        details_str = "\n".join(details_list) if details_list else "N/A"
+        
+        booking_id_str = booking.unique_booking_id
+        trek_id_str = trek.route.trek_code if (trek and trek.route) else f"TID{trek.id:03d}"
+        payment_method_str = booking.clean_payment_method
+        payment_details_str = booking.formatted_payment_details
+        
+        body = f"""Booking ID : {booking_id_str}
+Trek ID : {trek_id_str}
+Trek name: {trek.name}
+Batch id: {batch_id}
+Trek Start Date: {start_date} 
+Trek End Date: {end_date}
+Payment status : {booking.payment_status or ('Paid' if booking.paid else 'Pending')}
+Amount Paid : ₹{(booking.amount_paid or 0):.2f}
+Payment Method : {payment_method_str}
+Payment details : {payment_details_str}
+
+
+For any query please contact : support@trailsync.com
+Thankyou
+TrailSync Team"""
+
+        send_email_helper(
+            subject=f"Booking Confirmation: {trek.name}",
+            recipient=user.email,
+            body=body,
+            is_html=False
+        )
+        return f"Sent booking confirmation email to {user.email} for booking {booking.id}"

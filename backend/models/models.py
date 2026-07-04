@@ -157,7 +157,7 @@ class Trek(db.Model):
     def to_json(self):
         booked_count = db.session.query(Booking).filter(
             Booking.trek_id == self.id,
-            Booking.status == 'Booked',
+            Booking.status.in_(['Booked', 'Completed']),
             (Booking.payment_status != 'Failed') | (Booking.payment_status == None)
         ).count()
         return {
@@ -196,6 +196,59 @@ class Booking(db.Model):
     booking_price = db.Column(db.Integer, nullable=True)
     amount_paid = db.Column(db.Integer, nullable=True)
     payment_status = db.Column(db.String(20), nullable=True) # 'Paid', 'Pending', 'Failed'
+    payment_method = db.Column(db.String(50), nullable=True, default='—')
+    payment_details = db.Column(db.Text, nullable=True)
+    refund_amount = db.Column(db.Integer, nullable=True, default=0)
+
+    @property
+    def formatted_payment_details(self):
+        import json
+        pm = (self.payment_method or '').lower()
+        if not self.payment_method or pm in ('paylater', 'pending', '—') or (self.payment_status and self.payment_status.lower() == 'pending'):
+            return 'Pending'
+        
+        if not self.payment_details:
+            return 'Pending' if (self.payment_status and self.payment_status.lower() == 'pending') else '—'
+            
+        try:
+            details = json.loads(self.payment_details) if isinstance(self.payment_details, str) else self.payment_details
+            if not isinstance(details, dict):
+                return str(details)
+            if pm == 'card':
+                return f"Card: {details.get('cardName', '')} ({details.get('cardNumber', '')})"
+            elif pm == 'upi':
+                return f"UPI ID: {details.get('upiId', '')}"
+            elif pm == 'netbanking':
+                return f"Netbanking: {details.get('bank', '')} ({details.get('bankUserId', '')})"
+            elif pm == 'emi':
+                return f"EMI: {details.get('emiProvider', '')} - {details.get('emiTenure', '')}"
+            else:
+                # Return details formatted neatly
+                parts = []
+                for k, v in details.items():
+                    # format key nicely e.g. cardName -> Card Name
+                    k_nice = ''.join([(' ' + c) if c.isupper() else c for c in k]).strip().title()
+                    parts.append(f"{k_nice}: {v}")
+                return ", ".join(parts) or '—'
+        except Exception:
+            return str(self.payment_details)
+
+    @property
+    def clean_payment_method(self):
+        if not self.payment_method:
+            return 'Pending'
+        pm = self.payment_method.lower()
+        if pm in ('paylater', 'pending', '—'):
+            return 'Pending'
+        if pm == 'netbanking':
+            return 'Netbanking'
+        if pm == 'card':
+            return 'Card'
+        if pm == 'upi':
+            return 'UPI'
+        if pm == 'emi':
+            return 'EMI'
+        return self.payment_method
 
     @property
     def unique_booking_id(self):
@@ -254,10 +307,17 @@ class Booking(db.Model):
             'amountPaid': self.amount_paid if self.amount_paid not in (None, 0)
                 else (self.booking_price if (self.paid or self.payment_status == 'Paid') else (self.trek.price if (self.paid and self.trek) else 0)),
             'paymentStatus': self.payment_status or ('Paid' if self.paid else 'Pending'),
+            'paymentMethod': self.clean_payment_method,
+            'paymentDetails': self.formatted_payment_details,
+            'transactionId': f"TXN{self.booked_on.strftime('%y%m%d')}{self.id:04d}" if (self.paid or self.payment_status == 'Paid') else '—',
+            'trekCode': self.trek.route.trek_code if (self.trek and self.trek.route) else f"TID{self.trek_id:03d}",
+            'batchId': self.trek.batch_code or f"TID{self.trek_id:03d}B01",
+            'batchCode': self.trek.batch_code or f"TID{self.trek_id:03d}B01",
             'latitude': self.trek.latitude,
             'longitude': self.trek.longitude,
             'distance': self.trek.distance,
-            'guide': guide_info
+            'guide': guide_info,
+            'refundAmount': self.refund_amount or 0
         }
 
 class StaffProfile(db.Model):

@@ -112,10 +112,15 @@ def get_open_treks_cached():
     # Fallback to database query: fetch active TrekRoutes
     active_routes = TrekRoute.query.filter_by(active=True).all()
     routes_json = []
+    from datetime import date
     for r in active_routes:
         r_json = r.to_json()
-        # Find open batches for this route
-        open_batches = Trek.query.filter_by(trek_route_id=r.id, status='Open').all()
+        # Find open batches for this route whose start date is not in the past
+        open_batches = Trek.query.filter(
+            Trek.trek_route_id == r.id,
+            Trek.status == 'Open',
+            Trek.start_date >= date.today()
+        ).all()
         r_json['batches'] = [b.to_json() for b in open_batches]
         routes_json.append(r_json)
         
@@ -134,6 +139,62 @@ def invalidate_open_treks_cache():
         except Exception as e:
             print("Redis delete cache error:", e)
 
+def dispatch_guide_assignment_email(staff_id, trek_id):
+    try:
+        from backend.tasks import send_guide_assignment_email
+        staff = User.query.get(staff_id)
+        trek = Trek.query.get(trek_id)
+        if staff and trek:
+            recipient_email = staff.email
+            trek_name = trek.name
+            batch_code = trek.batch_code or f"TID{trek.id:03d}B01"
+            start_date_str = trek.start_date.strftime('%Y-%m-%d') if trek.start_date else 'N/A'
+            end_date_str = trek.end_date.strftime('%Y-%m-%d') if trek.end_date else 'N/A'
+            total_slots = trek.slots if trek.slots is not None else 'N/A'
+            
+            print(f"[EMAIL] Dispatching assignment email → {recipient_email} for trek '{trek_name}' ({batch_code})")
+            
+            import threading
+            def run_async():
+                try:
+                    send_guide_assignment_email.delay(
+                        staff_id, trek_id,
+                        recipient_email=recipient_email,
+                        trek_name=trek_name,
+                        batch_code=batch_code,
+                        start_date_str=start_date_str,
+                        end_date_str=end_date_str,
+                        total_slots=total_slots
+                    )
+                    print(f"[EMAIL] Celery task queued for {recipient_email}")
+                except Exception as e:
+                    print(f"[EMAIL] Celery unavailable ({e}), sending synchronously to {recipient_email}...")
+                    app.logger.error(f"Error dispatching celery guide assignment email task: {e}")
+                    try:
+                        send_guide_assignment_email(
+                            staff_id, trek_id,
+                            recipient_email=recipient_email,
+                            trek_name=trek_name,
+                            batch_code=batch_code,
+                            start_date_str=start_date_str,
+                            end_date_str=end_date_str,
+                            total_slots=total_slots
+                        )
+                        print(f"[EMAIL] Synchronous send completed for {recipient_email}")
+                    except Exception as ex:
+                        print(f"[EMAIL] ERROR: Synchronous send also failed for {recipient_email}: {ex}")
+                        app.logger.error(f"Error sending guide assignment email synchronously: {ex}")
+            
+            threading.Thread(target=run_async, daemon=True).start()
+        else:
+            print(f"[EMAIL] ERROR: Cannot dispatch — Staff {staff_id} or Trek {trek_id} not found in DB")
+            app.logger.error(f"Cannot dispatch email: Staff {staff_id} or Trek {trek_id} not found in DB")
+    except Exception as e:
+        print(f"[EMAIL] ERROR preparing dispatch: {e}")
+        app.logger.error(f"Error preparing guide assignment email dispatch: {e}")
+
+
+
 def seed_db(force=False):
     if force:
         db.session.remove()
@@ -145,7 +206,8 @@ def seed_db(force=False):
         email='admin@trailsync.com',
         password_hash=generate_password_hash('admin123'),
         name='Admin',
-        role='admin'
+        role='admin',
+        registered_at=datetime(2026, 6, 1, 10, 0, 0)
     )
     db.session.add(admin)
     
@@ -154,7 +216,8 @@ def seed_db(force=False):
         email='test@gmail.com',
         password_hash=generate_password_hash('123456'),
         name='Test Trekker',
-        role='user'
+        role='user',
+        registered_at=datetime(2026, 6, 1, 10, 30, 0)
     )
     db.session.add(test_user)
     
@@ -179,7 +242,8 @@ def seed_db(force=False):
             password_hash=generate_password_hash('123456' if email == 'staff@test.com' else 'staff123'),
             name=name,
             role='staff',
-            phone=phone
+            phone=phone,
+            registered_at=datetime(2026, 6, 5, 9, 0, 0)
         )
         db.session.add(u)
         db.session.flush()
@@ -248,7 +312,8 @@ def seed_db(force=False):
             phone=f"98765{random.randint(10000, 99999)}",
             city=random.choice(['Delhi', 'Mumbai', 'Bangalore', 'Pune', 'Kolkata', 'Hyderabad', 'Chennai']),
             emergency=f"+91 90000 {random.randint(10000, 99999)}",
-            bio=f"Loves mountains. Acclimatized to {random.choice(['2000m', '3000m', '4000m'])}."
+            bio=f"Loves mountains. Acclimatized to {random.choice(['2000m', '3000m', '4000m'])}.",
+            registered_at=datetime(2026, 6, 10, 14, 0, 0)
         )
         db.session.add(u)
         trekkers.append(u)
@@ -541,7 +606,8 @@ def seed_db(force=False):
             status='Cancelled',
             paid=False,
             booking_price=all_treks[2].price,
-            amount_paid=0,
+            amount_paid=all_treks[2].price,
+            refund_amount=all_treks[2].price,
             payment_status='Refunded'
         )
         db.session.add_all([b6, b7])
@@ -591,7 +657,11 @@ def normalize_mock_booking_payments():
         if booking.status == 'Cancelled':
             booking.paid = False
             booking.payment_status = 'Refunded'
-            booking.amount_paid = 0
+            paid_amt = booking.amount_paid or booking.booking_price or (booking.trek.price if booking.trek else 5000)
+            if not paid_amt:
+                paid_amt = 5000
+            booking.amount_paid = paid_amt
+            booking.refund_amount = paid_amt
             continue
 
         base_price = booking.booking_price or (booking.trek.price if booking.trek else 5000)
@@ -610,6 +680,19 @@ def normalize_mock_booking_payments():
 # Ensure tables are created and seeded
 with app.app_context():
     db.create_all()
+    try:
+        from sqlalchemy import text
+        db.session.execute(text("SELECT refund_amount FROM bookings LIMIT 1"))
+    except Exception:
+        db.session.rollback()
+        try:
+            db.session.execute(text("ALTER TABLE bookings ADD COLUMN refund_amount INTEGER DEFAULT 0"))
+            db.session.commit()
+            print("Successfully migrated bookings table with refund_amount column.")
+        except Exception as e:
+            print("Migration failed:", e)
+            db.session.rollback()
+            
     if User.query.first() is None:
         seed_db(force=False)
     normalize_mock_booking_payments()
@@ -664,6 +747,28 @@ def api_login():
     }))
     response.set_cookie('access_token', token, httponly=True, max_age=86400, samesite='Lax')
     return response
+
+@app.route('/api/auth/check-availability', methods=['GET'])
+def api_check_availability():
+    email = request.args.get('email')
+    phone = request.args.get('phone')
+    
+    response = {}
+    if email:
+        email_clean = email.strip().lower()
+        existing = User.query.filter_by(email=email_clean).first()
+        response['email'] = {
+            'available': existing is None,
+            'message': 'Email is available to register.' if existing is None else 'Email is already registered.'
+        }
+    if phone:
+        phone_clean = phone.strip()
+        existing = User.query.filter_by(phone=phone_clean).first() if phone_clean else None
+        response['phone'] = {
+            'available': existing is None,
+            'message': 'Phone number is available to register.' if existing is None else 'Phone number is already registered.'
+        }
+    return jsonify(response)
 
 @app.route('/api/auth/register', methods=['POST'])
 def api_register():
@@ -750,9 +855,23 @@ def api_logout():
 
 # ── USER (TREKKER) API ────────────────────────────────────────
 
+def update_completed_bookings():
+    try:
+        past_bookings = Booking.query.join(Trek).filter(
+            Booking.status == 'Booked',
+            Trek.start_date < date.today()
+        ).all()
+        if past_bookings:
+            for b in past_bookings:
+                b.status = 'Completed'
+            db.session.commit()
+    except Exception as e:
+        print(f"Error updating completed bookings: {e}")
+
 @app.route('/api/user/dashboard_data', methods=['GET'])
 @login_required
 def user_dashboard_data():
+    update_completed_bookings()
     if current_user.role != 'user':
         return jsonify({'error': 'Unauthorized'}), 403
         
@@ -784,6 +903,8 @@ def book_trek():
         
     data = request.get_json() or {}
     trek_id = data.get('trek_id')
+    payment_method = data.get('payment_method')
+    payment_details = data.get('payment_details')
     
     trek = Trek.query.get(trek_id)
     if not trek:
@@ -791,6 +912,10 @@ def book_trek():
         
     if trek.status != 'Open':
         return jsonify({'error': 'Trek is not open for bookings.'}), 400
+        
+    from datetime import date
+    if trek.start_date and trek.start_date < date.today():
+        return jsonify({'error': 'Trek has already started. Booking is closed.'}), 400
         
     booked_count = Booking.query.filter_by(trek_id=trek_id, status='Booked').count()
     if booked_count >= trek.slots:
@@ -812,7 +937,9 @@ def book_trek():
         paid=paid,
         booking_price=booking_price,
         amount_paid=amount_paid,
-        payment_status=payment_status
+        payment_status=payment_status,
+        payment_method=payment_method,
+        payment_details=json.dumps(payment_details) if payment_details else None
     )
     db.session.add(booking)
     db.session.commit()
@@ -843,7 +970,18 @@ def book_trek():
     
     invalidate_open_treks_cache()
     
-    return jsonify({'message': f'Booked {trek.name} successfully!'})
+    # Dispatch booking email
+    try:
+        from backend.tasks import send_booking_email
+        send_booking_email.delay(booking.id, payment_method, payment_details)
+    except Exception as e:
+        app.logger.error(f"Failed to dispatch booking email: {e}")
+        
+    return jsonify({
+        'message': f'Booked {trek.name} successfully!',
+        'booking_id': booking.id,
+        'unique_booking_id': booking.unique_booking_id
+    })
 
 # ── CHECKLIST & GUIDE API ENDPOINTS ──────────────────────────
 
@@ -959,10 +1097,6 @@ def cancel_booking(booking_id):
         return jsonify({'error': 'Unauthorized.'}), 403
         
     booking.status = 'Cancelled'
-    if booking.payment_status == 'Paid' or booking.paid:
-        booking.payment_status = 'Refunded'
-        booking.amount_paid = 0
-        booking.paid = False
     db.session.commit()
     
     invalidate_open_treks_cache()
@@ -978,14 +1112,32 @@ def pay_booking(booking_id):
     
     data = request.get_json() or {}
     payment_status = data.get('payment_status', 'Paid')
+    payment_method = data.get('payment_method')
+    payment_details = data.get('payment_details')
     
     booking.payment_status = payment_status
     booking.paid = (payment_status == 'Paid')
     booking.amount_paid = booking.booking_price if booking.paid else 0
+    if payment_method:
+        booking.payment_method = payment_method
+    if payment_details:
+        booking.payment_details = json.dumps(payment_details)
     
     db.session.commit()
     invalidate_open_treks_cache()
-    return jsonify({'message': f'Simulated payment outcome: {payment_status}.'})
+    
+    # Dispatch booking email
+    try:
+        from backend.tasks import send_booking_email
+        send_booking_email.delay(booking.id, payment_method, payment_details)
+    except Exception as e:
+        app.logger.error(f"Failed to dispatch booking email: {e}")
+        
+    return jsonify({
+        'message': f'Simulated payment outcome: {payment_status}.',
+        'booking_id': booking.id,
+        'unique_booking_id': booking.unique_booking_id
+    })
 
 @app.route('/api/user/export', methods=['POST'])
 @login_required
@@ -1053,6 +1205,53 @@ def user_password():
     db.session.commit()
     return jsonify({'message': 'Password updated successfully.'})
 
+@app.route('/api/user/delete', methods=['DELETE'])
+@login_required
+def delete_user_account():
+    import os
+    import glob
+    
+    user = current_user
+    user_id = user.id
+    user_email = user.email
+    
+    # 1. Delete user profile image file if exists
+    if user.profile_image_url:
+        try:
+            relative_path = user.profile_image_url.lstrip('/')
+            file_path = os.path.join(app.root_path, '..', 'frontend', relative_path)
+            if os.path.exists(file_path):
+                os.remove(file_path)
+        except Exception as e:
+            app.logger.error(f"Failed to delete profile image file: {e}")
+            
+    # 2. Delete generated CSV exports for user from scratch/emails directory
+    try:
+        email_dir = os.path.join(app.root_path, '../scratch/emails')
+        if os.path.exists(email_dir):
+            pattern = os.path.join(email_dir, f"booking_history_user_{user_id}_*")
+            for f in glob.glob(pattern):
+                os.remove(f)
+    except Exception as e:
+        app.logger.error(f"Failed to delete booking CSVs: {e}")
+        
+    # 3. Delete matching records in the leads table by email
+    try:
+        db.session.execute(db.text("DELETE FROM leads WHERE email = :email"), {"email": user_email})
+    except Exception as e:
+        app.logger.error(f"Failed to delete leads for email {user_email}: {e}")
+        
+    # 4. Delete User database entry (triggers SQLAlchemy ORM cascade deletes)
+    db.session.delete(user)
+    db.session.commit()
+    
+    # 5. Clear the access token cookie and return response
+    response = make_response(jsonify({'message': 'Your account and all associated data have been permanently deleted.'}))
+    response.delete_cookie('access_token')
+    return response
+
+
+
 @app.route('/api/user/tickets', methods=['GET'])
 @login_required
 def get_user_tickets():
@@ -1094,6 +1293,7 @@ def create_user_ticket():
 @app.route('/api/admin/dashboard_data', methods=['GET'])
 @login_required
 def admin_dashboard_data():
+    update_completed_bookings()
     if current_user.role != 'admin':
         return jsonify({'error': 'Unauthorized'}), 403
         
@@ -1268,7 +1468,9 @@ def admin_dashboard_data():
             'paidOn': b.booked_on.strftime('%Y-%m-%d') if b.paid else '—',
             'transactionId': f"TXN{b.booked_on.strftime('%y%m%d')}{b.id:04d}" if b.paid else '—',
             'difficulty': b.trek.difficulty if b.trek else 'Moderate',
-            'location': b.trek.location if b.trek else ''
+            'location': b.trek.location if b.trek else '',
+            'startDate': b.trek.start_date.strftime('%Y-%m-%d') if (b.trek and b.trek.start_date) else '—',
+            'refundAmount': b.refund_amount or 0
         })
         
     popular_treks = []
@@ -1299,6 +1501,8 @@ def admin_dashboard_data():
     from datetime import date
     open_and_approved = Trek.query.filter(Trek.status.in_(['Open', 'Approved'])).all()
     for t in open_and_approved:
+        if t.end_date and t.end_date < date.today():
+            continue
         days_left = (t.start_date - date.today()).days if t.start_date else 0
         upcoming_treks.append({
             'name': t.name,
@@ -1647,6 +1851,7 @@ def admin_save_trek():
     price = data.get('price')
     status = data.get('status', 'Open')
     staff_id = data.get('staff_id')
+    staff_id = int(staff_id) if staff_id else None
     
     # 1. Compulsory fields validation
     if not trek_id and not trek_route_id:
@@ -1699,6 +1904,7 @@ def admin_save_trek():
         trek = Trek.query.get(trek_id)
         if not trek:
             return jsonify({'error': 'Trek not found'}), 404
+        previous_staff_id = trek.staff_id
         trek.start_date = start_date
         trek.end_date = end_date
         trek.slots = slots
@@ -1740,8 +1946,12 @@ def admin_save_trek():
             staff_id=staff_id
         )
         db.session.add(trek)
+        previous_staff_id = None
         
     db.session.commit()
+    if staff_id:
+        # Notify staff whenever they are assigned during batch creation/editing
+        dispatch_guide_assignment_email(staff_id, trek.id)
     invalidate_open_treks_cache()
     return jsonify({'success': True, 'trek': trek.to_json()})
 
@@ -1777,6 +1987,34 @@ def admin_close_batch(trek_id):
     db.session.commit()
     invalidate_open_treks_cache()
     return jsonify({'success': True, 'message': f"Batch '{trek.name}' has been closed. No further bookings are allowed.", 'trek': trek.to_json()})
+
+@app.route('/api/admin/batches/<int:trek_id>/complete', methods=['POST'])
+@login_required
+def admin_complete_batch(trek_id):
+    if current_user.role != 'admin':
+        return jsonify({'error': 'Unauthorized'}), 403
+        
+    trek = Trek.query.get(trek_id)
+    if not trek:
+        return jsonify({'error': 'Trek not found'}), 404
+    
+    if trek.status == 'Completed':
+        return jsonify({'error': 'Batch is already completed'}), 400
+        
+    trek.status = 'Completed'
+    
+    # Update all active bookings for this trek to Completed
+    bookings = Booking.query.filter_by(trek_id=trek.id, status='Booked').all()
+    for b in bookings:
+        b.status = 'Completed'
+        
+    db.session.commit()
+    invalidate_open_treks_cache()
+    return jsonify({
+        'success': True, 
+        'message': f"Batch '{trek.name}' has been marked as Completed.", 
+        'trek': trek.to_json()
+    })
 
 
 @app.route('/api/admin/batches/toggle/<int:trek_id>', methods=['POST'])
@@ -2157,10 +2395,33 @@ def admin_cancel_booking(booking_id):
         return jsonify({'error': 'Booking not found'}), 404
         
     booking.status = 'Cancelled'
-    if booking.payment_status == 'Paid' or booking.paid:
-        booking.payment_status = 'Refunded'
-        booking.amount_paid = 0
-        booking.paid = False
+    db.session.commit()
+    invalidate_open_treks_cache()
+    return jsonify({'success': True})
+
+@app.route('/api/admin/bookings/refund/<int:booking_id>', methods=['POST'])
+@login_required
+def admin_refund_booking(booking_id):
+    if current_user.role != 'admin':
+        return jsonify({'error': 'Unauthorized'}), 403
+        
+    booking = Booking.query.get(booking_id)
+    if not booking:
+        return jsonify({'error': 'Booking not found'}), 404
+        
+    data = request.get_json() or {}
+    refund_amount = data.get('refund_amount', 0)
+    
+    # Check bounds
+    paid_amt = booking.amount_paid or booking.booking_price or (booking.trek.price if booking.trek else 5000)
+    if refund_amount < 0 or refund_amount > paid_amt:
+        return jsonify({'error': f'Invalid refund amount. Must be between 0 and {paid_amt}.'}), 400
+        
+    booking.status = 'Cancelled'
+    booking.payment_status = 'Refunded'
+    booking.refund_amount = refund_amount
+    booking.paid = False
+    
     db.session.commit()
     invalidate_open_treks_cache()
     return jsonify({'success': True})
@@ -2343,6 +2604,8 @@ def admin_assign_trek(trek_id):
         
     trek.staff_id = staff.id
     db.session.commit()
+    # Always notify staff when admin explicitly assigns them to a trek
+    dispatch_guide_assignment_email(staff.id, trek.id)
     invalidate_open_treks_cache()
     return jsonify({'success': True})
 
@@ -2369,6 +2632,7 @@ def admin_trigger_report():
 @app.route('/api/staff/dashboard_data', methods=['GET'])
 @login_required
 def staff_dashboard_data():
+    update_completed_bookings()
     if current_user.role != 'staff':
         return jsonify({'error': 'Unauthorized'}), 403
         
@@ -2500,6 +2764,12 @@ def staff_update_status(trek_id):
     status = data.get('status')
     
     trek.status = status
+    if status == 'Completed':
+        # Update all active bookings for this trek to Completed
+        bookings = Booking.query.filter_by(trek_id=trek.id, status='Booked').all()
+        for b in bookings:
+            b.status = 'Completed'
+            
     db.session.commit()
     invalidate_open_treks_cache()
     return jsonify({'success': True})

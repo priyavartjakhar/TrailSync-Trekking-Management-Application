@@ -742,8 +742,17 @@ export default {
 
     // Next upcoming trek
     nextTrek() {
-      const open = this.assignedTreks.filter(t => t.status === 'Open' || t.status === 'Approved');
-      if (!open.length) return this.assignedTreks[0] || null;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const open = this.assignedTreks.filter(t => {
+        if (t.status !== 'Open' && t.status !== 'Approved') return false;
+        if (!t.endDate) return true;
+        const parts = t.endDate.split('-');
+        if (parts.length !== 3) return true;
+        const end = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+        return end >= today;
+      });
+      if (!open.length) return null;
       return open.sort((a, b) => new Date(a.startDate) - new Date(b.startDate))[0];
     },
 

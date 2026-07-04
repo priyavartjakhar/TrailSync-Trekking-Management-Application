@@ -77,6 +77,7 @@
         <TabBookings
           v-if="activeTab === 'bookings'"
           :my-bookings="myBookings"
+          :trek-history="trekHistory"
           @view-checklist="openChecklistModal"
           @view-guide="openGuideModal"
           @cancel-booking="cancelBooking"
@@ -95,10 +96,14 @@
         <TabProfile
           v-if="activeTab === 'profile'"
           :profile="profile"
+          :export-pending="exportPending"
           @update-profile="saveProfile"
           @update-password="changePassword"
           @change-tab="goTab"
+          @request-export="requestExport"
+          @delete-account="deleteAccount"
         />
+
 
         <!-- Support Tab -->
         <TabSupport
@@ -213,7 +218,7 @@
                     </div>
 
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px; border-top: 1px dashed rgba(26,46,26,0.08); padding-top: 8px;">
-                      <span style="font-size: 0.78rem; color: var(--stone);">👤 Guide: <strong>{{ b.staff || 'TBD' }}</strong></span>
+                      <span style="font-size: 0.78rem; color: var(--stone);">👤 Guide: <strong>{{ b.staff || 'To be decided' }}</strong></span>
                       <button
                         class="btn-book"
                         :class="{ 'btn-booked': isBooked(b.id), 'btn-full': !isBooked(b.id) && b.booked >= b.slots }"
@@ -323,16 +328,13 @@
     <!-- ── SIMULATED PAYMENT MODAL ────────────────── -->
     <transition name="toast">
       <div v-if="showPaymentModal" class="ts-modal-overlay" @click.self="dismissPaymentModal(false)">
-        <div class="ts-modal" style="max-width: 480px; border: none; box-shadow: 0 20px 50px rgba(0,0,0,0.3);">
+        <div class="ts-modal" style="max-width: 520px; border: none; box-shadow: 0 20px 50px rgba(0,0,0,0.3);">
           
           <!-- Header -->
           <div class="pay-sim-modal-header d-flex justify-content-between align-items-center">
             <div>
-              <div class="ts-modal-title" style="margin-bottom: 2px;">Secure Checkout</div>
-              <div class="pay-sim-badge">
-                <svg viewBox="0 0 24 24" style="width: 10px; height: 10px; fill: none; stroke: currentColor; stroke-width: 3;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                Sandbox Mode
-              </div>
+              <div class="ts-modal-title pay-sim-title">Select Payment Method</div>
+              <div class="pay-sim-subtitle">Choose how you want to confirm this trek booking.</div>
             </div>
             <button class="modal-close" @click="dismissPaymentModal(false)"><i class="bi bi-x-lg"></i></button>
           </div>
@@ -354,8 +356,8 @@
                   <strong class="mono" style="color: var(--gold-dark);">{{ paymentTrekBatch.batchCode }}</strong>
                 </div>
                 <div class="pay-sim-row">
-                  <span>Booking Reference</span>
-                  <span class="mono" style="font-size: 0.75rem;">TS-{{ Math.floor(100000 + Math.random() * 900000) }}</span>
+                  <span>Booking ID</span>
+                  <span class="mono" style="font-size: 0.75rem;">{{ isPendingRetry ? paymentTrekBatch.bookingId : 'Pending Generation' }}</span>
                 </div>
                 <div class="pay-sim-row total">
                   <span>Total Amount</span>
@@ -363,87 +365,160 @@
                 </div>
               </div>
 
-              <!-- Payment Method Tabs -->
-              <div style="margin-bottom: 1.25rem;">
-                <label style="font-weight: 700; font-size: 0.78rem; color: var(--forest); display: block; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.03em;">Select Payment Method</label>
+              <!-- Payment Methods -->
+              <div v-if="!selectedPaymentMethod" class="pay-sim-method-section">
+                <label class="pay-sim-section-label">Select Payment Method</label>
                 <div class="pay-sim-methods">
-                  <div class="pay-sim-method-card" :class="{ active: selectedPaymentMethod === 'UPI' }" @click="selectedPaymentMethod = 'UPI'">
-                    <div style="font-size: 1.1rem; margin-bottom: 3px;"><i class="bi bi-lightning-charge-fill"></i></div>
-                    <div>UPI</div>
-                  </div>
-                  <div class="pay-sim-method-card" :class="{ active: selectedPaymentMethod === 'Card' }" @click="selectedPaymentMethod = 'Card'">
-                    <div style="font-size: 1.1rem; margin-bottom: 3px;"><i class="bi bi-credit-card-2-front-fill"></i></div>
-                    <div>Card</div>
-                  </div>
-                  <div class="pay-sim-method-card" :class="{ active: selectedPaymentMethod === 'Netbanking' }" @click="selectedPaymentMethod = 'Netbanking'">
-                    <div style="font-size: 1.1rem; margin-bottom: 3px;"><i class="bi bi-bank"></i></div>
-                    <div>Bank</div>
-                  </div>
+                  <button type="button" class="pay-sim-method-card" @click="selectedPaymentMethod = 'UPI'">
+                    <span class="pay-sim-method-icon"><i class="bi bi-lightning-charge-fill"></i></span>
+                    <span class="pay-sim-method-copy">
+                      <strong>UPI</strong>
+                      <small>Pay using any UPI ID</small>
+                    </span>
+                    <i class="bi bi-chevron-right"></i>
+                  </button>
+                  <button type="button" class="pay-sim-method-card" @click="selectedPaymentMethod = 'Netbanking'">
+                    <span class="pay-sim-method-icon"><i class="bi bi-bank"></i></span>
+                    <span class="pay-sim-method-copy">
+                      <strong>Netbanking</strong>
+                      <small>Select your bank account</small>
+                    </span>
+                    <i class="bi bi-chevron-right"></i>
+                  </button>
+                  <button type="button" class="pay-sim-method-card" @click="selectedPaymentMethod = 'EMI'">
+                    <span class="pay-sim-method-icon"><i class="bi bi-calendar2-check"></i></span>
+                    <span class="pay-sim-method-copy">
+                      <strong>EMI Options</strong>
+                      <small>Split the trek fee</small>
+                    </span>
+                    <i class="bi bi-chevron-right"></i>
+                  </button>
+                  <button type="button" class="pay-sim-method-card" @click="selectedPaymentMethod = 'Card'">
+                    <span class="pay-sim-method-icon"><i class="bi bi-credit-card-2-front-fill"></i></span>
+                    <span class="pay-sim-method-copy">
+                      <strong>Card (Debit/Credit)</strong>
+                      <small>Use card details</small>
+                    </span>
+                    <i class="bi bi-chevron-right"></i>
+                  </button>
+                  <button type="button" class="pay-sim-method-card" @click="selectedPaymentMethod = 'PayLater'">
+                    <span class="pay-sim-method-icon"><i class="bi bi-cash-coin"></i></span>
+                    <span class="pay-sim-method-copy">
+                      <strong>Pay Later / Pay at Base Camp</strong>
+                      <small>Reserve now, pay before trek</small>
+                    </span>
+                    <i class="bi bi-chevron-right"></i>
+                  </button>
                 </div>
               </div>
 
-              <!-- Interactive Fields: UPI -->
-              <div v-if="selectedPaymentMethod === 'UPI'" class="pay-sim-card-view">
-                <label style="font-size: 0.72rem; color: var(--stone); display: block; margin-bottom: 6px; font-weight: 600;">UPI Virtual Payment Address (VPA)</label>
-                <div class="position-relative">
-                  <input type="text" class="pay-sim-input" placeholder="e.g. trekker@upi" v-model="paymentDetails.upiId" style="padding-right: 6.5rem;" />
-                  <div style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); display: flex; gap: 4px;">
-                    <button class="btn btn-sm" @click="paymentDetails.upiId = 'trek@okaxis'" style="padding: 2px 6px; font-size: 0.65rem; background: var(--cream); color: var(--forest); border: 1px solid rgba(26,46,26,0.15); font-weight: 600; cursor: pointer;">Demo VPA</button>
-                  </div>
-                </div>
-                <div style="font-size: 0.68rem; color: var(--stone); margin-top: 5px;">Enter any simulated UPI ID to authorize payments.</div>
-              </div>
-
-              <!-- Interactive Fields: Card -->
-              <div v-if="selectedPaymentMethod === 'Card'" class="pay-sim-card-view">
-                <div style="margin-bottom: 10px;">
-                  <label style="font-size: 0.72rem; color: var(--stone); display: block; margin-bottom: 3px; font-weight: 600;">Cardholder Name</label>
-                  <input type="text" class="pay-sim-input" placeholder="e.g. Priyavart Jakhar" v-model="paymentDetails.cardName" />
-                </div>
-                <div style="margin-bottom: 10px;">
-                  <label style="font-size: 0.72rem; color: var(--stone); display: block; margin-bottom: 3px; font-weight: 600;">Card Number</label>
-                  <input type="text" class="pay-sim-input" placeholder="4111 2222 3333 4444" :value="paymentDetails.cardNumber" @input="onCardNumberInput" />
-                </div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+              <template v-else>
+                <div class="pay-sim-selected-head">
                   <div>
-                    <label style="font-size: 0.72rem; color: var(--stone); display: block; margin-bottom: 3px; font-weight: 600;">Expiry Date</label>
-                    <input type="text" class="pay-sim-input" placeholder="MM/YY" :value="paymentDetails.cardExpiry" @input="onCardExpiryInput" />
+                    <span class="pay-sim-selected-label">Selected Method</span>
+                    <strong>{{ paymentMethodLabel(selectedPaymentMethod) }}</strong>
                   </div>
+                  <button type="button" class="pay-sim-change-btn" @click="selectedPaymentMethod = ''">
+                    <i class="bi bi-arrow-left"></i> Change Payment Method
+                  </button>
+                </div>
+
+                <!-- Interactive Fields: UPI -->
+                <div v-if="selectedPaymentMethod === 'UPI'" class="pay-sim-card-view">
+                  <label class="pay-sim-field-label">UPI Virtual Payment Address (VPA)</label>
+                  <div class="position-relative">
+                    <input type="text" class="pay-sim-input has-action" placeholder="e.g. trekker@upi" v-model="paymentDetails.upiId" />
+                    <div class="pay-sim-input-action">
+                      <button type="button" class="pay-sim-mini-btn" @click="paymentDetails.upiId = 'trek@okaxis'">Use demo</button>
+                    </div>
+                  </div>
+                  <div class="pay-sim-help">Enter any UPI ID to continue.</div>
+                </div>
+
+                <!-- Interactive Fields: Card -->
+                <div v-if="selectedPaymentMethod === 'Card'" class="pay-sim-card-view">
+                  <div class="pay-sim-field">
+                    <label class="pay-sim-field-label">Cardholder Name</label>
+                    <input type="text" class="pay-sim-input" placeholder="e.g. Priyavart Jakhar" v-model="paymentDetails.cardName" />
+                  </div>
+                  <div class="pay-sim-field">
+                    <label class="pay-sim-field-label">Card Number</label>
+                    <input type="text" class="pay-sim-input" placeholder="4111 2222 3333 4444" :value="paymentDetails.cardNumber" @input="onCardNumberInput" />
+                  </div>
+                  <div class="pay-sim-two-col">
+                    <div>
+                      <label class="pay-sim-field-label">Expiry Date</label>
+                      <input type="text" class="pay-sim-input" placeholder="MM/YY" :value="paymentDetails.cardExpiry" @input="onCardExpiryInput" />
+                    </div>
+                    <div>
+                      <label class="pay-sim-field-label">CVV Code</label>
+                      <input type="password" class="pay-sim-input" placeholder="•••" :value="paymentDetails.cardCvv" @input="onCardCvvInput" />
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Interactive Fields: Netbanking -->
+                <div v-if="selectedPaymentMethod === 'Netbanking'" class="pay-sim-card-view">
+                  <div class="pay-sim-field">
+                    <label class="pay-sim-field-label">Select Bank</label>
+                    <select class="pay-sim-input" v-model="paymentDetails.bank">
+                      <option>State Bank of India</option>
+                      <option>HDFC Bank</option>
+                      <option>ICICI Bank</option>
+                      <option>Axis Bank</option>
+                      <option>Kotak Mahindra Bank</option>
+                    </select>
+                  </div>
+                  <div class="pay-sim-field">
+                    <label class="pay-sim-field-label">Customer ID / User ID</label>
+                    <input type="text" class="pay-sim-input" placeholder="Enter bank user ID" v-model="paymentDetails.bankUserId" />
+                  </div>
+                  <div class="pay-sim-help">Your bank selection will be used for this payment.</div>
+                </div>
+
+                <!-- Interactive Fields: EMI -->
+                <div v-if="selectedPaymentMethod === 'EMI'" class="pay-sim-card-view">
+                  <div class="pay-sim-field">
+                    <label class="pay-sim-field-label">EMI Provider</label>
+                    <select class="pay-sim-input" v-model="paymentDetails.emiProvider">
+                      <option>HDFC Bank</option>
+                      <option>ICICI Bank</option>
+                      <option>Axis Bank</option>
+                      <option>Bajaj Finance</option>
+                    </select>
+                  </div>
+                  <div class="pay-sim-field">
+                    <label class="pay-sim-field-label">Tenure</label>
+                    <select class="pay-sim-input" v-model="paymentDetails.emiTenure">
+                      <option>3 months</option>
+                      <option>6 months</option>
+                      <option>9 months</option>
+                      <option>12 months</option>
+                    </select>
+                  </div>
+                  <div class="pay-sim-help">EMI approval is prepared for this booking flow.</div>
+                </div>
+
+                <!-- Interactive Fields: Pay Later -->
+                <div v-if="selectedPaymentMethod === 'PayLater'" class="pay-sim-card-view pay-sim-offline-note">
+                  <div class="pay-sim-offline-icon"><i class="bi bi-geo-alt-fill"></i></div>
                   <div>
-                    <label style="font-size: 0.72rem; color: var(--stone); display: block; margin-bottom: 3px; font-weight: 600;">CVV Code</label>
-                    <input type="password" class="pay-sim-input" placeholder="•••" :value="paymentDetails.cardCvv" @input="onCardCvvInput" />
+                    <strong>Pay at Base Camp</strong>
+                    <p>Your seat will be reserved now and the booking will stay pending until payment is collected at base camp.</p>
                   </div>
                 </div>
-              </div>
 
-              <!-- Interactive Fields: Netbanking -->
-              <div v-if="selectedPaymentMethod === 'Netbanking'" class="pay-sim-card-view">
-                <label style="font-size: 0.72rem; color: var(--stone); display: block; margin-bottom: 6px; font-weight: 600;">Select Bank Account</label>
-                <select class="pay-sim-input" v-model="paymentDetails.bank">
-                  <option>State Bank of India</option>
-                  <option>HDFC Bank</option>
-                  <option>ICICI Bank</option>
-                  <option>Axis Bank</option>
-                  <option>Kotak Mahindra Bank</option>
-                </select>
-                <div style="font-size: 0.68rem; color: var(--stone); margin-top: 5px;">You will be redirected to a simulated bank login page.</div>
-              </div>
-
-              <!-- Action Buttons -->
-              <div>
-                <div style="font-size: 0.78rem; font-weight: 700; color: var(--stone); text-align: center; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.03em;">Sandbox Testing Outcomes</div>
-                <div class="pay-sim-btn-group">
-                  <button @click="processSimulatedPayment('Paid')" class="pay-sim-btn success">
-                    <span><i class="bi bi-check2-circle"></i></span> Authorize Payment (Simulation Success)
+                <!-- Action Buttons -->
+                <div class="pay-sim-actions">
+                  <button type="button" @click="processSelectedPayment" class="pay-sim-btn success">
+                    <span><i class="bi bi-shield-check"></i></span>
+                    {{ selectedPaymentMethod === 'PayLater' ? 'Pay Later' : 'Pay' }} (₹{{ paymentTrekBatch.price.toLocaleString() }})
                   </button>
-                  <button @click="processSimulatedPayment('Pending')" class="pay-sim-btn pending">
-                    <span><i class="bi bi-hourglass-split"></i></span> Pay Later / Offline (Simulation Pending)
-                  </button>
-                  <button @click="processSimulatedPayment('Failed')" class="pay-sim-btn failure">
-                    <span><i class="bi bi-x-circle"></i></span> Decline Transaction (Simulation Failure)
+                  <button type="button" class="pay-sim-btn cancel" @click="dismissPaymentModal(false)">
+                    Cancel Payment
                   </button>
                 </div>
-              </div>
+              </template>
             </template>
 
             <!-- STATE 2: Processing Loader Screen -->
@@ -471,8 +546,8 @@
                     <strong>{{ paymentTrekBatch.name }}</strong>
                   </div>
                   <div class="pay-sim-row" style="margin-bottom: 4px;">
-                    <span>Transaction ID</span>
-                    <span class="mono">TXN{{ Math.floor(100000000 + Math.random() * 900000000) }}</span>
+                    <span>Booking ID</span>
+                    <strong class="mono">{{ paymentResultBookingId }}</strong>
                   </div>
                   <div class="pay-sim-row" style="margin-bottom: 4px;">
                     <span>Method</span>
@@ -484,7 +559,9 @@
                   </div>
                 </div>
 
-                <button class="btn-primary-ts w-100" @click="dismissPaymentModal(true)">Go to My Bookings</button>
+                <button class="pay-sim-bookings-btn" @click="dismissPaymentModal(true)">
+                  Go to My Bookings <i class="bi bi-arrow-right"></i>
+                </button>
               </div>
             </template>
 
@@ -493,12 +570,16 @@
               <div class="pay-sim-result-wrap">
                 <div class="pay-sim-icon-circle pending"><i class="bi bi-hourglass-split"></i></div>
                 <div class="pay-sim-result-title">Offline / Pending Booking</div>
-                <div class="pay-sim-result-text">Your booking state has been saved as pending. You can complete the payment simulation later under the "Bookings" tab.</div>
+                <div class="pay-sim-result-text">Your booking has been reserved. The payment is marked pending and can be completed at base camp.</div>
                 
                 <div class="pay-sim-receipt-summary">
                   <div class="pay-sim-row" style="margin-bottom: 4px;">
                     <span>Trek Booking</span>
                     <strong>{{ paymentTrekBatch.name }}</strong>
+                  </div>
+                  <div class="pay-sim-row" style="margin-bottom: 4px;">
+                    <span>Booking ID</span>
+                    <strong class="mono">{{ paymentResultBookingId }}</strong>
                   </div>
                   <div class="pay-sim-row" style="margin-bottom: 4px;">
                     <span>Booking Status</span>
@@ -510,7 +591,9 @@
                   </div>
                 </div>
 
-                <button class="btn-primary-ts w-100" @click="dismissPaymentModal(true)">Go to My Bookings</button>
+                <button class="pay-sim-bookings-btn" @click="dismissPaymentModal(true)">
+                  Go to My Bookings <i class="bi bi-arrow-right"></i>
+                </button>
               </div>
             </template>
 
@@ -530,9 +613,30 @@
 
           </div>
 
-          <!-- Footer (Only on selection state) -->
-          <div class="ts-modal-footer" v-if="!paymentProcessing && !paymentResultState">
-            <button class="btn-modal-cancel" @click="dismissPaymentModal(false)">Cancel Payment</button>
+        </div>
+      </div>
+    </transition>
+
+    <!-- ── CANCEL BOOKING CONFIRMATION MODAL ─────────── -->
+    <transition name="modal">
+      <div v-if="showCancelConfirm" class="ts-modal-overlay" @click.self="showCancelConfirm = false">
+        <div class="ts-confirm-dialog">
+          <div class="ts-confirm-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 36px; height: 36px; color: #ef4444;">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="15" y1="9" x2="9" y2="15"/>
+              <line x1="9" y1="9" x2="15" y2="15"/>
+            </svg>
+          </div>
+          <div class="ts-confirm-title">Cancel Booking?</div>
+          <div class="ts-confirm-text">
+            Are you sure you want to cancel your booking for
+            <strong>{{ cancelTarget ? cancelTarget.trekName : '' }}</strong>?
+            This action cannot be undone.
+          </div>
+          <div class="ts-confirm-actions">
+            <button class="ts-confirm-btn ts-confirm-btn--cancel" @click="showCancelConfirm = false">Keep Booking</button>
+            <button class="ts-confirm-btn ts-confirm-btn--danger" @click="confirmCancelBooking">Yes, Cancel</button>
           </div>
         </div>
       </div>
@@ -618,22 +722,30 @@ export default {
       termsAccepted: false,
       showPaymentModal: false,
       paymentTrekBatch: null,
-      selectedPaymentMethod: 'UPI',
+      selectedPaymentMethod: '',
       isPendingRetry: false,
       retryBookingId: null,
+
+      // ── CANCEL CONFIRMATION MODAL ──────────────────
+      showCancelConfirm: false,
+      cancelTarget: null,
 
       // ── SIMULATED PAYMENT GATEWAY STATE ───────────
       paymentProcessing: false,
       paymentProcessingMsg: '',
       paymentProcessingProgress: 0,
       paymentResultState: null,
+      paymentResultBookingId: '',
       paymentDetails: {
         cardNumber: '',
         cardName: '',
         cardExpiry: '',
         cardCvv: '',
         upiId: '',
-        bank: 'State Bank of India'
+        bank: 'State Bank of India',
+        bankUserId: '',
+        emiProvider: 'HDFC Bank',
+        emiTenure: '3 months'
       },
 
       // ── SEARCH / FILTERS ─────────────────────────
@@ -739,7 +851,16 @@ export default {
 
     // Next upcoming booked trek
     nextTrek() {
-      const booked = this.myBookings.filter(b => b.status === 'Booked');
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const booked = this.myBookings.filter(b => {
+        if (b.status !== 'Booked') return false;
+        if (!b.endDate) return true;
+        const parts = b.endDate.split('-');
+        if (parts.length !== 3) return true;
+        const end = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+        return end >= today;
+      });
       if (!booked.length) return null;
       return booked.sort((a, b) => new Date(a.startDate) - new Date(b.startDate))[0];
     },
@@ -1127,7 +1248,8 @@ export default {
         name: b.trekName,
         location: b.location,
         price: b.price || b.bookingPrice || 5000,
-        batchCode: b.batchCode || 'N/A'
+        batchCode: b.batchCode || 'N/A',
+        bookingId: b.bookingId
       };
       this.isPendingRetry = true;
       this.retryBookingId = b.id;
@@ -1139,13 +1261,17 @@ export default {
       this.paymentProcessing = false;
       this.paymentProcessingProgress = 0;
       this.paymentProcessingMsg = '';
+      this.selectedPaymentMethod = '';
       this.paymentDetails = {
         cardNumber: '',
         cardName: '',
         cardExpiry: '',
         cardCvv: '',
         upiId: '',
-        bank: 'State Bank of India'
+        bank: 'State Bank of India',
+        bankUserId: '',
+        emiProvider: 'HDFC Bank',
+        emiTenure: '3 months'
       };
     },
     async dismissPaymentModal(shouldFetch = true) {
@@ -1154,6 +1280,7 @@ export default {
       this.paymentResultState = null;
       if (shouldFetch) {
         await this.fetchUserData();
+        this.goTab('bookings');
       }
     },
     onCardNumberInput(e) {
@@ -1180,6 +1307,84 @@ export default {
       if (val.length > 3) val = val.slice(0, 3);
       this.paymentDetails.cardCvv = val;
     },
+    paymentMethodLabel(method) {
+      const labels = {
+        UPI: 'UPI',
+        Netbanking: 'Netbanking',
+        EMI: 'EMI Options',
+        Card: 'Card (Debit/Credit)',
+        PayLater: 'Pay Later / Pay at Base Camp'
+      };
+      return labels[method] || 'Payment Method';
+    },
+    processSelectedPayment() {
+      if (!this.selectedPaymentMethod) {
+        this.showToast('Select a payment method first.', 'warning');
+        return;
+      }
+      if (this.selectedPaymentMethod === 'PayLater') {
+        this.processOfflinePayment();
+        return;
+      }
+      this.processSimulatedPayment('Paid');
+    },
+    async submitPaymentStatus(status) {
+      let res, data;
+      const payment_method = this.selectedPaymentMethod || 'Direct Booking (Auto-Paid)';
+      let details = {};
+      if (this.selectedPaymentMethod === 'Card') {
+        details = { cardName: this.paymentDetails.cardName, cardNumber: this.paymentDetails.cardNumber };
+      } else if (this.selectedPaymentMethod === 'UPI') {
+        details = { upiId: this.paymentDetails.upiId };
+      } else if (this.selectedPaymentMethod === 'Netbanking') {
+        details = { bank: this.paymentDetails.bank, bankUserId: this.paymentDetails.bankUserId };
+      } else if (this.selectedPaymentMethod === 'EMI') {
+        details = { emiProvider: this.paymentDetails.emiProvider, emiTenure: this.paymentDetails.emiTenure };
+      }
+      if (this.isPendingRetry) {
+        res = await fetch(`/api/bookings/pay/${this.retryBookingId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            payment_status: status,
+            payment_method: payment_method,
+            payment_details: details
+          })
+        });
+        data = await res.json();
+      } else {
+        res = await fetch('/api/bookings/book', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            trek_id: this.paymentTrekBatch.id,
+            payment_status: status,
+            payment_method: payment_method,
+            payment_details: details
+          })
+        });
+        data = await res.json();
+      }
+      return { res, data };
+    },
+    async processOfflinePayment() {
+      if (!this.paymentTrekBatch) return;
+      try {
+        const { res, data } = await this.submitPaymentStatus('Pending');
+        if (res.ok) {
+          this.paymentResultBookingId = data.unique_booking_id || ('#' + data.booking_id) || '—';
+          this.paymentResultState = 'Pending';
+          this.showToast(data.message || 'Booking saved as pending. Pay at base camp.', 'warning');
+        } else {
+          this.paymentResultState = 'Failed';
+          this.showToast(data.error || 'Could not save pending booking', 'error');
+        }
+      } catch (e) {
+        console.error('Payment error:', e);
+        this.paymentResultState = 'Failed';
+        this.showToast('Failed to contact server. Booking could not be saved.', 'error');
+      }
+    },
     async processSimulatedPayment(status) {
       if (!this.paymentTrekBatch) return;
 
@@ -1203,30 +1408,13 @@ export default {
       this.paymentProcessingMsg = 'Finalizing reservation details...';
 
       try {
-        let res, data;
-        if (this.isPendingRetry) {
-          res = await fetch(`/api/bookings/pay/${this.retryBookingId}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ payment_status: status })
-          });
-          data = await res.json();
-        } else {
-          res = await fetch('/api/bookings/book', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              trek_id: this.paymentTrekBatch.id,
-              payment_status: status
-            })
-          });
-          data = await res.json();
-        }
+        const { res, data } = await this.submitPaymentStatus(status);
 
         this.paymentProcessingProgress = 100;
         await sleep(350);
 
         if (res.ok) {
+          this.paymentResultBookingId = data.unique_booking_id || ('#' + data.booking_id) || '—';
           this.paymentProcessing = false;
           this.paymentResultState = status;
 
@@ -1265,7 +1453,12 @@ export default {
         const res = await fetch('/api/bookings/book', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ trek_id: t.id })
+          body: JSON.stringify({
+            trek_id: t.id,
+            payment_status: 'Paid',
+            payment_method: 'Direct Booking (Auto-Paid)',
+            payment_details: {}
+          })
         });
         const data = await res.json();
         if (res.ok) {
@@ -1281,8 +1474,15 @@ export default {
       this.showBookingModal = false;
     },
 
-    async cancelBooking(b) {
-      if (!confirm(`Cancel booking for ${b.trekName}? This cannot be undone.`)) return;
+    cancelBooking(b) {
+      this.cancelTarget = b;
+      this.showCancelConfirm = true;
+    },
+    async confirmCancelBooking() {
+      const b = this.cancelTarget;
+      this.showCancelConfirm = false;
+      this.cancelTarget = null;
+      if (!b) return;
       try {
         const res = await fetch(`/api/bookings/cancel/${b.id}`, { method: 'POST' });
         const data = await res.json();
@@ -1326,9 +1526,13 @@ export default {
         this.profileImageFile = null;
       }
     },
-    async saveProfile(updatedFields) {
-      if (updatedFields) {
-        this.editProfile = { ...this.editProfile, ...updatedFields };
+    async saveProfile(payload) {
+      if (payload) {
+        const fields = payload.updatedFields || payload;
+        this.editProfile = { ...this.editProfile, ...fields };
+        if (payload.profileImageFile) {
+          this.profileImageFile = payload.profileImageFile;
+        }
       }
       try {
         const formData = new FormData();
@@ -1353,6 +1557,9 @@ export default {
           }
           this.userName = this.profile.name;
           this.isEditingProfile = false;
+          if (payload && typeof payload.successCallback === 'function') {
+            payload.successCallback();
+          }
           this.showToast(data.message || 'Profile saved.', 'success');
           await this.fetchUserData();
         } else {
@@ -1401,6 +1608,24 @@ export default {
       } catch (e) {
         console.error('Password change error:', e);
         this.showToast('Failed to contact server. Password not updated.', 'error');
+      }
+    },
+
+    async deleteAccount() {
+      try {
+        const res = await fetch('/api/user/delete', {
+          method: 'DELETE'
+        });
+        const data = await res.json();
+        if (res.ok) {
+          this.showToast(data.message || 'Account successfully deleted.', 'success');
+          this.$emit('logout');
+        } else {
+          this.showToast(data.error || 'Failed to delete account.', 'error');
+        }
+      } catch (e) {
+        console.error('Delete account error:', e);
+        this.showToast('Failed to contact server. Account deletion failed.', 'error');
       }
     },
 
@@ -1513,15 +1738,18 @@ export default {
         }
       } catch (_) {}
     },
-    async sendSocialMessage() {
-      if (!this.newSocialMessageText.trim()) return;
-      try {
-        const text = this.newSocialMessageText.trim();
+    async sendSocialMessage(messageText) {
+      const text = messageText || this.newSocialMessageText;
+      if (!text || !text.trim()) return;
+      if (!messageText) {
         this.newSocialMessageText = '';
+      }
+      try {
+        const cleanedText = text.trim();
         const res = await fetch(`/api/social/group/${this.selectedSocialTrekId}/messages`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messageText: text })
+          body: JSON.stringify({ messageText: cleanedText })
         });
         if (res.ok) {
           await this.fetchSocialGroupMessages(this.selectedSocialTrekId);

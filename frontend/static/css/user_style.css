@@ -12,6 +12,7 @@
   --gold: #c8922a;
   --gold-light: #e8b84b;
   --cream: #f5f0e8;
+  --red: #dc3545;
   --stone: #8c8070;
   --snow: #fdfaf5;
   --bark: #4a3728;
@@ -2084,6 +2085,12 @@ body {
 @media (max-width: 650px) {
   .stats-row { grid-template-columns: 1fr 1fr; }
   .treks-grid-user { grid-template-columns: 1fr; }
+  .pay-sim-actions { grid-template-columns: 1fr; }
+  .pay-sim-row { gap: 12px; }
+  .pay-sim-row strong,
+  .pay-sim-row span:last-child {
+    text-align: right;
+  }
   .dash-hero {
     min-height: auto;
   }
@@ -2111,6 +2118,21 @@ body {
 @media (max-width: 480px) {
   .stats-row { grid-template-columns: 1fr; }
   .achievements-grid { grid-template-columns: repeat(2, 1fr); }
+  .pay-sim-selected-head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .pay-sim-change-btn {
+    justify-content: center;
+    width: 100%;
+  }
+  .pay-sim-two-col { grid-template-columns: 1fr; }
+  .pay-sim-method-card {
+    grid-template-columns: 32px minmax(0, 1fr);
+  }
+  .pay-sim-method-card > .bi {
+    display: none;
+  }
 }
 
 /* Spinner for Weather Loader */
@@ -2355,6 +2377,16 @@ body {
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+.pay-sim-title {
+  margin-bottom: 2px;
+}
+
+.pay-sim-subtitle {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
 .pay-sim-badge {
   background: rgba(255, 255, 255, 0.12);
   color: var(--gold);
@@ -2404,24 +2436,40 @@ body {
   color: var(--forest);
 }
 
+.pay-sim-method-section {
+  margin-bottom: 1rem;
+}
+
+.pay-sim-section-label {
+  color: var(--forest);
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.6rem;
+  text-transform: uppercase;
+}
+
 .pay-sim-methods {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-  margin-bottom: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .pay-sim-method-card {
-  border: 2px solid var(--stone-light);
-  background: #fff;
+  align-items: center;
+  border: 1px solid rgba(26, 46, 26, 0.12);
+  background: rgba(255, 255, 255, 0.82);
   border-radius: 8px;
-  padding: 12px 6px;
-  text-align: center;
+  color: var(--forest);
   cursor: pointer;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 34px minmax(0, 1fr) 16px;
+  padding: 10px 12px;
+  text-align: left;
   transition: all 0.2s ease;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--stone);
+  width: 100%;
 }
 
 .pay-sim-method-card:hover {
@@ -2430,19 +2478,127 @@ body {
 }
 
 .pay-sim-method-card.active {
-  border-color: var(--gold);
-  background: var(--cream);
+  border-color: rgba(26, 46, 26, 0.45);
+  background: rgba(168, 197, 160, 0.22);
   color: var(--forest);
-  font-weight: 700;
-  box-shadow: 0 4px 12px rgba(212, 175, 55, 0.15);
+  box-shadow: 0 8px 20px rgba(26, 46, 26, 0.1);
+}
+
+.pay-sim-method-icon {
+  align-items: center;
+  background: var(--cream);
+  border: 1px solid rgba(26, 46, 26, 0.1);
+  border-radius: 8px;
+  color: var(--forest);
+  display: flex;
+  height: 34px;
+  justify-content: center;
+  width: 34px;
+}
+
+.pay-sim-method-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.pay-sim-method-copy strong {
+  font-size: 0.86rem;
+  line-height: 1.2;
+}
+
+.pay-sim-method-copy small {
+  color: var(--stone);
+  font-size: 0.72rem;
+  line-height: 1.25;
+}
+
+.pay-sim-method-card > .bi {
+  color: var(--stone);
+  font-size: 0.82rem;
+}
+
+.pay-sim-method-card.active > .bi {
+  color: var(--forest);
+}
+
+.pay-sim-selected-head {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(26, 46, 26, 0.12);
+  border-radius: 8px;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  margin-bottom: 0.85rem;
+  padding: 0.85rem 1rem;
+}
+
+.pay-sim-selected-head strong {
+  color: var(--forest);
+  display: block;
+  font-size: 0.95rem;
+  line-height: 1.25;
+}
+
+.pay-sim-selected-label {
+  color: var(--stone);
+  display: block;
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  margin-bottom: 2px;
+  text-transform: uppercase;
+}
+
+.pay-sim-change-btn {
+  align-items: center;
+  background: var(--cream);
+  border: 1px solid rgba(26, 46, 26, 0.14);
+  border-radius: 6px;
+  color: var(--forest);
+  cursor: pointer;
+  display: inline-flex;
+  flex-shrink: 0;
+  font-size: 0.74rem;
+  font-weight: 800;
+  gap: 6px;
+  padding: 8px 10px;
+}
+
+.pay-sim-change-btn:hover {
+  background: rgba(168, 197, 160, 0.22);
 }
 
 .pay-sim-card-view {
-  background: var(--snow);
-  border: 1px solid var(--stone-light);
+  background: rgba(245, 240, 230, 0.68);
+  border: 1px solid rgba(26, 46, 26, 0.12);
   border-radius: 8px;
-  padding: 1.25rem;
-  margin-bottom: 1.5rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.pay-sim-field {
+  margin-bottom: 10px;
+}
+
+.pay-sim-field:last-child {
+  margin-bottom: 0;
+}
+
+.pay-sim-field-label {
+  color: var(--stone);
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  margin-bottom: 5px;
+}
+
+.pay-sim-two-col {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .pay-sim-input {
@@ -2456,6 +2612,10 @@ body {
   transition: border-color 0.2s ease;
 }
 
+.pay-sim-input.has-action {
+  padding-right: 6.5rem;
+}
+
 .pay-sim-input:focus {
   outline: none;
   border-color: var(--forest);
@@ -2464,6 +2624,76 @@ body {
 
 .pay-sim-input::placeholder {
   color: #a0a0a0;
+}
+
+.pay-sim-input-action {
+  display: flex;
+  gap: 4px;
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.pay-sim-mini-btn {
+  background: var(--cream);
+  border: 1px solid rgba(26, 46, 26, 0.15);
+  border-radius: 5px;
+  color: var(--forest);
+  cursor: pointer;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 3px 7px;
+}
+
+.pay-sim-help {
+  color: var(--stone);
+  font-size: 0.68rem;
+  line-height: 1.4;
+  margin-top: 5px;
+}
+
+.pay-sim-offline-note {
+  align-items: flex-start;
+  display: flex;
+  gap: 12px;
+}
+
+.pay-sim-offline-note strong {
+  color: var(--forest);
+  display: block;
+  font-size: 0.95rem;
+  margin-bottom: 4px;
+}
+
+.pay-sim-offline-note p {
+  color: var(--stone);
+  font-size: 0.8rem;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.pay-sim-offline-icon {
+  align-items: center;
+  background: rgba(200, 146, 42, 0.14);
+  border: 1px solid rgba(200, 146, 42, 0.2);
+  border-radius: 8px;
+  color: var(--gold);
+  display: flex;
+  flex-shrink: 0;
+  height: 34px;
+  justify-content: center;
+  width: 34px;
+}
+
+.pay-sim-actions {
+  background: rgba(245, 240, 230, 0.68);
+  border: 1px solid rgba(26, 46, 26, 0.12);
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.9fr);
+  padding: 0.75rem;
 }
 
 .pay-sim-btn-group {
@@ -2488,14 +2718,14 @@ body {
 }
 
 .pay-sim-btn.success {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  background: linear-gradient(135deg, var(--forest) 0%, #2f6b3a 100%);
   color: white;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+  box-shadow: 0 4px 12px rgba(26, 46, 26, 0.18);
 }
 
 .pay-sim-btn.success:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.3);
+  box-shadow: 0 6px 16px rgba(26, 46, 26, 0.26);
 }
 
 .pay-sim-btn.pending {
@@ -2518,6 +2748,18 @@ body {
 .pay-sim-btn.failure:hover {
   transform: translateY(-1px);
   box-shadow: 0 6px 16px rgba(239, 68, 68, 0.3);
+}
+
+.pay-sim-btn.cancel {
+  background: rgba(245, 240, 230, 0.68);
+  border: 1px solid var(--red);
+  color: var(--red);
+  box-shadow: none;
+}
+
+.pay-sim-btn.cancel:hover {
+  background: rgba(220, 53, 69, 0.08);
+  transform: translateY(-1px);
 }
 
 /* Loader stage */
@@ -2627,6 +2869,29 @@ body {
   font-size: 0.8rem;
 }
 
+.pay-sim-bookings-btn {
+  align-items: center;
+  background: linear-gradient(135deg, var(--forest) 0%, var(--forest-light) 100%);
+  border: 1px solid rgba(26, 46, 26, 0.12);
+  border-radius: 8px;
+  box-shadow: 0 10px 22px rgba(26, 46, 26, 0.18);
+  color: #fff;
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 0.92rem;
+  font-weight: 800;
+  gap: 8px;
+  justify-content: center;
+  padding: 12px 16px;
+  transition: all 0.2s ease;
+  width: 100%;
+}
+
+.pay-sim-bookings-btn:hover {
+  box-shadow: 0 12px 26px rgba(26, 46, 26, 0.24);
+  transform: translateY(-1px);
+}
+
 /* ── TRAILSYNC SOCIAL HUB ── */
 .social-channel-item {
   border-left: 4px solid transparent;
@@ -2656,3 +2921,74 @@ body {
   background: rgba(200, 146, 42, 0.08);
 }
 
+/* ── CUSTOM CONFIRM DIALOG ──────────────────────── */
+.ts-confirm-dialog {
+  background: #fff;
+  border-radius: 14px;
+  padding: 2rem 2rem 1.5rem;
+  max-width: 400px;
+  width: 92%;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.25), 0 0 0 1px rgba(26,46,26,0.06);
+  animation: confirmSlideIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes confirmSlideIn {
+  from { opacity: 0; transform: scale(0.85) translateY(20px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+.ts-confirm-icon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 1rem;
+  border-radius: 50%;
+  background: rgba(239, 68, 68, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ts-confirm-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--forest);
+  margin-bottom: 0.5rem;
+}
+.ts-confirm-text {
+  font-size: 0.88rem;
+  color: var(--stone);
+  line-height: 1.5;
+  margin-bottom: 1.5rem;
+}
+.ts-confirm-text strong {
+  color: var(--bark);
+}
+.ts-confirm-actions {
+  display: flex;
+  gap: 10px;
+}
+.ts-confirm-btn {
+  flex: 1;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s ease;
+}
+.ts-confirm-btn--cancel {
+  background: var(--snow);
+  color: var(--forest);
+  border: 1px solid rgba(26,46,26,0.15);
+}
+.ts-confirm-btn--cancel:hover {
+  background: var(--cream);
+  border-color: rgba(26,46,26,0.25);
+}
+.ts-confirm-btn--danger {
+  background: #ef4444;
+  color: #fff;
+}
+.ts-confirm-btn--danger:hover {
+  background: #dc2626;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.35);
+}

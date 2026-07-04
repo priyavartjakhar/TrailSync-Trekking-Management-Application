@@ -39,6 +39,9 @@
               <div>
                 <div class="profile-kicker">Admin Profile</div>
                 <h3>Staff Details</h3>
+                <div style="font-size: 0.72rem; color: #dc2626; margin-top: 4px; font-weight: 600;">
+                  <i class="bi bi-info-circle-fill"></i> For any correction in profile, raise a ticket from the Support tab.
+                </div>
               </div>
               <span class="profile-readonly-pill">Managed by Admin</span>
             </div>

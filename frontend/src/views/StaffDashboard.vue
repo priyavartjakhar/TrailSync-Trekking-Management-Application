@@ -30,6 +30,7 @@
           <button class="modal-close" @click="showSlotModal = false">✕</button>
         </div>
         <div class="ts-modal-body" v-if="slotTarget">
+          <div class="modal-info-row"><span class="modal-info-label">Batch ID</span><span class="modal-info-val">{{ slotTarget.batchCode }}</span></div>
           <div class="modal-info-row"><span class="modal-info-label">Trek</span><span class="modal-info-val">{{ slotTarget.name }}</span></div>
           <div class="modal-info-row"><span class="modal-info-label">Currently Booked</span><span class="modal-info-val">{{ slotTarget.registered }}</span></div>
           <div class="modal-info-row"><span class="modal-info-label">Available</span><span class="modal-info-val">{{ slotTarget.slots - slotTarget.registered }}</span></div>
@@ -53,6 +54,7 @@
           <button class="modal-close" @click="showStatusModal = false">✕</button>
         </div>
         <div class="ts-modal-body" v-if="statusTarget">
+          <div class="modal-info-row"><span class="modal-info-label">Batch ID</span><span class="modal-info-val">{{ statusTarget.batchCode }}</span></div>
           <div class="modal-info-row"><span class="modal-info-label">Trek</span><span class="modal-info-val">{{ statusTarget.name }}</span></div>
           <div class="modal-info-row"><span class="modal-info-label">Current</span><span :class="'status-pill status-' + statusTarget.status.toLowerCase()">{{ statusTarget.status }}</span></div>
           <div class="status-options">
@@ -220,13 +222,13 @@
           <!-- Key details grid -->
           <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:0.85rem;margin-bottom:1.25rem">
 
-            <!-- Trek ID / Batch -->
+            <!-- Batch ID -->
             <div class="trek-detail-stat">
               <div class="trek-detail-stat-icon">
                 <svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
               </div>
-              <div class="trek-detail-stat-label">Trek ID</div>
-              <div class="trek-detail-stat-val">#{{ detailTrek.id }}</div>
+              <div class="trek-detail-stat-label">Batch ID</div>
+              <div class="trek-detail-stat-val">{{ detailTrek.batchCode }}</div>
             </div>
 
             <!-- Start Date -->
@@ -457,8 +459,8 @@
                     </td>
                     <td class="mono font-bold" style="color: #ef4444;">{{ p.bloodGroup || '—' }}</td>
                     <td style="font-size:0.78rem;">
-                      <div>{{ p.emergencyContactName || '—' }}</div>
-                      <div style="color:var(--stone); margin-top:1px;">{{ p.emergencyContactPhone || '' }}</div>
+                      <div>{{ p.emergencyContact || '—' }}</div>
+                      <div style="color:var(--stone); margin-top:1px;">{{ p.emergencyPhone || '' }}</div>
                     </td>
                     <td>
                       <span :class="'status-pill pay-' + (p.paymentStatus || 'paid').toLowerCase()" style="font-size: 0.65rem; padding: 2px 6px;">{{ p.paymentStatus || 'Paid' }}</span>
@@ -625,6 +627,7 @@ export default {
       sidebarOpen: false,
       sidebarCollapsed: false,
       profileDropdownOpen: false,
+      showMobileMembers: false,
       toast: { show: false, msg: '', type: 'success' },
 
       // ── DATA ──────────────────────────────────────
@@ -838,15 +841,71 @@ export default {
       return this.splitProfileList(this.staffProfile.languages);
     },
 
+    activeAssignedTreks() {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      return this.assignedTreks.filter(t => {
+        if (!t.endDate) return true;
+        const parts = t.endDate.split('-');
+        if (parts.length !== 3) return true;
+        const end = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+        end.setHours(23, 59, 59, 999);
+        return t.status !== 'Completed' && end >= today;
+      }).sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+    },
+
+    completedAssignedTreks() {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      return this.assignedTreks.filter(t => {
+        if (!t.endDate) return false;
+        const parts = t.endDate.split('-');
+        if (parts.length !== 3) return false;
+        const end = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+        end.setHours(23, 59, 59, 999);
+        return t.status === 'Completed' || end < today;
+      }).sort((a, b) => new Date(b.endDate) - new Date(a.endDate));
+    },
+
     // Trek options filtered by search query (name, location, batch code)
     filteredTrekOptions() {
       const q = this.trekSearchQuery.toLowerCase().trim();
-      if (!q) return this.assignedTreks;
-      return this.assignedTreks.filter(t =>
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const filtered = this.assignedTreks.filter(t =>
+        !q ||
         t.name.toLowerCase().includes(q) ||
         (t.location && t.location.toLowerCase().includes(q)) ||
         (t.batchCode && t.batchCode.toLowerCase().includes(q))
       );
+      return filtered.filter(t => {
+        if (!t.endDate) return true;
+        const parts = t.endDate.split('-');
+        if (parts.length !== 3) return true;
+        const end = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+        end.setHours(23, 59, 59, 999);
+        return t.status !== 'Completed' && end >= today;
+      }).sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+    },
+
+    completedTrekOptions() {
+      const q = this.trekSearchQuery.toLowerCase().trim();
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const filtered = this.assignedTreks.filter(t =>
+        !q ||
+        t.name.toLowerCase().includes(q) ||
+        (t.location && t.location.toLowerCase().includes(q)) ||
+        (t.batchCode && t.batchCode.toLowerCase().includes(q))
+      );
+      return filtered.filter(t => {
+        if (!t.endDate) return false;
+        const parts = t.endDate.split('-');
+        if (parts.length !== 3) return false;
+        const end = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+        end.setHours(23, 59, 59, 999);
+        return t.status === 'Completed' || end < today;
+      }).sort((a, b) => new Date(b.endDate) - new Date(a.endDate));
     },
 
     // ── SOCIAL COMPUTED ───────────────────────────
@@ -876,6 +935,7 @@ export default {
   methods: {
     // ── NAV ────────────────────────────────────────
     goTab(tab, options = {}) {
+      this.sidebarOpen = false;
       const validTabs = ['dashboard', 'treks', 'participants', 'exports', 'profile', 'social', 'support'];
       if (!validTabs.includes(tab)) return;
 
@@ -944,6 +1004,8 @@ export default {
           if (hash === 'social') {
             this.selectedSocialTrekId = null;
             this.fetchSocialGroups();
+          } else if (hash === 'support') {
+            this.fetchStaffTickets();
           }
         } else {
           window.location.hash = 'dashboard';
@@ -1193,6 +1255,7 @@ export default {
     closeSocialChat() {
       this.selectedSocialTrekId = null;
       this.newSocialMessageText = '';
+      this.showMobileMembers = false;
       window.location.hash = 'social';
     },
     async sendSocialMessage() {
@@ -1242,6 +1305,18 @@ export default {
       return trekkers + 1; // including guide
     },
     getChatBubbleStyle(m) {
+      if (m.sender === 'system' || m.name === 'System') {
+        return {
+          background: 'rgba(255, 238, 207, 0.95)',
+          color: '#513c1a',
+          alignSelf: 'center',
+          borderRadius: '6px',
+          fontSize: '0.72rem',
+          fontWeight: '600',
+          textAlign: 'center',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.06)'
+        };
+      }
       if (m.sender === 'guide') {
         return {
           background: 'var(--cream)',
@@ -1426,6 +1501,17 @@ export default {
 
     backFromAttendanceTrek() {
       window.location.hash = 'treks';
+    },
+
+    isGroupCompleted(t) {
+      if (!t) return false;
+      if (t.status === 'Completed') return true;
+      if (!t.endDate) return false;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const end = new Date(t.endDate);
+      end.setHours(23, 59, 59, 999);
+      return end < today;
     },
 
     // ── CHECKLIST MODAL ───────────────────────────
@@ -1831,8 +1917,8 @@ export default {
                   </td>
                   <td style="padding: 8px; text-align: center; font-family: 'Space Mono', monospace; color: #dc2626; font-weight: bold;">${p.bloodGroup || '—'}</td>
                   <td style="padding: 8px; text-align: center;">
-                    <div>${p.emergencyContactName || '—'}</div>
-                    <div style="font-size: 0.66rem; color: #8c8070; margin-top: 1px;">${p.emergencyContactPhone || ''}</div>
+                    <div>${p.emergencyContact || '—'}</div>
+                    <div style="font-size: 0.66rem; color: #8c8070; margin-top: 1px;">${p.emergencyPhone || ''}</div>
                   </td>
                   <td style="padding: 8px; text-align: center;">
                     <span style="font-size: 0.64rem; padding: 2px 6px; border-radius: 4px; font-weight: bold; text-transform: uppercase; background: ${p.paymentStatus === 'Paid' ? 'rgba(16,185,129,0.1)' : 'rgba(245,158,11,0.1)'}; color: ${p.paymentStatus === 'Paid' ? '#10b981' : '#d97706'}; border: 1px solid ${p.paymentStatus === 'Paid' ? 'rgba(16,185,129,0.2)' : 'rgba(245,158,11,0.2)'};">
@@ -1879,6 +1965,7 @@ export default {
   mounted() {
     this.fetchStaffData();
     this.fetchSocialGroups();
+    this.fetchStaffTickets();
     this.startCountdown();
 
     this.hashListener = this.handleHashChange.bind(this);

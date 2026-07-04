@@ -117,9 +117,9 @@
                       Submitted on: {{ t.createdAt }}
                     </div>
                     <!-- Resolution message -->
-                    <div v-if="t.status === 'Resolved' && t.resolutionMessage" style="margin-top: 0.6rem; background: rgba(40,167,69,0.06); border: 1px solid rgba(40,167,69,0.2); border-radius: 6px; padding: 0.6rem 0.75rem;">
+                    <div v-if="t.status === 'Resolved'" style="margin-top: 0.6rem; background: rgba(40,167,69,0.06); border: 1px solid rgba(40,167,69,0.2); border-radius: 6px; padding: 0.6rem 0.75rem;">
                       <div style="font-size: 0.65rem; font-weight: 700; color: #28a745; text-transform: uppercase; margin-bottom: 3px;">✓ Admin Response</div>
-                      <div style="font-size: 0.8rem; color: var(--bark); line-height: 1.4; white-space: pre-wrap;">{{ t.resolutionMessage }}</div>
+                      <div style="font-size: 0.8rem; color: var(--bark); line-height: 1.4; white-space: pre-wrap;">{{ t.resolutionMessage || 'Resolved by administrator.' }}</div>
                     </div>
                   </div>
                 </div>

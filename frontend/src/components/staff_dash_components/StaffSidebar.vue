@@ -31,7 +31,7 @@
         <a class="nav-item" :class="{ active: activeTab === 'treks' }" @click="goTab('treks')" :title="sidebarCollapsed ? 'Assigned Treks' : ''">
           <i class="bi bi-map-fill nav-icon"></i>
           <span v-show="!sidebarCollapsed">Assigned Treks</span>
-          <span class="nav-badge" v-show="!sidebarCollapsed">{{ assignedTreks.length }}</span>
+          <span class="nav-badge" v-show="!sidebarCollapsed">{{ activeAssignedTreks.length }}</span>
         </a>
         <a class="nav-item" :class="{ active: activeTab === 'participants' }" @click="goTab('participants')" :title="sidebarCollapsed ? 'Participants' : ''">
           <i class="bi bi-people-fill nav-icon"></i>

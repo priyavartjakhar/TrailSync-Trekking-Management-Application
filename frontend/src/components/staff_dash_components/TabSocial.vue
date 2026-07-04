@@ -1,5 +1,5 @@
 <template>
-      <div class="tab-content social-tab-container" style="display: flex; flex-direction: column; gap: 0; height: calc(100vh - 80px); min-height: 500px;">
+      <div class="tab-content social-tab-container" :class="{ 'chat-active': selectedSocialTrekId, 'info-active': showMobileMembers }" style="display: flex; flex-direction: column; gap: 0; height: calc(100vh - 80px); min-height: 500px;">
         <!-- Social tab header -->
         <div class="page-header" style="flex-shrink: 0; margin-bottom: 1rem;">
           <div>
@@ -9,7 +9,7 @@
           <button class="btn-back-home" @click="goTab('dashboard')"><i class="bi bi-house-door-fill me-1"></i>Back to Home</button>
         </div>
         <!-- Social content row -->
-        <div style="display: flex; gap: 1.5rem; flex: 1; min-height: 0;">
+        <div class="social-content-row" style="display: flex; gap: 1.5rem; flex: 1; min-height: 0;">
         
         <!-- Left column: Channels list -->
         <div class="social-channels-panel ts-card" style="width: 280px; display: flex; flex-direction: column; flex-shrink: 0;">
@@ -43,15 +43,23 @@
                 <i class="bi bi-chat-dots-fill"></i> Active
               </div>
               <div v-for="t in socialGroups" :key="t.id" 
-                   :class="['social-channel-item', { active: selectedSocialTrekId === t.id }]"
-                   @click="selectSocialGroup(t.id)"
-                   style="padding: 0.75rem; border-radius: 6px; cursor: pointer; margin-bottom: 0.5rem; transition: var(--transition);">
+                   :class="['social-channel-item', { active: selectedSocialTrekId === t.id, 'completed-group-locked': isGroupCompleted(t) }]"
+                   @click="isGroupCompleted(t) ? null : selectSocialGroup(t.id)"
+                   :style="{
+                     padding: '0.75rem',
+                     borderRadius: '6px',
+                     cursor: isGroupCompleted(t) ? 'not-allowed' : 'pointer',
+                     marginBottom: '0.5rem',
+                     opacity: isGroupCompleted(t) ? '0.7' : '1',
+                     background: isGroupCompleted(t) ? '#f0ede6' : '',
+                     transition: 'var(--transition)'
+                   }">
                 <div class="d-flex justify-content-between align-items-start mb-1">
                   <span class="channel-name fw-bold" style="font-size: 0.85rem; color: var(--forest); display: flex; align-items: center; gap: 4px;">
-                    <i class="bi bi-hash"></i> {{ t.name }}
-                    <i v-if="t.isLocked" class="bi bi-lock-fill text-danger" style="font-size: 0.75rem;" title="Chat is Locked"></i>
+                    <i class="bi" :class="isGroupCompleted(t) ? 'bi-lock-fill text-muted' : 'bi-hash'"></i> {{ t.name }}
+                    <i v-if="t.isLocked && !isGroupCompleted(t)" class="bi bi-lock-fill text-danger" style="font-size: 0.75rem;" title="Chat is Locked"></i>
                   </span>
-                  <span :class="'status-pill status-' + t.status.toLowerCase()" style="font-size: 0.6rem; padding: 2px 6px;">{{ t.status }}</span>
+                  <span :class="isGroupCompleted(t) ? 'status-pill status-completed' : 'status-pill status-' + t.status.toLowerCase()" style="font-size: 0.6rem; padding: 2px 6px;">{{ isGroupCompleted(t) ? 'Completed' : t.status }}</span>
                 </div>
                 <div class="channel-sub text-muted d-flex justify-content-between" style="font-size: 0.7rem;">
                   <span>Batch {{ t.batchCode }}</span>
@@ -66,7 +74,7 @@
         </div>
 
         <!-- Chat area (main) -->
-        <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0;">
+        <div class="social-chat-area" style="flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0;">
           
           <div v-if="!selectedSocialTrekId" class="ts-card d-flex flex-column align-items-center justify-content-center text-center p-5" style="flex: 1; background: #ffffff; min-height: 400px; border: 1px solid rgba(26,46,26,0.08);">
             <i class="bi bi-chat-left-dots-fill" style="font-size: 3.5rem; color: var(--gold); opacity: 0.6; margin-bottom: 1rem;"></i>
@@ -79,26 +87,27 @@
           <template v-else>
             <!-- Chat area (middle) -->
             <div class="ts-card d-flex flex-column" style="flex: 1; min-width: 0; min-height: 0; max-height: 100%;">
-              <div class="ts-card-header d-flex justify-content-between align-items-start" style="gap: 1rem; flex-wrap: wrap;">
-                <div style="display: flex; flex-direction: column; gap: 0.75rem; flex: 1; min-width: 0;">
-                  <div style="display:flex; align-items:center; gap:12px; flex-wrap: wrap;">
-                    <div class="ts-card-title m-0" v-if="selectedSocialGroupTrek" style="display:flex; align-items:center; gap:8px;">
-                      <i class="bi bi-chat-left-dots-fill"></i> Group Chat: {{ selectedSocialGroupTrek.name }}
-                    </div>
-                  </div>
-                  <div style="display:flex; align-items:center; justify-content:space-between; gap: 0.75rem; flex-wrap: wrap;">
-                    <div class="text-muted" style="font-size: 0.72rem;" v-if="selectedSocialGroupTrek">
-                      Batch Code: {{ selectedSocialGroupTrek.batchCode }} | Status: {{ selectedSocialGroupTrek.status }}
-                    </div>
-                    <div v-if="selectedSocialGroupTrek">
-                      <button class="btn btn-sm btn-outline-danger" @click="toggleSocialGroupLock(selectedSocialGroupTrek.id)" style="font-size: 0.72rem; font-weight: 600; padding: 4px 8px; border-radius: 4px; display: flex; align-items: center; gap: 4px;">
-                        <i class="bi" :class="selectedSocialGroupTrek.isLocked ? 'bi-unlock-fill' : 'bi-lock-fill'"></i>
-                        {{ selectedSocialGroupTrek.isLocked ? 'Unlock Group Chat' : 'Lock Group Chat' }}
-                      </button>
-                    </div>
+              <div class="ts-card-header d-flex justify-content-between align-items-center" style="gap: 0.5rem; flex-wrap: nowrap; padding: 0.75rem 1rem;">
+                <div style="display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1;">
+                  <!-- Back button on mobile view -->
+                  <button class="btn btn-sm btn-outline-secondary d-md-none me-1" @click="selectedSocialTrekId = null" style="padding: 4px 8px;">
+                    <i class="bi bi-chevron-left"></i>
+                  </button>
+                  <div class="ts-card-title m-0 text-truncate" v-if="selectedSocialGroupTrek" style="display:flex; align-items:center; gap:6px; font-size: 1.05rem;">
+                    <i class="bi bi-chat-left-dots-fill"></i> {{ selectedSocialGroupTrek.name }}
                   </div>
                 </div>
-                <div style="flex-shrink: 0;">
+                <div class="d-flex align-items-center gap-2" style="flex-shrink: 0;">
+                  <!-- Info Toggle on mobile -->
+                  <button class="btn btn-sm btn-outline-forest d-md-none" @click="showMobileMembers = true" style="font-size: 0.72rem; font-weight: 600; padding: 4px 8px; border-radius: 4px; display: flex; align-items: center; gap: 4px;">
+                    <i class="bi bi-info-circle-fill"></i> Info
+                  </button>
+                  <div v-if="selectedSocialGroupTrek" class="d-none d-md-block">
+                    <button class="btn btn-sm btn-outline-danger" @click="toggleSocialGroupLock(selectedSocialGroupTrek.id)" style="font-size: 0.72rem; font-weight: 600; padding: 4px 8px; border-radius: 4px; display: flex; align-items: center; gap: 4px;">
+                      <i class="bi" :class="selectedSocialGroupTrek.isLocked ? 'bi-unlock-fill' : 'bi-lock-fill'"></i>
+                      {{ selectedSocialGroupTrek.isLocked ? 'Unlock Group Chat' : 'Lock Group Chat' }}
+                    </button>
+                  </div>
                   <button class="btn btn-sm btn-outline-secondary" @click="closeSocialChat" title="Close chat" style="font-size:0.78rem; padding:4px 8px;">
                     <i class="bi bi-x-lg"></i>
                   </button>
@@ -106,21 +115,30 @@
               </div>
               
               <!-- Chat messages feed -->
-              <div ref="socialChatFeed" class="social-chat-feed" style="flex: 1 1 auto; overflow-y: auto; padding: 1.25rem; background: var(--snow); min-height: 0; max-height: calc(100vh - 320px);">
+              <div ref="socialChatFeed" class="social-chat-feed" style="flex: 1 1 auto; overflow-y: auto; padding: 1.25rem; background: var(--cream); min-height: 0; max-height: calc(100vh - 320px);">
 
                 <div v-for="m in currentGroupMessages" :key="m.id" 
-                     :class="['chat-bubble-wrap', m.sender === 'guide' ? 'guide-message' : 'trekker-message']"
-                     style="margin-bottom: 1rem; display: flex; flex-direction: column;">
-                  <div class="chat-meta d-flex align-items-center mb-1" style="font-size: 0.7rem; gap: 6px;">
-                    <span class="chat-sender-name fw-bold" :style="{ color: m.sender === 'guide' ? 'var(--gold)' : 'var(--forest)' }">
+                     :class="['chat-bubble-wrap', m.sender === 'guide' ? 'guide-message' : m.sender === 'system' || m.name === 'System' ? 'system-message' : 'trekker-message']"
+                     :style="{
+                       marginBottom: '0.85rem',
+                       display: 'flex',
+                       flexDirection: 'column',
+                       alignItems: m.sender === 'system' || m.name === 'System' ? 'center' : m.sender === 'guide' ? 'flex-end' : 'flex-start'
+                     }">
+                  
+                  <!-- Meta Header for regular messages -->
+                  <div v-if="m.sender !== 'system' && m.name !== 'System'" class="chat-meta d-flex align-items-center mb-1" style="font-size: 0.72rem; gap: 6px;">
+                    <span class="chat-sender-name fw-bold" :style="{ color: m.sender === 'guide' ? '#0b8043' : '#0288d1' }">
                       {{ m.name }}
                     </span>
-                    <span class="badge bg-gold text-dark" style="font-size:0.58rem; padding: 2px 4px;" v-if="m.sender === 'guide'">Guide</span>
-                    <span class="chat-time text-muted">{{ m.timestamp }}</span>
+                    <span class="badge bg-forest text-white" style="font-size:0.56rem; padding: 2px 4px;" v-if="m.sender === 'guide'">Guide</span>
+                    <span class="chat-time text-muted" style="font-size:0.65rem;">{{ m.timestamp }}</span>
                   </div>
+
+                  <!-- Chat Bubble -->
                   <div class="chat-bubble" 
                        :style="getChatBubbleStyle(m)"
-                       style="padding: 0.75rem; border-radius: 8px; max-width: 80%; width: fit-content; font-size: 0.83rem; line-height: 1.5; word-break: break-word;">
+                       style="padding: 0.6rem 0.8rem; max-width: 80%; width: fit-content; font-size: 0.83rem; line-height: 1.45; word-break: break-word;">
                     {{ m.text }}
                   </div>
                 </div>
@@ -144,9 +162,15 @@
         </div>
 
         <!-- Participants panel -->
-        <div class="ts-card d-flex flex-column" style="width: 320px; flex-shrink: 0; min-height: 0;">
+        <div class="social-participants-panel ts-card d-flex flex-column" style="width: 320px; flex-shrink: 0; min-height: 0;">
           <div class="ts-card-header d-flex justify-content-between align-items-center">
-            <div class="ts-card-title"><i class="bi bi-people-fill"></i> Participants</div>
+            <div style="display:flex; align-items:center;">
+              <!-- Back to chat button on mobile view -->
+              <button class="btn btn-sm btn-outline-secondary d-md-none me-2" @click="showMobileMembers = false" style="padding: 4px 8px;">
+                <i class="bi bi-chevron-left"></i> Back
+              </button>
+              <div class="ts-card-title m-0"><i class="bi bi-people-fill"></i> Participants</div>
+            </div>
             <button class="btn btn-sm btn-outline-secondary" @click="openAddParticipantModal(selectedSocialTrekId)" :disabled="!selectedSocialTrekId" style="font-size:0.78rem; padding:4px 8px;">
               <i class="bi bi-person-plus-fill"></i> Add
             </button>

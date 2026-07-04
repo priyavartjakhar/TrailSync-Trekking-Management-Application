@@ -40,7 +40,11 @@ const COMMON_FIELDS = [
   'selectedSocialGroupTrek',
   'currentGroupMessages',
   'newSocialMessageText',
-  'socialGroupMembers'
+  'socialGroupMembers',
+  'showMobileMembers',
+  'activeAssignedTreks',
+  'completedAssignedTreks',
+  'completedTrekOptions'
 ];
 
 const COMMON_METHODS = [
@@ -80,7 +84,8 @@ const COMMON_METHODS = [
   'toggleSocialGroupLock',
   'closeSocialChat',
   'sendSocialMessage',
-  'getChatBubbleStyle'
+  'getChatBubbleStyle',
+  'isGroupCompleted'
 ];
 
 function unique(names) {

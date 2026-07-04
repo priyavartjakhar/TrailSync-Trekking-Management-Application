@@ -2381,12 +2381,18 @@ export default {
       }
     },
 
-    async resolveTicket(ticket, resolutionMessage = '') {
+    async resolveTicket(ticket, resolutionMessage) {
+      let finalMessage = resolutionMessage;
+      if (resolutionMessage === undefined) {
+        const promptMsg = window.prompt("Enter resolution message (optional):", "");
+        if (promptMsg === null) return; // User cancelled
+        finalMessage = promptMsg;
+      }
       try {
         const res = await fetch(`/api/admin/support_tickets/resolve/${ticket.id}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ resolution_message: resolutionMessage })
+          body: JSON.stringify({ resolution_message: finalMessage })
         });
         if (res.ok) {
           const data = await res.json();
@@ -2394,20 +2400,20 @@ export default {
           this.showToast(`Ticket ${tId} resolved`);
           if (this.selectedTicketDetails && this.selectedTicketDetails.id === ticket.id) {
             this.selectedTicketDetails.status = 'Resolved';
-            this.selectedTicketDetails.resolutionMessage = resolutionMessage;
+            this.selectedTicketDetails.resolutionMessage = finalMessage;
           }
           // Update in local list too
           const idx = this.supportTickets ? this.supportTickets.findIndex(t => t.id === ticket.id) : -1;
           if (idx >= 0) {
             this.supportTickets[idx].status = 'Resolved';
-            this.supportTickets[idx].resolutionMessage = resolutionMessage;
+            this.supportTickets[idx].resolutionMessage = finalMessage;
           }
           this.loadData();
           return;
         }
       } catch (_) {}
       ticket.status = 'Resolved';
-      ticket.resolutionMessage = resolutionMessage;
+      ticket.resolutionMessage = finalMessage;
       const tId = ticket.ticketId || `TS26AS${String(ticket.id).padStart(3, '0')}`;
       this.showToast(`Ticket ${tId} resolved (mock)`);
     },

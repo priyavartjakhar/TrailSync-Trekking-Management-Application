@@ -1,5 +1,9 @@
 <template>
       <div class="ts-topbar">
+        <!-- Menu Toggle Button for Mobile -->
+        <button class="staff-mobile-menu-btn" @click="sidebarOpen = true">
+          <i class="bi bi-list"></i>
+        </button>
         <a v-if="sidebarCollapsed" class="topbar-brand-mini topbar-brand-left" href="#" @click.prevent="goTab('dashboard')">Trail<span>Sync</span></a>
         <div v-if="!sidebarCollapsed" class="topbar-breadcrumb">
           TrailSync / <span>{{ activeTab === 'dashboard' ? 'Home' : activeTab.charAt(0).toUpperCase() + activeTab.slice(1) }}</span>

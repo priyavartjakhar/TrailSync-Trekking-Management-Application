@@ -27,32 +27,70 @@
             <button v-if="trekSearchQuery" class="ptab-chip-clear" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:1rem" @mousedown.prevent="trekSearchQuery = ''">×</button>
           </div>
 
-          <div class="ptab-trek-cards">
-            <div
-              v-for="t in filteredTrekOptions" :key="t.id"
-              class="ptab-trek-card"
-              @click="selectTrekForParticipants(t, { inline: false })"
-            >
-              <div class="ptab-tc-batch">{{ t.batchCode }}</div>
-              <div class="ptab-tc-name">{{ t.name }}</div>
-              <div class="ptab-tc-loc"><i class="bi bi-geo-alt-fill"></i> {{ t.location }}</div>
-              <div class="ptab-tc-dates">
-                <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                {{ formatDate(t.startDate) }} — {{ formatDate(t.endDate) }}
-              </div>
-              <div class="ptab-tc-footer">
-                <span :class="'status-pill status-' + t.status.toLowerCase()">{{ t.status }}</span>
-                <div class="ptab-tc-slots">
-                  <span class="ptab-tc-slot-num">{{ t.registered }}/{{ t.slots }}</span>
-                  <div class="ptab-tc-bar-wrap">
-                    <div class="ptab-tc-bar-fill" :style="{ width: slotPct(t) + '%', background: slotColor(t) }"></div>
+          <!-- Active Treks Section -->
+          <div class="active-treks-section" style="margin-bottom: 2rem;">
+            <h3 style="font-family:'Playfair Display',serif; font-size: 1.25rem; color: var(--forest); margin-bottom: 1rem;"><i class="bi bi-compass-fill"></i> Active Assigned Treks</h3>
+            <div class="ptab-trek-cards">
+              <div
+                v-for="t in filteredTrekOptions" :key="t.id"
+                class="ptab-trek-card"
+                @click="selectTrekForParticipants(t, { inline: false })"
+              >
+                <div class="ptab-tc-batch">{{ t.batchCode }}</div>
+                <div class="ptab-tc-name">{{ t.name }}</div>
+                <div class="ptab-tc-loc"><i class="bi bi-geo-alt-fill"></i> {{ t.location }}</div>
+                <div class="ptab-tc-dates">
+                  <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                  {{ formatDate(t.startDate) }} — {{ formatDate(t.endDate) }}
+                </div>
+                <div class="ptab-tc-footer">
+                  <span :class="'status-pill status-' + t.status.toLowerCase()">{{ t.status }}</span>
+                  <div class="ptab-tc-slots">
+                    <span class="ptab-tc-slot-num">{{ t.registered }}/{{ t.slots }}</span>
+                    <div class="ptab-tc-bar-wrap">
+                      <div class="ptab-tc-bar-fill" :style="{ width: slotPct(t) + '%', background: slotColor(t) }"></div>
+                    </div>
                   </div>
                 </div>
               </div>
+              <div v-if="!filteredTrekOptions.length" class="ptab-empty-state" style="grid-column:1/-1">
+                <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <p>No active treks match your search.</p>
+              </div>
             </div>
-            <div v-if="!filteredTrekOptions.length" class="ptab-empty-state" style="grid-column:1/-1">
-              <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-              <p>No treks match your search.</p>
+          </div>
+
+          <!-- Completed/Past Treks Section -->
+          <div style="margin-top: 2.5rem;">
+            <h3 style="font-family:'Playfair Display',serif; font-size: 1.25rem; color: var(--forest); margin-bottom: 1rem;"><i class="bi bi-check-circle-fill text-success"></i> Completed / Past Treks</h3>
+            <div class="ts-table-wrap">
+              <table class="ts-table">
+                <thead>
+                  <tr>
+                    <th>Batch ID</th>
+                    <th>Trek Name</th>
+                    <th>Dates</th>
+                    <th>Slots</th>
+                    <th style="text-align: right;">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="t in completedTrekOptions" :key="t.id">
+                    <td class="mono font-bold">{{ t.batchCode }}</td>
+                    <td>{{ t.name }}</td>
+                    <td class="mono" style="font-size: 0.8rem;">{{ formatShortDate(t.startDate) }} — {{ formatShortDate(t.endDate) }}</td>
+                    <td class="mono" style="font-size: 0.8rem;">{{ t.registered }}/{{ t.slots }}</td>
+                    <td style="text-align: right;">
+                      <button class="btn btn-sm btn-outline-forest py-1 px-2" style="font-size: 0.72rem; font-weight: 600;" @click="selectTrekForParticipants(t, { inline: false })">
+                        <i class="bi bi-people"></i> View Participants
+                      </button>
+                    </td>
+                  </tr>
+                  <tr v-if="!completedTrekOptions.length">
+                    <td colspan="5" class="text-center py-3 text-muted" style="font-size: 0.82rem;">No completed treks found.</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
         </template>

@@ -1108,14 +1108,17 @@ def send_guide_assignment_email(staff_id, trek_id, recipient_email=None, trek_na
         # Use passed parameters directly to avoid database queries and transaction lag
         body = f"""{trek_name} trek is assigned to you
 Trek details
-trek id: {trek_id}
-trek name: {trek_name}
-batch id: {batch_code or f"TID{trek_id:03d}B01"}
-batch dates : {start_date_str or 'N/A'} - {end_date_str or 'N/A'}
-total slots : {total_slots if total_slots is not None else 'N/A'}
-for any query contact support@trailsync.com
-thankyou
-TrailSync Team"""
+Trek id: {trek_id}
+Trek name: {trek_name}
+Batch id: {batch_code or f"TID{trek_id:03d}B01"}
+Batch dates : {start_date_str or 'N/A'} - {end_date_str or 'N/A'}
+Total slots : {total_slots if total_slots is not None else 'N/A'}
+
+
+Thankyou
+TrailSync Team
+For any query contact:
+support@trailsync.com"""
         
         send_email_helper(
             subject=f"{trek_name} trek is assigned to you",
@@ -1220,3 +1223,44 @@ TrailSync Team"""
             is_html=False
         )
         return f"Sent booking confirmation email to {user.email} for booking {booking.id}"
+
+@celery_app.task
+def send_booking_cancellation_email(booking_id):
+    from backend.app import app
+    from backend.models.models import Booking
+    
+    with app.app_context():
+        booking = Booking.query.get(booking_id)
+        if not booking:
+            return f"Booking {booking_id} not found."
+            
+        user = booking.user
+        trek = booking.trek
+        trek_name = trek.name if trek else "N/A"
+        
+        subject = f"Booking Cancelled - {trek_name}"
+        
+        body = f"""Hi {user.name},
+
+Your booking has been cancelled. Here are the details:
+
+Booking ID: {booking.unique_booking_id}
+Trek Name: {trek_name}
+Trek Date: {trek.start_date.strftime('%Y-%m-%d') if trek and trek.start_date else 'N/A'}
+Amount Paid: ₹{(booking.amount_paid or 0):.2f}
+
+Pending refund will be initiated withing 5 working days.
+
+Thankyou TrailSync Team
+For any query contact us at : support@trailsync.com
+or
+Raise a support ticket from dashboard"""
+
+        send_email_helper(
+            subject=subject,
+            recipient=user.email,
+            body=body,
+            is_html=False
+        )
+        return f"Sent booking cancellation email to {user.email} for booking {booking.id}"
+

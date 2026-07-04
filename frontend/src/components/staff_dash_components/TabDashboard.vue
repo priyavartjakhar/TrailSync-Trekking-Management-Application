@@ -195,47 +195,97 @@
         <div class="dashboard-table-row" style="margin-top: 1.5rem; margin-bottom: 1rem;">
           <div class="ts-card">
             <div class="ts-card-header">
-              <div class="ts-card-title"><i class="bi bi-list-stars"></i> Assigned Treks Summary</div>
+              <div class="ts-card-title"><i class="bi bi-list-stars"></i> Assigned Active Treks</div>
             </div>
             <div class="ts-card-body" style="padding: 1.25rem;">
               <div class="table-responsive">
                 <table class="table ts-table align-middle" style="margin-bottom: 0;">
                   <thead>
                     <tr>
+                      <th>Batch ID</th>
                       <th>Trek</th>
-                      <th>Location</th>
+                      <th class="col-hide-mobile">Location</th>
                       <th>Date</th>
-                      <th>Status</th>
-                      <th>Slots</th>
+                      <th class="col-hide-mobile">Status</th>
+                      <th class="col-hide-mobile">Slots</th>
                       <th class="text-end" style="width: 320px;">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr v-for="t in assignedTreks" :key="t.id">
+                    <tr v-for="t in activeAssignedTreks" :key="t.id">
+                      <td class="mono" style="font-size: 0.8rem; font-weight: bold;">{{ t.batchCode }}</td>
                       <td class="fw-bold">{{ t.name }}</td>
-                      <td>{{ t.location }}</td>
-                      <td class="mono" style="font-size: 0.8rem;">{{ formatShortDate(t.startDate) }}</td>
-                      <td>
+                      <td class="col-hide-mobile">{{ t.location }}</td>
+                      <td class="mono" style="font-size: 0.8rem; white-space: nowrap;">
+                        <span class="desktop-date-range">{{ formatShortDate(t.startDate) }} — {{ formatShortDate(t.endDate) }}</span>
+                        <span class="mobile-date-only">{{ formatShortDate(t.startDate) }}</span>
+                      </td>
+                      <td class="col-hide-mobile">
                         <span :class="'status-pill status-' + t.status.toLowerCase()">{{ t.status }}</span>
                       </td>
-                      <td class="mono" style="font-size: 0.8rem;">{{ t.registered }}/{{ t.slots }}</td>
+                      <td class="mono col-hide-mobile" style="font-size: 0.8rem;">{{ t.registered }}/{{ t.slots }}</td>
                       <td class="text-end">
                         <div class="d-flex gap-1 justify-content-end">
-                          <button class="btn btn-sm btn-outline-forest py-1 px-2" style="font-size: 0.72rem; font-weight: 600;" @click="openTrekDetailModal(t)">
+                          <button class="btn btn-sm btn-outline-forest py-1 px-2 btn-hide-text-mobile" style="font-size: 0.72rem; font-weight: 600;" @click="openTrekDetailModal(t)">
                             <i class="bi bi-eye"></i> View Details
                           </button>
-                          <button class="btn btn-sm btn-outline-gold py-1 px-2" style="font-size: 0.72rem; font-weight: 600;" @click="openSlotModal(t)">
+                          <button class="btn btn-sm btn-outline-gold py-1 px-2 btn-hide-text-mobile" style="font-size: 0.72rem; font-weight: 600;" @click="openSlotModal(t)">
                             <i class="bi bi-pencil-square"></i> Edit Slots
                           </button>
-                          <button class="btn btn-sm btn-outline-primary-ts py-1 px-2" style="font-size: 0.72rem; font-weight: 600;" @click="selectTrekForParticipants(t, { inline: false })">
+                          <button class="btn btn-sm btn-outline-primary-ts py-1 px-2 btn-hide-text-mobile" style="font-size: 0.72rem; font-weight: 600;" @click="selectTrekForParticipants(t, { inline: false })">
                             <i class="bi bi-people"></i> Manage Participants
                           </button>
                         </div>
                       </td>
                     </tr>
-                    <tr v-if="!assignedTreks.length">
+                    <tr v-if="!activeAssignedTreks.length">
                       <td colspan="6" class="text-center py-4 text-muted" style="font-size: 0.85rem;">
-                        No assigned treks found.
+                        No active assigned treks found.
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Completed Treks Section -->
+        <div class="dashboard-table-row" style="margin-top: 1.5rem; margin-bottom: 1rem;">
+          <div class="ts-card">
+            <div class="ts-card-header">
+              <div class="ts-card-title"><i class="bi bi-check-circle-fill text-success"></i> Completed Treks</div>
+            </div>
+            <div class="ts-card-body" style="padding: 1.25rem;">
+              <div class="table-responsive">
+                <table class="table ts-table align-middle" style="margin-bottom: 0;">
+                  <thead>
+                    <tr>
+                      <th>Batch ID</th>
+                      <th>Trek Name</th>
+                      <th>Dates</th>
+                      <th class="col-hide-mobile">Slots</th>
+                      <th class="text-end">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="t in completedAssignedTreks" :key="t.id">
+                      <td class="mono" style="font-size: 0.8rem; font-weight: bold;">{{ t.batchCode }}</td>
+                      <td class="fw-bold">{{ t.name }}</td>
+                      <td class="mono" style="font-size: 0.8rem; white-space: nowrap;">
+                        <span class="desktop-date-range">{{ formatShortDate(t.startDate) }} — {{ formatShortDate(t.endDate) }}</span>
+                        <span class="mobile-date-only">{{ formatShortDate(t.startDate) }}</span>
+                      </td>
+                      <td class="mono col-hide-mobile" style="font-size: 0.8rem;">{{ t.registered }}/{{ t.slots }}</td>
+                      <td class="text-end">
+                        <button class="btn btn-sm btn-outline-forest py-1 px-2 btn-hide-text-mobile" style="font-size: 0.72rem; font-weight: 600;" @click="openTrekDetailModal(t)">
+                          <i class="bi bi-eye"></i> View Details
+                        </button>
+                      </td>
+                    </tr>
+                    <tr v-if="!completedAssignedTreks.length">
+                      <td colspan="5" class="text-center py-4 text-muted" style="font-size: 0.85rem;">
+                        No completed treks found.
                       </td>
                     </tr>
                   </tbody>

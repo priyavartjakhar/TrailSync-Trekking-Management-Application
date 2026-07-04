@@ -194,6 +194,39 @@ def dispatch_guide_assignment_email(staff_id, trek_id):
         app.logger.error(f"Error preparing guide assignment email dispatch: {e}")
 
 
+def dispatch_booking_cancellation_email(booking_id):
+    try:
+        from backend.tasks import send_booking_cancellation_email
+        booking = Booking.query.get(booking_id)
+        if booking:
+            recipient_email = booking.user.email
+            print(f"[EMAIL] Dispatching booking cancellation email → {recipient_email} for booking {booking_id}")
+            
+            import threading
+            def run_async():
+                try:
+                    send_booking_cancellation_email.delay(booking_id)
+                    print(f"[EMAIL] Celery task queued for cancellation email to {recipient_email}")
+                except Exception as e:
+                    print(f"[EMAIL] Celery unavailable ({e}), sending cancellation email synchronously to {recipient_email}...")
+                    app.logger.error(f"Error dispatching celery booking cancellation email task: {e}")
+                    try:
+                        send_booking_cancellation_email(booking_id)
+                        print(f"[EMAIL] Synchronous cancellation email send completed for {recipient_email}")
+                    except Exception as ex:
+                        print(f"[EMAIL] ERROR: Synchronous cancellation email send also failed for {recipient_email}: {ex}")
+                        app.logger.error(f"Error sending booking cancellation email synchronously: {ex}")
+            
+            threading.Thread(target=run_async, daemon=True).start()
+        else:
+            print(f"[EMAIL] ERROR: Cannot dispatch cancellation email — Booking {booking_id} not found in DB")
+            app.logger.error(f"Cannot dispatch cancellation email: Booking {booking_id} not found in DB")
+    except Exception as e:
+        print(f"[EMAIL] ERROR preparing cancellation email dispatch: {e}")
+        app.logger.error(f"Error preparing booking cancellation email dispatch: {e}")
+
+
+
 
 def seed_db(force=False):
     if force:
@@ -905,12 +938,15 @@ def user_dashboard_data():
         
     available_treks = get_open_treks_cached()
     
-    my_bookings_query = Booking.query.filter_by(user_id=current_user.id, status='Booked').all()
+    my_bookings_query = Booking.query.filter(
+        Booking.user_id == current_user.id,
+        Booking.status.in_(['Booked', 'Cancelled'])
+    ).all()
     my_bookings = [b.to_json() for b in my_bookings_query]
     
-    history_query = Booking.query.filter(
-        Booking.user_id == current_user.id,
-        Booking.status.in_(['Completed', 'Cancelled'])
+    history_query = Booking.query.filter_by(
+        user_id=current_user.id,
+        status='Completed'
     ).all()
     trek_history = [b.to_json() for b in history_query]
     
@@ -1128,6 +1164,7 @@ def cancel_booking(booking_id):
     db.session.commit()
     
     invalidate_open_treks_cache()
+    dispatch_booking_cancellation_email(booking.id)
     
     return jsonify({'message': 'Booking cancelled successfully.'})
 
@@ -1391,7 +1428,7 @@ def admin_dashboard_data():
         assigned = Trek.query.filter_by(staff_id=s.id).all()
         treks_done = []
         for t in assigned:
-            booked_cnt = Booking.query.filter_by(trek_id=t.id, status='Booked').count()
+            booked_cnt = Booking.query.filter(Booking.trek_id == t.id, Booking.status.in_(['Booked', 'Completed'])).count()
             treks_done.append({
                 'batchId': t.batch_code or f"TID{t.id:03d}B01",
                 'trekName': t.name,
@@ -1420,7 +1457,7 @@ def admin_dashboard_data():
         photo_url = (profile.photo_url if (profile and profile.photo_url) else None) or photos[s.id % len(photos)]
         staff_data.append({
             'id': s.id,
-            'memberId': f"TS26S{s.id:03d}",
+            'memberId': s.to_json().get('memberId'),
             'name': s.name,
             'contact': s.email,
             'phone': s.phone or '',
@@ -1433,7 +1470,7 @@ def admin_dashboard_data():
             'designation': designation,
             'certifications': certifications,
             'languages': languages,
-            'completedTreksCount': completed_count + len(assigned),
+            'completedTreksCount': completed_count,
             'photoUrl': photo_url,
             'treksDone': treks_done,
             'customBlockedDates': profile.custom_blocked_dates if (profile and profile.custom_blocked_dates) else ''
@@ -1503,7 +1540,7 @@ def admin_dashboard_data():
         
     popular_treks = []
     for t in Trek.query.all():
-        bcnt = Booking.query.filter_by(trek_id=t.id, status='Booked').count()
+        bcnt = Booking.query.filter(Booking.trek_id == t.id, Booking.status.in_(['Booked', 'Completed'])).count()
         popular_treks.append({
             'name': t.name,
             'bookings': bcnt
@@ -2425,6 +2462,7 @@ def admin_cancel_booking(booking_id):
     booking.status = 'Cancelled'
     db.session.commit()
     invalidate_open_treks_cache()
+    dispatch_booking_cancellation_email(booking.id)
     return jsonify({'success': True})
 
 @app.route('/api/admin/bookings/refund/<int:booking_id>', methods=['POST'])
@@ -2445,6 +2483,7 @@ def admin_refund_booking(booking_id):
     if refund_amount < 0 or refund_amount > paid_amt:
         return jsonify({'error': f'Invalid refund amount. Must be between 0 and {paid_amt}.'}), 400
         
+    was_already_cancelled = (booking.status == 'Cancelled')
     booking.status = 'Cancelled'
     booking.payment_status = 'Refunded'
     booking.refund_amount = refund_amount
@@ -2452,6 +2491,8 @@ def admin_refund_booking(booking_id):
     
     db.session.commit()
     invalidate_open_treks_cache()
+    if not was_already_cancelled:
+        dispatch_booking_cancellation_email(booking.id)
     return jsonify({'success': True})
 
 @app.route('/api/admin/jobs/trigger', methods=['POST'])
@@ -2675,7 +2716,7 @@ def staff_dashboard_data():
     participants = []
     
     for t in assigned_treks_query:
-        booked_count = Booking.query.filter_by(trek_id=t.id, status='Booked').count()
+        booked_count = Booking.query.filter(Booking.trek_id == t.id, Booking.status.in_(['Booked', 'Completed'])).count()
         assigned_treks.append({
             'id': t.id,
             'batchCode': t.batch_code or f"TID{t.id:03d}B01",
@@ -2690,7 +2731,7 @@ def staff_dashboard_data():
             'status': t.status
         })
         
-        bookings_query = Booking.query.filter_by(trek_id=t.id).all()
+        bookings_query = Booking.query.filter(Booking.trek_id == t.id, Booking.status.in_(['Booked', 'Completed'])).all()
         for b in bookings_query:
             user_data = b.user.to_json()
             participants.append({
@@ -2850,12 +2891,23 @@ def staff_export(trek_id):
     filename = f"participants_trek_{trek_id}_{int(datetime.now().timestamp())}.csv"
     filepath = os.path.join(email_dir, filename)
     
-    bookings = Booking.query.filter_by(trek_id=trek_id).all()
+    bookings = Booking.query.filter(Booking.trek_id == trek_id, Booking.status.in_(['Booked', 'Completed'])).all()
     with open(filepath, 'w', newline='') as f:
         writer = csv.writer(f)
-        writer.writerow(['Booking ID', 'Trekker ID', 'Participant Name', 'Participant Email', 'Booked On', 'Status'])
+        writer.writerow(['Booking ID', 'Trekker ID', 'Participant Name', 'Participant Email', 'Phone', 'Booked On', 'Blood Group', 'Emergency Contact', 'Status', 'Payment Status'])
         for b in bookings:
-            writer.writerow([b.unique_booking_id, b.user.to_json()['memberId'], b.user.name, b.user.email, b.booked_on.strftime('%Y-%m-%d'), b.status])
+            writer.writerow([
+                b.unique_booking_id,
+                b.user.to_json().get('memberId'),
+                b.user.name,
+                b.user.email,
+                b.user.phone or '',
+                b.booked_on.strftime('%Y-%m-%d'),
+                b.user.blood_group or '—',
+                b.user.emergency or '',
+                b.status,
+                b.payment_status or ('Paid' if b.paid else 'Pending')
+            ])
             
     return jsonify({'message': f'CSV export triggered. File generated: {filename}'})
 
@@ -2901,9 +2953,42 @@ def create_staff_ticket():
 
 # ── TRAILSYNC SOCIAL ───────────────────────────────────────────
 
+def auto_create_social_groups():
+    from datetime import datetime, timedelta
+    today = datetime.utcnow().date()
+    target_date = today + timedelta(days=5)
+    # Find all treks with no messages where start_date - 5 days <= today
+    treks = Trek.query.filter(Trek.start_date <= target_date).all()
+    for t in treks:
+        msg_count = ChatMessage.query.filter_by(trek_id=t.id).count()
+        if msg_count == 0:
+            # Auto create!
+            settings = TrekGroupSetting.query.filter_by(trek_id=t.id).first()
+            if not settings:
+                settings = TrekGroupSetting(trek_id=t.id, is_locked=False)
+                db.session.add(settings)
+            
+            sender_id = t.staff_id if t.staff_id else 1
+            sender_user = User.query.get(sender_id)
+            sender_name = sender_user.name if sender_user else "System"
+            sender_role = sender_user.role if sender_user else "admin"
+            
+            msg_text = f"Group automatically created before 5 days of trek start. Participants added: all booked trekkers."
+            msg = ChatMessage(
+                trek_id=t.id,
+                sender_id=sender_id,
+                sender_name=sender_name,
+                sender_role=sender_role,
+                message_text=msg_text,
+                is_announcement=False
+            )
+            db.session.add(msg)
+    db.session.commit()
+
 @app.route('/api/social/groups', methods=['GET'])
 @login_required
 def get_social_groups():
+    auto_create_social_groups()
     if current_user.role == 'user':
         # Treks the user has booked
         bookings = Booking.query.filter_by(user_id=current_user.id, status='Booked').all()
@@ -2959,6 +3044,7 @@ def get_social_groups():
 @app.route('/api/social/pending_groups', methods=['GET'])
 @login_required
 def get_pending_social_groups():
+    auto_create_social_groups()
     # Only staff should use this endpoint
     if current_user.role != 'staff':
         return jsonify({'error': 'Unauthorized'}), 403

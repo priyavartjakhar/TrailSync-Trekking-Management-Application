@@ -13,12 +13,12 @@
                 <div class="ts-card-title">Completed Treks</div>
               </div>
               <div class="ts-card-body">
-                <div v-if="trekHistory.length === 0" class="empty-state">
+                <div v-if="trekHistory.filter(h => h.status === 'Completed').length === 0" class="empty-state">
                   <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                   <p>No past treks found.</p>
                 </div>
                 <div class="bookings-stack">
-                  <div v-for="h in trekHistory" :key="h.id" class="booking-row" style="opacity: 0.85">
+                  <div v-for="h in trekHistory.filter(h => h.status === 'Completed')" :key="h.id" class="booking-row" style="opacity: 0.85">
                     <div class="booking-accent" style="background: var(--stone)"></div>
                     <div class="booking-main">
                       <div class="booking-trek-name">{{ h.trekName }}</div>

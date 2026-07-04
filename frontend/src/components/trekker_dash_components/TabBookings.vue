@@ -75,10 +75,10 @@
               </div>
 
               <!-- Cancelled Bookings Sub-section -->
-              <div v-if="trekHistory.filter(b=>b.status==='Cancelled').length > 0" class="cancelled-bookings-section" style="margin-top: 2rem; border-top: 1px dashed rgba(26,46,26,0.15); padding-top: 1.5rem;">
+              <div v-if="myBookings.filter(b=>b.status==='Cancelled').length > 0" class="cancelled-bookings-section" style="margin-top: 2rem; border-top: 1px dashed rgba(26,46,26,0.15); padding-top: 1.5rem;">
                 <h4 style="color: var(--stone); margin-bottom: 1.25rem; font-family: 'Playfair Display', serif; font-size: 1.2rem; font-weight: 700;">Cancelled Bookings</h4>
                 <div class="bookings-stack">
-                  <div v-for="b in trekHistory.filter(b=>b.status==='Cancelled')" :key="b.id" class="booking-row cancelled-booking-row" style="opacity: 0.85; border: 1px dashed rgba(26,46,26,0.18); background: #fbfbfc; box-shadow: none;">
+                  <div v-for="b in myBookings.filter(b=>b.status==='Cancelled')" :key="b.id" class="booking-row cancelled-booking-row" style="opacity: 0.85; border: 1px dashed rgba(26,46,26,0.18); background: #fbfbfc; box-shadow: none;">
                     <div class="booking-accent" style="background: var(--stone);"></div>
                     <div class="booking-main">
                       <div class="booking-trek-name" style="text-decoration: line-through; color: var(--stone);">{{ b.trekName }}</div>

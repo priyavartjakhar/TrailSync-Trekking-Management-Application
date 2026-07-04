@@ -247,11 +247,11 @@ body { font-family:'DM Sans',sans-serif; background:var(--snow); color:var(--bar
 
 
 /* ── Dashboard Grid ──────────────────────────────────────── */
-.dashboard-grid         { display:grid; grid-template-columns:2fr 1fr 1fr; gap:1.5rem; margin-bottom:1.5rem; }
-.dashboard-grid-3col    { display:grid; grid-template-columns:1fr 1fr 1fr; gap:1.5rem; margin-bottom:1.5rem; }
-.dashboard-grid-2col    { display:grid; grid-template-columns:2fr 1fr; gap:1.5rem; margin-bottom:1.5rem; }
-.dashboard-grid-equal   { display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; margin-bottom:1.5rem; }
-.dash-card { background:#fff; border:1px solid rgba(26,46,26,.08); border-radius:var(--radius); padding:1.5rem; }
+.dashboard-grid         { display:grid; grid-template-columns:minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr); gap:1.5rem; margin-bottom:1.5rem; }
+.dashboard-grid-3col    { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:1.5rem; margin-bottom:1.5rem; }
+.dashboard-grid-2col    { display:grid; grid-template-columns:minmax(0, 2fr) minmax(0, 1fr); gap:1.5rem; margin-bottom:1.5rem; }
+.dashboard-grid-equal   { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:1.5rem; margin-bottom:1.5rem; }
+.dash-card { background:#fff; border:1px solid rgba(26,46,26,.08); border-radius:var(--radius); padding:1.5rem; min-width: 0; }
 .dash-wide { grid-column:1 / -1; }
 .dash-card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:1.25rem; }
 .dash-card-title { font-family:'Playfair Display',serif; font-size:1.05rem; font-weight:700; color:var(--forest); }
@@ -814,30 +814,91 @@ body { font-family:'DM Sans',sans-serif; background:var(--snow); color:var(--bar
   border-color: var(--blue);
 }
 
+.sidebar-overlay { display: none; }
+
 /* ── Responsive ──────────────────────────────────────────── */
 @media(max-width:1200px) {
   .stats-grouped-container { grid-template-columns: 1fr; }
   .revenue-cards    { grid-template-columns:repeat(2,1fr); }
   .alerts-tasks-grid { grid-template-columns:repeat(2,1fr); }
-  .alerts-tasks-dashboard-grid { grid-template-columns:1fr; }
+}
+@media(max-width:1024px) {
+  .sidebar-overlay {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(2px);
+    z-index: 999;
+    animation: fadeIn 0.22s ease-out;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  .ts-sidebar:not(.collapsed) {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 1000;
+    height: 100vh;
+    box-shadow: 4px 0 25px rgba(26, 46, 26, 0.2);
+  }
+  .topbar-heading { font-size: 1.35rem; }
 }
 @media(max-width:960px) {
   .dashboard-grid,
   .dashboard-grid-3col,
-  .dashboard-grid-2col { grid-template-columns:1fr; }
+  .dashboard-grid-2col,
+  .dashboard-grid-equal { grid-template-columns:1fr; }
   .dash-wide { grid-column:auto; }
   .cards-grid   { grid-template-columns:1fr 1fr; }
   .reports-grid { grid-template-columns:1fr; }
   .form-grid    { grid-template-columns:1fr; }
   .form-full    { grid-column:auto; }
 }
+/* Default: hide mobile-only elements on desktop */
+.col-show-mobile-only { display: none; }
+@media(max-width:768px) {
+  .alerts-tasks-dashboard-grid { grid-template-columns: 1fr; }
+  .availability-desktop-view { display: none !important; }
+  .availability-mobile-notice {
+    display: flex !important;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem 1.5rem;
+    text-align: center;
+    background: #fff;
+    border: 1px solid rgba(26,46,26,.08);
+    border-radius: var(--radius);
+  }
+  .mobile-notice-icon {
+    width: 48px;
+    height: 48px;
+    stroke: var(--gold);
+    fill: none;
+    stroke-width: 1.8;
+    margin-bottom: 1rem;
+  }
+  .availability-mobile-notice h3 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.25rem;
+    color: var(--forest);
+    margin-bottom: 0.5rem;
+    font-weight: 700;
+  }
+  .availability-mobile-notice p {
+    font-size: 0.85rem;
+    color: var(--stone);
+    margin: 0;
+  }
+}
 @media(max-width:640px) {
-  .ts-sidebar { width:64px; }
-  .ts-sidebar .nav-item span,
-  .ts-sidebar .nav-section-label,
-  .ts-sidebar .su-info,
-  .ts-sidebar .brand-name,
-  .ts-sidebar .su-logout { display:none; }
   .stats-grouped-container { grid-template-columns: 1fr; }
   .stats-group-cards { grid-template-columns: 1fr; }
   .cards-grid { grid-template-columns:1fr; }
@@ -846,6 +907,77 @@ body { font-family:'DM Sans',sans-serif; background:var(--snow); color:var(--bar
   .ts-topbar { padding:1rem; }
   .alerts-tasks-grid { grid-template-columns:1fr; }
   .console-group-buttons { grid-template-columns:1fr; }
+  .chart-svg-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .chart-svg-wrap svg { min-width: 600px; }
+  
+  /* Responsive Tables and buttons */
+  .col-hide-mobile { display: none !important; }
+  .btn-text-hide-mobile { display: none !important; }
+  .btn-hide-mobile { display: none !important; }
+  .batch-actions-layout {
+    flex-direction: row !important;
+    flex-wrap: wrap;
+    gap: 4px !important;
+  }
+  .batch-actions-row {
+    display: contents !important;
+  }
+  .mobile-filters-toggle {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+  }
+  .route-filters-bar {
+    display: none !important;
+  }
+  .route-filters-bar.show-mobile {
+    display: flex !important;
+    flex-direction: column;
+    align-items: stretch !important;
+  }
+  .route-filters-bar.show-mobile .filter-group {
+    width: 100%;
+  }
+
+  /* Mobile-only visibility */
+  .col-show-mobile-only { display: block !important; }
+
+  /* Responsive Modals */
+  .ts-modal {
+    width: 98vw !important;
+    max-width: 98vw !important;
+    margin: 1vh auto !important;
+  }
+  .ts-modal.large {
+    max-width: 98vw !important;
+  }
+  .ts-modal-body {
+    padding: 0.75rem !important;
+    max-height: 70vh !important;
+    overflow-y: auto !important;
+  }
+  .details-modal-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+  .details-modal-grid > div {
+    border-right: none !important;
+    padding-right: 0 !important;
+  }
+  .ts-modal-footer {
+    padding: 0.75rem !important;
+    flex-wrap: wrap;
+  }
+
+  /* Report actions stacking */
+  .report-actions-mobile {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    width: 100%;
+  }
+  .report-actions-mobile .act-btn {
+    justify-content: center;
+  }
 }
 
 /* ── Trek Route Cards ────────────────────────────────────── */

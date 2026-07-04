@@ -1,6 +1,8 @@
 <template>
       <section v-if="activeTab==='staff_availability'" class="tab-content">
-        <!-- Visual Timeline Monthly Calendar (TOP) -->
+        <!-- Responsive wrapper for Desktop / Tablet view -->
+        <div class="availability-desktop-view">
+          <!-- Visual Timeline Monthly Calendar (TOP) -->
         <div class="calendar-timeline-container" style="margin-top: 0; margin-bottom: 1.5rem;">
           <div class="calendar-timeline-header">
             <h4 style="color: var(--forest); margin: 0; font-size: 1.1rem; font-weight: 600;">
@@ -162,7 +164,15 @@
           <div v-html="calendarTooltip.content"></div>
           <div class="tooltip-arrow"></div>
         </div>
-      </section>
+      </div><!-- /availability-desktop-view -->
+
+      <!-- Mobile Screen Required Notice -->
+      <div class="availability-mobile-notice">
+        <svg viewBox="0 0 24 24" class="mobile-notice-icon"><rect x="5" y="2" width="14" height="20" rx="2" ry="2" stroke="currentColor" stroke-width="2" fill="none"/><line x1="12" y1="18" x2="12.01" y2="18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+        <h3>Desktop View Required</h3>
+        <p>Please view this tab on a tablet or desktop screen size.</p>
+      </div>
+    </section>
 </template>
 
 <script>

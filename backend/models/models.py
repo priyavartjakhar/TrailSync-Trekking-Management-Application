@@ -400,6 +400,7 @@ class SupportTicket(db.Model):
     subject = db.Column(db.String(150), nullable=False)
     message = db.Column(db.Text, nullable=False)
     status = db.Column(db.String(20), nullable=False, default='Open') # 'Open', 'Resolved'
+    resolution_message = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # Relationship to user
@@ -432,7 +433,7 @@ class SupportTicket(db.Model):
 
         return {
             'id': self.id,
-            'ticketId': f"TS26#{self.id:03d}" if self.id else "TS26#000",
+            'ticketId': f"TS26AS{self.id:03d}" if self.id else "TS26AS000",
             'userId': self.user_id,
             'name': self.name,
             'email': self.email,
@@ -441,6 +442,7 @@ class SupportTicket(db.Model):
             'category': category,
             'message': self.message,
             'status': self.status,
+            'resolutionMessage': self.resolution_message or '',
             'createdAt': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else ''
         }
 

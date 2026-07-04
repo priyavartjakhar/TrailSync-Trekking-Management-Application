@@ -13,19 +13,19 @@
             <thead>
               <tr>
                 <th>Batch ID</th>
-                <th>Trek Name</th>
-                <th>Dates</th>
+                <th class="col-hide-mobile">Trek Name</th>
+                <th class="col-hide-mobile">Dates</th>
                 <th>Guide (ID)</th>
-                <th>Total Participants</th>
-                <th>Price</th>
+                <th>Users</th>
+                <th class="col-hide-mobile">Price</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="t in completedTreks" :key="t.id">
                 <td class="mono font-bold">{{ t.batchCode }}</td>
-                <td class="trek-name-cell">{{ t.name }}</td>
-                <td class="mono" style="white-space:nowrap">{{ formatDate(t.startDate) }} → {{ formatDate(t.endDate) }}</td>
+                <td class="trek-name-cell col-hide-mobile">{{ t.name }}</td>
+                <td class="mono col-hide-mobile" style="white-space:nowrap">{{ formatDate(t.startDate) }} → {{ formatDate(t.endDate) }}</td>
                 <td>
                   <template v-if="t.staff">
                     <div style="font-weight:600; color:var(--forest)">{{ t.staff }}</div>
@@ -36,12 +36,12 @@
                   </template>
                 </td>
                 <td class="mono">{{ t.booked }}/{{ t.slots }}</td>
-                <td class="mono">₹{{ t.price ? t.price.toLocaleString() : '—' }}</td>
+                <td class="mono col-hide-mobile">₹{{ t.price ? t.price.toLocaleString() : '—' }}</td>
                 <td>
                   <div class="batch-actions-layout">
-                    <button class="act-btn act-view" @click="openHistoryModal(t)">
+                    <button class="act-btn act-view" @click="openHistoryModal(t)" title="View Details">
                       <svg viewBox="0 0 24 24" class="act-btn-icon" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                      View Details
+                      <span class="btn-text-hide-mobile">View Details</span>
                     </button>
                   </div>
                 </td>

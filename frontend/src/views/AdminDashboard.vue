@@ -3,6 +3,9 @@
 
     <AdminSidebar @logout="$emit('logout')" />
 
+    <!-- Sidebar Overlay for mobile/tablet -->
+    <div v-if="!sidebarCollapsed" class="sidebar-overlay" @click="sidebarCollapsed = true"></div>
+
     <!-- ════════ MAIN ════════ -->
     <main class="ts-main">
       <AdminTopbar @logout="$emit('logout')" />
@@ -98,6 +101,7 @@ export default {
     return {
       activeTab: localStorage.getItem('adminActiveTab') || 'dashboard',
       sidebarCollapsed: false,
+      lastIsSmall: null,
       searchQuery: '',
       trekFilter: 'All',
       bookingFilter: 'All',
@@ -421,9 +425,11 @@ export default {
       return route ? route.duration : 0;
     },
     filteredTreks() {
+      const todayStr = new Date().toLocaleDateString('en-CA');
+      let activeTreks = this.treks.filter(t => t.status !== 'Completed' && (!t.endDate || t.endDate >= todayStr));
       let list = this.trekFilter === 'All'
-        ? this.treks
-        : this.treks.filter(t => t.status === this.trekFilter);
+        ? activeTreks
+        : activeTreks.filter(t => t.status === this.trekFilter);
       if (this.searchQuery)
         list = list.filter(t => t.name.toLowerCase().includes(this.searchQuery.toLowerCase())
           || t.location.toLowerCase().includes(this.searchQuery.toLowerCase())
@@ -1082,12 +1088,22 @@ export default {
   mounted() {
     this.loadData();
     window.addEventListener('click', this.handleGlobalClick);
+    this.checkScreenSize();
+    window.addEventListener('resize', this.checkScreenSize);
   },
   beforeUnmount() {
     window.removeEventListener('click', this.handleGlobalClick);
+    window.removeEventListener('resize', this.checkScreenSize);
   },
 
   methods: {
+    checkScreenSize() {
+      const isSmall = window.innerWidth <= 1024;
+      if (isSmall !== this.lastIsSmall) {
+        this.sidebarCollapsed = isSmall;
+        this.lastIsSmall = isSmall;
+      }
+    },
     selectStateForRoute(state) {
       this.routeForm.location = state;
       this.showRouteStateDropdown = false;
@@ -2215,22 +2231,23 @@ export default {
       }
     },
     viewBatchDetails(batch) {
-      const bookings = this.allBookings.filter(bk => bk.trekId === batch.id && bk.status === 'Booked');
+      const bookings = this.allBookings.filter(bk => Number(bk.trekId) === Number(batch.id) && bk.status === 'Booked');
       this.selectedBatchDetails = {
         batch: batch,
         bookings: bookings.map(bk => {
-          const userObj = this.users.find(usr => usr.id === bk.userId);
+          const userObj = this.users.find(usr => Number(usr.id) === Number(bk.userId));
           return {
             id: bk.id,
             userId: bk.userId,
             memberId: userObj ? userObj.memberId : ('TS26T' + bk.userId),
-            userName: bk.user,
+            userName: userObj ? userObj.name : bk.user,
             userEmail: userObj ? userObj.email : '—',
             userPhone: userObj ? userObj.phone : '—',
             userCity: userObj ? userObj.city : '—',
             bookedOn: bk.date,
             paid: bk.paid,
-            transactionId: bk.transactionId
+            transactionId: bk.transactionId,
+            bookingId: bk.bookingId || ('BK' + bk.id)
           };
         })
       };
@@ -2364,21 +2381,34 @@ export default {
       }
     },
 
-    async resolveTicket(ticket) {
+    async resolveTicket(ticket, resolutionMessage = '') {
       try {
-        const res = await fetch(`/api/admin/support_tickets/resolve/${ticket.id}`, { method:'POST' });
+        const res = await fetch(`/api/admin/support_tickets/resolve/${ticket.id}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ resolution_message: resolutionMessage })
+        });
         if (res.ok) {
-          const tId = ticket.ticketId || `TS26#${String(ticket.id).padStart(3, '0')}`;
+          const data = await res.json();
+          const tId = ticket.ticketId || `TS26AS${String(ticket.id).padStart(3, '0')}`;
           this.showToast(`Ticket ${tId} resolved`);
           if (this.selectedTicketDetails && this.selectedTicketDetails.id === ticket.id) {
             this.selectedTicketDetails.status = 'Resolved';
+            this.selectedTicketDetails.resolutionMessage = resolutionMessage;
+          }
+          // Update in local list too
+          const idx = this.supportTickets ? this.supportTickets.findIndex(t => t.id === ticket.id) : -1;
+          if (idx >= 0) {
+            this.supportTickets[idx].status = 'Resolved';
+            this.supportTickets[idx].resolutionMessage = resolutionMessage;
           }
           this.loadData();
           return;
         }
       } catch (_) {}
       ticket.status = 'Resolved';
-      const tId = ticket.ticketId || `TS26#${String(ticket.id).padStart(3, '0')}`;
+      ticket.resolutionMessage = resolutionMessage;
+      const tId = ticket.ticketId || `TS26AS${String(ticket.id).padStart(3, '0')}`;
       this.showToast(`Ticket ${tId} resolved (mock)`);
     },
 

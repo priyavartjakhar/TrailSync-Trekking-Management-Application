@@ -96,7 +96,7 @@
                   <div v-for="t in supportTickets" :key="t.id" class="p-3 rounded" style="border: 1px solid var(--stone-light); background: var(--snow);">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                       <span style="font-family: monospace; font-weight: bold; font-size: 0.8rem; color: var(--forest-light);">
-                        {{ t.ticketId || ('TS26#' + String(t.id).padStart(3, '0')) }}
+                        {{ t.ticketId || ('TS26AS' + String(t.id).padStart(3, '0')) }}
                       </span>
                       <div class="d-flex gap-2 align-items-center">
                         <span class="category-tag" :class="getCategoryClass(t.category)" style="font-size: 0.6rem; padding: 1px 6px;">
@@ -115,6 +115,11 @@
                     </p>
                     <div class="text-muted text-end" style="font-size: 0.68rem;">
                       Submitted on: {{ t.createdAt }}
+                    </div>
+                    <!-- Resolution message -->
+                    <div v-if="t.status === 'Resolved' && t.resolutionMessage" style="margin-top: 0.6rem; background: rgba(40,167,69,0.06); border: 1px solid rgba(40,167,69,0.2); border-radius: 6px; padding: 0.6rem 0.75rem;">
+                      <div style="font-size: 0.65rem; font-weight: 700; color: #28a745; text-transform: uppercase; margin-bottom: 3px;">✓ Admin Response</div>
+                      <div style="font-size: 0.8rem; color: var(--bark); line-height: 1.4; white-space: pre-wrap;">{{ t.resolutionMessage }}</div>
                     </div>
                   </div>
                 </div>

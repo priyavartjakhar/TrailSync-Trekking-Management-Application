@@ -1,8 +1,13 @@
 <template>
       <section v-if="activeTab==='treks'" class="tab-content">
+        <!-- Collapsible Filters Toggle Button for Mobile -->
+        <button class="mobile-filters-toggle btn-primary-ts" style="display: none; width: 100%; margin-bottom: 1rem; padding: 8px 16px; font-size: 0.85rem;" @click="showMobileFilters = !showMobileFilters">
+          <svg viewBox="0 0 24 24" style="width: 15px; height: 15px; margin-right: 6px; fill: none; stroke: currentColor; stroke-width: 2.2;"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          {{ showMobileFilters ? 'Hide Filters' : 'Show Filters' }}
+        </button>
+
         <!-- Filters Bar -->
-        <!-- Filters Bar -->
-        <div class="route-filters-bar" style="display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.25rem; background: var(--snow); padding: 1.25rem; border-radius: 8px; border: 1px solid var(--stone-light); align-items: flex-end;">
+        <div class="route-filters-bar" :class="{ 'show-mobile': showMobileFilters }" style="flex-wrap: wrap; gap: 1rem; margin-bottom: 1.25rem; background: var(--snow); padding: 1.25rem; border-radius: 8px; border: 1px solid var(--stone-light); align-items: flex-end;">
           
           <!-- Difficulty Dropdown -->
           <div class="filter-group" style="display: flex; flex-direction: column; gap: 4px; min-width: 140px;">
@@ -187,9 +192,9 @@
               <tr>
                 <th>Trek ID</th>
                 <th>Trek Name</th>
-                <th>Location</th>
-                <th>Difficulty</th>
-                <th>Status</th>
+                <th class="col-hide-mobile">Location</th>
+                <th class="col-hide-mobile">Difficulty</th>
+                <th class="col-hide-mobile">Status</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -197,9 +202,9 @@
               <tr v-for="r in filteredRoutes" :key="r.id">
                 <td class="mono font-bold">{{ r.trekCode }}</td>
                 <td class="trek-name-cell">{{ r.name }}</td>
-                <td>{{ r.place ? r.place + ', ' : '' }}{{ r.location }}</td>
-                <td><span :class="'diff-pill pill-'+r.difficulty.toLowerCase()">{{ r.difficulty }}</span></td>
-                <td>
+                <td class="col-hide-mobile">{{ r.place ? r.place + ', ' : '' }}{{ r.location }}</td>
+                <td class="col-hide-mobile"><span :class="'diff-pill pill-'+r.difficulty.toLowerCase()">{{ r.difficulty }}</span></td>
+                <td class="col-hide-mobile">
                   <span :class="['status-pill', r.active ? 'status-active' : 'status-inactive']">
                     {{ r.active ? 'Active' : 'Inactive' }}
                   </span>
@@ -207,24 +212,24 @@
                 <td>
                   <div class="action-group-container">
                     <div class="action-group-mgmt">
-                      <button class="act-btn act-edit" @click="openRouteModal(r)">
+                      <button class="act-btn act-edit" @click="openRouteModal(r)" title="Edit">
                         <svg viewBox="0 0 24 24" class="act-btn-icon"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-                        Edit
+                        <span class="btn-text-hide-mobile">Edit</span>
                       </button>
-                      <button class="act-btn act-view" @click="viewRouteDetails(r)">
+                      <button class="act-btn act-view" @click="viewRouteDetails(r)" title="View Details">
                         <svg viewBox="0 0 24 24" class="act-btn-icon"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                        View Details
+                        <span class="btn-text-hide-mobile">View Details</span>
                       </button>
                     </div>
                     <div class="action-group-ops">
-                      <button class="act-btn" :class="r.active ? 'act-close' : 'act-open'" @click="toggleRouteStatus(r)">
+                      <button class="act-btn" :class="r.active ? 'act-close' : 'act-open'" @click="toggleRouteStatus(r)" :title="r.active ? 'Close' : 'Open'">
                         <svg v-if="r.active" viewBox="0 0 24 24" class="act-btn-icon"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                         <svg v-else viewBox="0 0 24 24" class="act-btn-icon"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
-                        {{ r.active ? 'Close' : 'Open' }}
+                        <span class="btn-text-hide-mobile">{{ r.active ? 'Close' : 'Open' }}</span>
                       </button>
-                      <button class="act-btn act-delete-btn" @click="deleteRoute(r.id)">
+                      <button class="act-btn act-delete-btn" @click="deleteRoute(r.id)" title="Delete">
                         <svg viewBox="0 0 24 24" class="act-btn-icon"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
-                        Delete
+                        <span class="btn-text-hide-mobile">Delete</span>
                       </button>
                     </div>
                   </div>
@@ -244,5 +249,12 @@
 <script>
 import { adminDashComponent } from './adminDashProxy';
 
-export default adminDashComponent('TabTreks');
+export default {
+  ...adminDashComponent('TabTreks'),
+  data() {
+    return {
+      showMobileFilters: false
+    };
+  }
+};
 </script>

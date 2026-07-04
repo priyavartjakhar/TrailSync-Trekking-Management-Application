@@ -696,6 +696,19 @@ with app.app_context():
     if User.query.first() is None:
         seed_db(force=False)
     normalize_mock_booking_payments()
+    # Migrate: add resolution_message column if missing
+    try:
+        from sqlalchemy import text as _text
+        db.session.execute(_text("SELECT resolution_message FROM support_tickets LIMIT 1"))
+    except Exception:
+        db.session.rollback()
+        try:
+            db.session.execute(_text("ALTER TABLE support_tickets ADD COLUMN resolution_message TEXT"))
+            db.session.commit()
+            print("Migrated support_tickets with resolution_message column.")
+        except Exception as e:
+            print("Migration (resolution_message) failed:", e)
+            db.session.rollback()
 
 
 @app.route('/api/public/treks', methods=['GET'])
@@ -2530,6 +2543,12 @@ def admin_resolve_support_ticket(ticket_id):
         return jsonify({'error': 'Ticket not found'}), 404
     ticket.status = 'Resolved'
     
+    # Save admin resolution message if provided
+    data = request.get_json(silent=True) or {}
+    resolution_msg = data.get('resolution_message', '').strip()
+    if resolution_msg:
+        ticket.resolution_message = resolution_msg
+    
     # Auto-block dates for leave requests
     import re
     if ticket.subject and '[Leave Request]' in ticket.subject:
@@ -2571,7 +2590,7 @@ def admin_resolve_support_ticket(ticket_id):
                 profile.custom_blocked_dates = ','.join(sorted(existing_list))
 
     db.session.commit()
-    return jsonify({'success': True, 'message': f'Ticket #{ticket_id} resolved.'})
+    return jsonify({'success': True, 'message': f'Ticket #{ticket_id} resolved.', 'ticket': ticket.to_json()})
 
 @app.route('/api/admin/treks/assign/<int:trek_id>', methods=['POST'])
 @login_required

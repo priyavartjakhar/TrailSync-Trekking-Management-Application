@@ -90,7 +90,7 @@
                 <div class="ts-card-body" style="padding: 1.25rem">
                   <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem">
                     <div>
-                      <span style="font-size: 0.75rem; font-weight: 700; color: var(--forest); margin-right: 8px; font-family: monospace;">{{ ticket.ticketId || ('TS26#' + String(ticket.id).padStart(3, '0')) }}</span>
+                      <span style="font-size: 0.75rem; font-weight: 700; color: var(--forest); margin-right: 8px; font-family: monospace;">{{ ticket.ticketId || ('TS26AS' + String(ticket.id).padStart(3, '0')) }}</span>
                       <span class="category-tag" :class="getCategoryClass(ticket.category)" style="padding: 1px 6px; font-size: 0.65rem;">
                         {{ ticket.category || 'General Inquiry' }}
                       </span>
@@ -110,6 +110,11 @@
                   <p style="font-size: 0.85rem; color: var(--stone); line-height: 1.4; white-space: pre-wrap">{{ ticket.message }}</p>
                   <div style="margin-top: 0.75rem; border-top: 1px solid rgba(0,0,0,0.04); padding-top: 0.5rem; display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; color: var(--stone)">
                     <span>Submitted on {{ ticket.createdAt }}</span>
+                  </div>
+                  <!-- Resolution message -->
+                  <div v-if="ticket.status === 'Resolved' && ticket.resolutionMessage" style="margin-top: 0.6rem; background: rgba(40,167,69,0.06); border: 1px solid rgba(40,167,69,0.2); border-radius: 6px; padding: 0.6rem 0.75rem;">
+                    <div style="font-size: 0.65rem; font-weight: 700; color: #28a745; text-transform: uppercase; margin-bottom: 3px;">✓ Admin Response</div>
+                    <div style="font-size: 0.85rem; color: var(--bark); line-height: 1.5; white-space: pre-wrap;">{{ ticket.resolutionMessage }}</div>
                   </div>
                 </div>
               </div>

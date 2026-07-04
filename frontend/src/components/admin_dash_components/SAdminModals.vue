@@ -147,8 +147,8 @@
               <div v-if="batchTrekkers.length" style="background: #ffffff; border: 1px solid #edf2f7; border-radius: 6px; max-height: 200px; overflow-y: auto;">
                 <div v-for="t in batchTrekkers" :key="t.userId" style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #edf2f7; font-size: 0.88rem;">
                   <div>
-                    <strong>{{ t.userName }}</strong> <span style="color: #718096; font-size: 0.78rem;">[{{ t.memberId }}]</span>
-                    <div style="font-size: 0.78rem; color: #a0aec0;">{{ t.userEmail }}</div>
+                    <strong>{{ t.userName || t.name }}</strong> <span style="color: #718096; font-size: 0.78rem;">[{{ t.memberId }}]</span>
+                    <div style="font-size: 0.78rem; color: #a0aec0;">{{ t.userEmail || t.email }}</div>
                   </div>
                   <div style="display: flex; align-items: center; gap: 8px;">
                     <span class="status-pill status-open" style="font-size: 0.72rem; padding: 2px 8px;">Active</span>
@@ -496,8 +496,8 @@
                         <span :class="['status-pill', user.paid ? 'status-open' : 'status-pending']" style="font-size:0.75rem;">
                           {{ user.paid ? 'Paid' : 'Unpaid' }}
                         </span>
-                        <div v-if="user.paid && user.transactionId" class="mono" style="font-size:0.65rem; color:var(--stone); margin-top:2px;">
-                          {{ user.transactionId }}
+                        <div v-if="user.bookingId" class="mono" style="font-size:0.65rem; color:var(--stone); margin-top:2px;">
+                          ID: {{ user.bookingId }}
                         </div>
                       </td>
                     </tr>
@@ -899,7 +899,7 @@
     <div v-if="showTicketDetailsModal" class="ts-modal-overlay" @click.self="closeTicketDetails">
       <div class="ts-modal large">
         <div class="ts-modal-header">
-          <h3 class="ts-modal-title">Ticket details — {{ selectedTicketDetails.ticketId || ('TS26#' + String(selectedTicketDetails.id).padStart(3, '0')) }}</h3>
+          <h3 class="ts-modal-title">Ticket — {{ selectedTicketDetails.ticketId || ('TS26AS' + String(selectedTicketDetails.id).padStart(3, '0')) }}</h3>
           <button class="modal-close" @click="closeTicketDetails">✕</button>
         </div>
         <div class="ts-modal-body" style="padding: 1.5rem; max-height: 480px; overflow-y: auto;">
@@ -973,11 +973,22 @@
               </div>
             </div>
 
+            <!-- Resolution Message (show when resolved or when resolving) -->
+            <div v-if="selectedTicketDetails.status === 'Resolved' && selectedTicketDetails.resolutionMessage" style="margin-top: 1.25rem; background: rgba(40,167,69,0.06); border: 1px solid rgba(40,167,69,0.2); border-radius: 8px; padding: 1rem;">
+              <div style="font-size: 0.78rem; font-weight: 700; color: #28a745; text-transform: uppercase; margin-bottom: 0.5rem;">✓ Admin Resolution Note</div>
+              <div style="font-size: 0.88rem; color: var(--bark); line-height: 1.5; white-space: pre-wrap;">{{ selectedTicketDetails.resolutionMessage }}</div>
+            </div>
+
+            <!-- Resolution message input (only when Open) -->
+            <div v-if="selectedTicketDetails.status === 'Open'" style="margin-top: 1.25rem;">
+              <div style="font-size: 0.8rem; font-weight: 700; color: var(--forest); text-transform: uppercase; margin-bottom: 0.4rem;">Resolution Note (Optional)</div>
+              <textarea v-model="resolutionInput" rows="3" placeholder="Add a message to the user about this resolution..." style="width: 100%; padding: 0.65rem 0.85rem; border: 1px solid rgba(26,46,26,0.15); border-radius: 6px; background: #fff; font-size: 0.85rem; resize: vertical; font-family: inherit;"></textarea>
+            </div>
           </div>
         </div>
         <div class="ts-modal-footer" style="display: flex; justify-content: flex-end; gap: 0.5rem; padding: 1rem 1.5rem;">
           <button class="btn-primary-ts" @click="closeTicketDetails" style="background: #e2e8f0; border-color: #cbd5e0; color: #4a5568;">Close</button>
-          <button class="btn-primary-ts" v-if="selectedTicketDetails.status === 'Open'" @click="resolveTicket(selectedTicketDetails)">Resolve Ticket</button>
+          <button class="btn-primary-ts" v-if="selectedTicketDetails.status === 'Open'" @click="resolveTicket(selectedTicketDetails, resolutionInput); resolutionInput = ''; closeTicketDetails();">Resolve Ticket</button>
         </div>
       </div>
     </div>
@@ -1126,6 +1137,11 @@
 import { adminDashComponent } from './adminDashProxy';
 
 export default adminDashComponent('SAdminModals', {
+  data() {
+    return {
+      resolutionInput: ''
+    };
+  },
   computed: {
     emailError() {
       if (!this.staffForm || !this.staffForm.email) return '';

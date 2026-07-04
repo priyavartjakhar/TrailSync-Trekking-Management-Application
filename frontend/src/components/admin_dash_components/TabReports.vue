@@ -18,9 +18,9 @@
                 <thead>
                   <tr>
                     <th>Report Name</th>
-                    <th>Parameters</th>
-                    <th>Generated At</th>
-                    <th style="text-align: right; width: 170px;">Actions</th>
+                    <th class="col-hide-mobile">Parameters</th>
+                    <th class="col-hide-mobile">Generated At</th>
+                    <th style="text-align: right;">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -30,19 +30,25 @@
                       <div class="category-tag tag-system" style="font-size: 0.68rem; margin-top: 4px; display: inline-block;">
                         {{ r.type.replace('_', ' ').toUpperCase() }}
                       </div>
+                      <div class="col-show-mobile-only mono" style="font-size: 0.68rem; color: var(--stone); margin-top: 3px;">{{ r.generatedAt }}</div>
                     </td>
-                    <td><span class="mono" style="font-size: 0.78rem; color: var(--bark);">{{ r.parameters }}</span></td>
-                    <td class="mono" style="font-size: 0.78rem; color: var(--stone);">{{ r.generatedAt }}</td>
-                    <td style="text-align: right; white-space: nowrap;">
-                      <button class="act-btn act-assign" @click="viewReport(r)" style="margin-right: 0.25rem; background: var(--cream); border-color: rgba(26,46,26,0.1); color: var(--forest);">
-                        View
-                      </button>
-                      <button class="act-btn act-assign" @click="downloadReportHTML(r)" style="margin-right: 0.25rem; background: rgba(200, 146, 42, 0.08); border-color: rgba(200,146,42,0.2); color: var(--gold-dark);">
-                        HTML
-                      </button>
-                      <button class="act-btn act-assign" @click="downloadReportCSV(r)">
-                        CSV
-                      </button>
+                    <td class="col-hide-mobile"><span class="mono" style="font-size: 0.78rem; color: var(--bark);">{{ r.parameters }}</span></td>
+                    <td class="mono col-hide-mobile" style="font-size: 0.78rem; color: var(--stone);">{{ r.generatedAt }}</td>
+                    <td style="text-align: right;">
+                      <div class="report-actions-mobile" style="display: inline-flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end;">
+                        <button class="act-btn act-assign" @click="viewReport(r)" style="background: var(--cream); border-color: rgba(26,46,26,0.1); color: var(--forest);" title="View Report">
+                          <svg viewBox="0 0 24 24" class="act-btn-icon"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                          <span class="btn-text-hide-mobile">View</span>
+                        </button>
+                        <button class="act-btn act-assign" @click="downloadReportHTML(r)" style="background: rgba(200, 146, 42, 0.08); border-color: rgba(200,146,42,0.2); color: var(--gold-dark);" title="Download HTML">
+                          <svg viewBox="0 0 24 24" class="act-btn-icon" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                          <span class="btn-text-hide-mobile">HTML</span>
+                        </button>
+                        <button class="act-btn act-assign" @click="downloadReportCSV(r)" title="Download CSV">
+                          <svg viewBox="0 0 24 24" class="act-btn-icon" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                          <span class="btn-text-hide-mobile">CSV</span>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 </tbody>

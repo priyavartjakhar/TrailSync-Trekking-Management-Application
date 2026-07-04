@@ -64,9 +64,9 @@
               <tr>
                 <th>Staff ID</th>
                 <th>Name</th>
-                <th>Contact Info</th>
-                <th style="text-align: center;">Treks Completed</th>
-                <th>Status</th>
+                <th class="col-hide-mobile">Contact Info</th>
+                <th class="col-hide-mobile" style="text-align: center;">Treks Completed</th>
+                <th class="col-hide-mobile">Status</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -76,33 +76,33 @@
                 <td>
                   <span style="font-weight:600; color:var(--forest)">{{ s.name }}</span>
                 </td>
-                <td>
+                <td class="col-hide-mobile">
                   <div class="mono" style="font-size:0.8rem; color:var(--forest-mid)">{{ s.contact }}</div>
                   <div style="font-size:0.75rem; color:var(--stone)">{{ s.phone || 'No phone' }}</div>
                 </td>
-                <td class="mono font-bold" style="text-align: center;">{{ s.completedTreksCount }}</td>
-                <td>
+                <td class="mono font-bold col-hide-mobile" style="text-align: center;">{{ s.completedTreksCount }}</td>
+                <td class="col-hide-mobile">
                   <span :class="['status-pill', s.blacklisted ? 'status-inactive' : (s.active ? 'status-active' : 'status-pending')]">
                     {{ s.blacklisted ? 'Blacklisted' : (s.active ? 'Active' : 'Inactive') }}
                   </span>
                 </td>
                 <td>
                   <div class="action-btns" style="display:flex; gap:6px;">
-                    <button class="act-btn act-view" @click="viewStaffDetails(s)">
+                    <button class="act-btn act-view" @click="viewStaffDetails(s)" title="View Details">
                       <svg viewBox="0 0 24 24" class="act-btn-icon"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                      View Details
+                      <span class="btn-text-hide-mobile">View Details</span>
                     </button>
-                    <button class="act-btn act-edit" @click="openStaffModal(s)">
+                    <button class="act-btn act-edit" @click="openStaffModal(s)" title="Edit">
                       <svg viewBox="0 0 24 24" class="act-btn-icon"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-                      Edit
+                      <span class="btn-text-hide-mobile">Edit</span>
                     </button>
-                    <button class="act-btn act-assign" @click="assignTrekToStaff(s)">
+                    <button class="act-btn act-assign" @click="assignTrekToStaff(s)" title="Assign Trek">
                       <svg viewBox="0 0 24 24" class="act-btn-icon" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                      Assign Trek
+                      <span class="btn-text-hide-mobile">Assign Trek</span>
                     </button>
-                    <button class="act-btn" :class="s.blacklisted ? 'act-open' : 'act-blacklist-btn'" @click="toggleStaffBlacklist(s)">
+                    <button class="act-btn" :class="s.blacklisted ? 'act-open' : 'act-blacklist-btn'" @click="toggleStaffBlacklist(s)" :title="s.blacklisted ? 'Restore' : 'Blacklist'">
                       <svg viewBox="0 0 24 24" class="act-btn-icon" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>
-                      {{ s.blacklisted ? 'Restore' : 'Blacklist' }}
+                      <span class="btn-text-hide-mobile">{{ s.blacklisted ? 'Restore' : 'Blacklist' }}</span>
                     </button>
                   </div>
                 </td>

@@ -857,14 +857,29 @@ def api_logout():
 
 def update_completed_bookings():
     try:
+        past_treks = Trek.query.filter(
+            Trek.status.in_(['Open', 'Closed']),
+            Trek.end_date < date.today()
+        ).all()
+        
+        updated = False
+        if past_treks:
+            for t in past_treks:
+                t.status = 'Completed'
+            updated = True
+            
         past_bookings = Booking.query.join(Trek).filter(
             Booking.status == 'Booked',
-            Trek.start_date < date.today()
+            Trek.end_date < date.today()
         ).all()
         if past_bookings:
             for b in past_bookings:
                 b.status = 'Completed'
+            updated = True
+            
+        if updated:
             db.session.commit()
+            invalidate_open_treks_cache()
     except Exception as e:
         print(f"Error updating completed bookings: {e}")
 

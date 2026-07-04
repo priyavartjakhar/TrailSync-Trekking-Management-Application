@@ -45,7 +45,7 @@ import {
   SKIP_LABELS,
   normalizeName,
   pillClass
-} from '../../data.js';
+} from '../../data/trek_data.js';
 
 export default {
   name: 'TsMap',

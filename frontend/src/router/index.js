@@ -102,15 +102,15 @@ router.beforeEach((to, from, next) => {
 
   // Dynamically load the dashboard-specific CSS and unload others
   if (to.path.startsWith('/admin')) {
-    updateThemeStylesheet('/static/css/admin_style.css');
+    updateThemeStylesheet('/static/css/admin.css');
   } else if (to.path.startsWith('/staff')) {
-    updateThemeStylesheet('/static/css/staff_style.css');
+    updateThemeStylesheet('/static/css/staff.css');
   } else if (to.path.startsWith('/dashboard')) {
-    updateThemeStylesheet('/static/css/user_style.css');
+    updateThemeStylesheet('/static/css/user.css');
   } else if (to.path.startsWith('/login') || to.path === '/register') {
     updateThemeStylesheet('/static/css/auth.css');
   } else if (to.path === '/') {
-    updateThemeStylesheet('/static/css/style.css');
+    updateThemeStylesheet('/static/css/home.css');
   } else {
     updateThemeStylesheet(null);
   }

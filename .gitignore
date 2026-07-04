@@ -26,6 +26,7 @@ yarn-error.log*
 *.db-journal
 *.db-wal
 *.db-shm
+*.pid
 backend/tma.db
 scratch/
 flask.log

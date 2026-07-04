@@ -768,7 +768,7 @@ import {
   USER_TREK_HISTORY,
   USER_INITIAL_PROFILE,
   USER_ACHIEVEMENTS
-} from '../user_data.js';
+} from '../data/user_data.js';
 
 import UserSidebar from '../components/trekker_dash_components/UserSidebar.vue';
 import UserTopbar from '../components/trekker_dash_components/UserTopbar.vue';

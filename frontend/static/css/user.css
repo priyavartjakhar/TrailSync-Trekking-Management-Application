@@ -1,10 +1,12 @@
 /* ============================================================
-   user_style.css — TrailSync Trekker Dashboard
+   user.css — TrailSync Trekker Dashboard
    Forest / Gold / Cream palette — Playfair + DM Sans + Space Mono
    ============================================================ */
 
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=DM+Sans:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap');
 
+
+/* ── COLOR SYSTEM & THEMING VARIABLES: Core HSL/HEX color tokens and styles ── */
 :root {
   --forest: #1a2e1a;
   --forest-mid: #2d4a2d;
@@ -23,6 +25,8 @@
   --radius: 6px;
 }
 
+
+/* ── BASE STYLES & RESET: Standard global styles and document resets ── */
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; }
 
@@ -38,6 +42,8 @@ body {
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: var(--cream); }
 ::-webkit-scrollbar-thumb { background: var(--mist); border-radius: 3px; }
+
+/* ── SYSTEM SCROLLBARS: Custom design scrollbars for webkit engines ── */
 ::-webkit-scrollbar-thumb:hover { background: var(--forest-light); }
 
 /* ── LAYOUT ─────────────────────────────────────────── */
@@ -62,6 +68,8 @@ body {
   box-shadow: 4px 0 24px rgba(0,0,0,0.18);
 }
 
+
+/* ── SIDEBAR CONTAINER: Main side navigation and brand logo items ── */
 .sidebar-brand {
   padding: 1.75rem 1.5rem 1.5rem;
   border-bottom: 1px solid rgba(200, 146, 42, 0.15);
@@ -127,6 +135,8 @@ body {
   transform: translateX(-100%);
   pointer-events: none;
 }
+
+/* ── MAIN DASHBOARD VIEWPORT: Center stage for rendering features ── */
 .ts-main-content.expanded {
   margin-left: 0;
   padding-left: 0;
@@ -324,6 +334,8 @@ body {
   transition: padding 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+
+/* ── TOPBAR LAYOUT: Top section headers, profile dropdowns, notifications ── */
 .topbar-brand-group {
   display: flex;
   flex-direction: column;
@@ -508,6 +520,8 @@ body {
   overflow: hidden;
   animation: dropIn 0.18s ease;
 }
+
+/* ── ANIMATIONS: CSS Keyframes for dynamic page and hover transitions ── */
 @keyframes dropIn {
   from { opacity: 0; transform: translateY(-8px); }
   to { opacity: 1; transform: translateY(0); }
@@ -741,6 +755,8 @@ body {
 .topbar-icon-btn:hover { background: var(--forest); }
 .topbar-icon-btn:hover svg { stroke: #fff; }
 .topbar-icon-btn svg { width: 17px; height: 17px; stroke: var(--stone); fill: none; stroke-width: 2; }
+
+/* ── NOTIFICATION DRAWER: Dropdowns showing alerts ── */
 .notif-dot {
   position: absolute; top: 7px; right: 7px;
   width: 8px; height: 8px;
@@ -874,17 +890,17 @@ body {
   filter: brightness(0.55) contrast(1.05) saturate(0.85);
 }
 .dash-hero-bg-layer-1 {
-  background-image: url('/static/trek_hero_bg.png');
+  background-image: url('/static/images/trek_hero_bg.png');
   background-position: center 30%;
   animation: heroBgSlide 18s ease-in-out infinite;
 }
 .dash-hero-bg-layer-2 {
-  background-image: url('/static/trek_bg_kedarnath.png');
+  background-image: url('/static/images/trek_bg_kedarnath.png');
   background-position: center 40%;
   animation: heroBgSlide2 18s ease-in-out infinite;
 }
 .dash-hero-bg-layer-3 {
-  background-image: url('/static/trek_bg_valley.png');
+  background-image: url('/static/images/trek_bg_valley.png');
   background-position: center 50%;
   animation: heroBgSlide3 18s ease-in-out infinite;
 }
@@ -1005,6 +1021,8 @@ body {
   animation: heroFadeUp 0.7s ease both 0.5s;
 }
 
+
+/* ── HERO BANNER: Main header introduction strips and hero visuals ── */
 .hero-stat-icon {
   width: 56px; height: 56px;
   border-radius: 12px;
@@ -1307,6 +1325,8 @@ body {
   overflow: hidden;
 }
 
+
+/* ── CONTENT CARDS: Rounded-corner layout card elements ── */
 .ts-card-header {
   display: flex;
   align-items: center;
@@ -1371,6 +1391,8 @@ body {
   gap: 1.5rem;
 }
 
+
+/* ── TREK CARDS & LISTS: Core trek catalogs, batch listings, and stats ── */
 .trek-card-user {
   background: #fff;
   border: 1px solid rgba(26,46,26,0.07);
@@ -1513,6 +1535,8 @@ body {
 .bm-label { color: var(--stone); }
 .bm-price { font-weight: 700; color: var(--forest); }
 
+
+/* ── STATUS INDICATOR BADGES: Success, warning, danger tags and badges ── */
 .status-pill { padding: 2px 8px; border-radius: 12px; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; border: 1px solid transparent; font-family: 'Space Mono', monospace; }
 .status-booked { background: rgba(46, 125, 50, 0.1); color: #2e7d32; border-color: rgba(46, 125, 50, 0.2); }
 .status-completed { background: rgba(21, 101, 192, 0.1); color: #1565c0; border-color: rgba(21, 101, 192, 0.2); }
@@ -1836,6 +1860,8 @@ body {
   color: #fff;
   margin-bottom: 1.25rem;
 }
+
+/* ── WEATHER PANEL: Live forecasts and weather overlays ── */
 .weather-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem; }
 .weather-loc { font-size: 0.8rem; color: rgba(255,255,255,0.6); margin-bottom: 0.15rem; }
 .weather-temp { font-family: 'Playfair Display', serif; font-size: 2rem; font-weight: 700; color: #fff; line-height: 1; }
@@ -1911,6 +1937,8 @@ body {
   display: flex; align-items: center; justify-content: center;
   backdrop-filter: blur(6px);
 }
+
+/* ── MODAL WINDOW OVERLAYS: Popups for detail edits and confirmations ── */
 .ts-modal {
   background: #fff; border-radius: 10px;
   width: 100%; max-width: 500px;
@@ -2000,6 +2028,8 @@ body {
   display: flex; align-items: center; gap: 10px;
 }
 .ts-toast svg { width: 16px; height: 16px; stroke: var(--gold-light); fill: none; stroke-width: 2; flex-shrink: 0; }
+
+/* ── TOAST NOTIFICATIONS: Popup system updates and warnings ── */
 .toast-enter-active, .toast-leave-active { transition: all 0.35s cubic-bezier(0.4,0,0.2,1); }
 .toast-enter-from, .toast-leave-to { opacity: 0; transform: translateX(20px); }
 
@@ -2009,6 +2039,8 @@ body {
   background: #fff;
   border: 1px dashed rgba(26,46,26,0.15); border-radius: var(--radius);
 }
+
+/* ── EMPTY DATA STATE: Placeholders when lists/catalogs are empty ── */
 .empty-state svg { width: 52px; height: 52px; stroke: var(--mist); fill: none; stroke-width: 1.4; margin-bottom: 1rem; }
 .empty-state p { color: var(--stone); font-size: 0.9rem; margin-bottom: 0.3rem; }
 .empty-state a { color: var(--gold); text-decoration: none; font-weight: 600; cursor: pointer; }
@@ -2092,6 +2124,8 @@ body {
   gap: 2rem;
   align-items: start;
 }
+
+/* ── SOCIAL HUB CHAT: Real-time user message threads ── */
 .social-tab-shell {
   display: flex;
   gap: 1.5rem;
@@ -2126,6 +2160,8 @@ body {
   overflow: hidden;
 }
 
+
+/* ── MEDIA QUERIES: Mobile, tablet, and responsive media adaptations ── */
 @media (max-width: 900px) {
   .booking-row { flex-direction: column; }
   .booking-accent { width: 100%; height: 5px; }

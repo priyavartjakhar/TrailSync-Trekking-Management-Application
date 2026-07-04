@@ -70,7 +70,7 @@ import {
   USER_GROWTH,
   REVENUE_DATA,
   BLACKLISTED_USERS
-} from '../admin_data';
+} from '../data/admin_data';
 
 export default {
   name: 'TsAdminLayout',

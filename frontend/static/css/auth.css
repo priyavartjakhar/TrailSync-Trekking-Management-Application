@@ -1,9 +1,9 @@
 /* ============================================================
    auth.css — TrailSync Login & Registration
-   Extends style.css variables and theme
+   Extends home.css variables and theme
    ============================================================ */
 
-/* ── CSS Variables (mirrors style.css root) ── */
+/* ── CSS Variables (mirrors home.css root) ── */
 :root {
   --forest:       #1a2e1a;
   --forest-mid:   #2d4a2d;
@@ -38,6 +38,8 @@ body {
   animation: authPageFadeIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+
+/* ── ANIMATIONS: CSS Keyframes for dynamic page and hover transitions ── */
 @keyframes authPageFadeIn {
   to { opacity: 1; }
 }
@@ -111,6 +113,8 @@ body {
   align-self: stretch;
 }
 
+
+/* ── BRAND IDENTITY: Company logo and branding text styles ── */
 .brand-name-link {
   font-family: 'Playfair Display', serif;
   font-size: 2rem;
@@ -475,6 +479,8 @@ body {
 }
 .forgot-link:hover { color: var(--gold-light); }
 
+
+/* ── FOOTER: Navigation links, social links, and copyrights ── */
 .footer-text {
   font-size: 0.84rem;
   color: rgba(255,255,255,0.45);
@@ -654,6 +660,8 @@ body {
   .step-node-label { display: none; }
 }
 
+
+/* ── MEDIA QUERIES: Mobile, tablet, and responsive media adaptations ── */
 @media (min-width: 992px) {
   .login-page-wrap {
     padding: 2.5rem 1rem;
@@ -691,6 +699,8 @@ body {
   transition: border-color 0.35s ease;
 }
 
+
+/* ── MODAL WINDOW OVERLAYS: Popups for detail edits and confirmations ── */
 .modal-close-btn {
   position: absolute;
   top: 1rem;
@@ -777,6 +787,8 @@ body {
   pointer-events: none;
 }
 
+
+/* ── AUTH CONTAINER PAGES: Login, Signup, and reset templates ── */
 .register-header {
   position: fixed;
   top: 0;
@@ -809,6 +821,8 @@ body {
   color: var(--gold-light);
 }
 
+
+/* ── NAVIGATION BAR: Main navbar containers and wrappers ── */
 .ts-nav-link {
   color: rgba(255, 255, 255, 0.7);
   text-decoration: none;

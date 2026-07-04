@@ -589,7 +589,7 @@ import {
   STAFF_ACTIVITY_LOG,
   STAFF_PROFILE_INITIAL,
   CHECKLIST_DEFAULTS
-} from '../staff_data';
+} from '../data/staff_data';
 import StaffSidebar from '../components/staff_dash_components/StaffSidebar.vue';
 import StaffTopbar from '../components/staff_dash_components/StaffTopbar.vue';
 import TabDashboard from '../components/staff_dash_components/TabDashboard.vue';

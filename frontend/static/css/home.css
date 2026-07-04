@@ -1,7 +1,9 @@
 /* ============================================================
-   style.css — TrailSync (Vue 3 replication of original HTML)
+   home.css — TrailSync (Vue 3 replication of original HTML)
    ============================================================ */
 
+
+/* ── COLOR SYSTEM & THEMING VARIABLES: Core HSL/HEX color tokens and styles ── */
 :root{
   --forest:#1a2e1a;
   --forest-mid:#2d4a2d;
@@ -16,6 +18,8 @@
   --shadow:rgba(26,46,26,0.15);
 }
 
+
+/* ── BASE STYLES & RESET: Standard global styles and document resets ── */
 *{margin:0;padding:0;box-sizing:border-box;}
 html{scroll-behavior:smooth;}
 body{font-family:'DM Sans',sans-serif;background:var(--snow);color:var(--forest);overflow-x:hidden;}
@@ -26,21 +30,29 @@ body{font-family:'DM Sans',sans-serif;background:var(--snow);color:var(--forest)
   display:flex;align-items:center;justify-content:space-between;
   padding:1.25rem 5vw;background:transparent;transition:all 0.4s ease;
 }
+
+/* ── NAVIGATION BAR: Main navbar containers and wrappers ── */
 .ts-nav.scrolled{
   background:rgba(26,46,26,0.96);backdrop-filter:blur(16px);
   border-bottom:1px solid rgba(200,146,42,0.2);padding:0.85rem 5vw;
 }
+
+/* ── BRAND IDENTITY: Company logo and branding text styles ── */
 .brand-name{
   font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:700;
   color:#fff;text-decoration:none;letter-spacing:0.04em;
 }
 .brand-name span{color:var(--gold-light);}
+
+/* ── NAVIGATION MENUS: Navigation menu links, icons, and items ── */
 .nav-links{display:flex;align-items:center;gap:2rem;list-style:none;margin-bottom:0;}
 .nav-links a{
   color:rgba(255,255,255,0.85);text-decoration:none;font-size:0.9rem;
   font-weight:500;letter-spacing:0.04em;transition:color 0.2s;
 }
 .nav-links a:hover{color:var(--gold-light);}
+
+/* ── NAVIGATION ACTIONS: Navbar CTA buttons, login/logout controls ── */
 .nav-actions{display:flex;align-items:center;gap:0.75rem;}
 
 .btn-ghost{
@@ -49,6 +61,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--snow);color:var(--forest)
   font-family:'DM Sans',sans-serif;font-size:0.85rem;font-weight:500;
   letter-spacing:0.05em;cursor:pointer;text-decoration:none;transition:all 0.2s;
 }
+
+/* ── GENERAL BUTTONS: Reusable theme buttons and styling ── */
 .btn-ghost:hover{background:rgba(200,146,42,0.15);border-color:var(--gold-light);}
 
 .btn-primary-ts{
@@ -63,6 +77,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--snow);color:var(--forest)
   height:100vh;min-height:700px;position:relative;
   display:flex;align-items:center;overflow:hidden;
 }
+
+/* ── HERO BANNER: Main header introduction strips and hero visuals ── */
 .hero-video-wrap{position:absolute;inset:0;z-index:0;}
 .hero-video-wrap video{width:100%;height:100%;object-fit:cover;transform-origin:center center;}
 .hero-overlay{
@@ -76,6 +92,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--snow);color:var(--forest)
   background-size:180px;
 }
 .hero-content{position:relative;z-index:4;padding:0 5vw;max-width:820px;animation:fadeUp 1s ease both;}
+
+/* ── ANIMATIONS: CSS Keyframes for dynamic page and hover transitions ── */
 @keyframes fadeUp{from{opacity:0;transform:translateY(36px);}to{opacity:1;transform:translateY(0);}}
 
 .hero-eyebrow{
@@ -88,6 +106,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--snow);color:var(--forest)
 .hero-title-italic{font-family:'Playfair Display',serif;font-size:clamp(2.5rem,5.8vw,5rem);font-weight:700;font-style:italic;color:var(--gold-light);display:block;margin-bottom:1.6rem;}
 .hero-desc{font-size:1.05rem;color:rgba(255,255,255,0.7);line-height:1.78;max-width:500px;margin-bottom:2.5rem;font-weight:300;}
 .hero-cta{display:flex;align-items:center;gap:1rem;flex-wrap:wrap;}
+
+/* ── COMPONENT BUTTONS: Larger sized CTA button options ── */
 .btn-large{padding:0.9rem 2.2rem;font-size:0.95rem;letter-spacing:0.08em;font-weight:600;}
 
 /* ── STATS BAR ──────────────────────────────────────────── */
@@ -107,6 +127,8 @@ section{padding:6rem 5vw;}
 .features-section{background:var(--snow);}
 .features-intro{display:grid;grid-template-columns:1fr 1fr;gap:2rem;align-items:end;margin-bottom:3.5rem;}
 .features-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1.25rem;}
+
+/* ── FEATURE CARDS: Individual grid items highlighting features ── */
 .feature-card{padding:1.75rem 1.5rem;border:1px solid rgba(26,46,26,0.09);border-radius:4px;background:#fff;transition:all 0.3s;position:relative;overflow:hidden;}
 .feature-card::before{content:'';position:absolute;top:0;left:0;width:3px;height:0;background:var(--gold);transition:height 0.35s;}
 .feature-card:hover{transform:translateY(-4px);box-shadow:0 14px 44px var(--shadow);}
@@ -121,6 +143,8 @@ section{padding:6rem 5vw;}
 .difficulty .section-title{color:var(--cream);}
 .difficulty .section-lead{color:var(--mist);}
 .difficulty .section-tag{color:var(--gold-light);}
+
+/* ── DIFFICULTY LEVEL GRID: Segmented trek difficulty grid ── */
 .diff-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;margin-top:3.5rem;}
 .diff-card{border:1px solid rgba(200,146,42,0.1);border-radius:4px;padding:2.25rem 2rem;transition:all 0.3s;}
 .diff-card:hover{border-color:rgba(200,146,42,0.32);background:rgba(255,255,255,0.025);}
@@ -156,6 +180,8 @@ section{padding:6rem 5vw;}
 }
 .filter-btn:hover,.filter-btn.active{background:var(--forest);border-color:var(--forest);color:var(--cream);}
 .treks-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;}
+
+/* ── TREK CARDS & LISTS: Core trek catalogs, batch listings, and stats ── */
 .trek-card{background:#fff;border-radius:4px;overflow:hidden;transition:all 0.35s;border:1px solid rgba(26,46,26,0.07);}
 .trek-card:hover{transform:translateY(-6px);box-shadow:0 20px 50px rgba(26,46,26,0.13);}
 .trek-img{height:195px;position:relative;overflow:hidden;}
@@ -247,6 +273,8 @@ section{padding:6rem 5vw;}
   font-size:0.6rem;font-weight:700;letter-spacing:0.07em;padding:2px 7px;
   border-radius:2px;font-family:'Space Mono',monospace;text-transform:uppercase;white-space:nowrap;
 }
+
+/* ── STATUS INDICATOR BADGES: Success, warning, danger tags and badges ── */
 .pill-easy{background:#d4edda;color:#1a5928;}
 .pill-moderate{background:#fff3cd;color:#7a5200;}
 .pill-hard,.pill-difficult{background:#f8d7da;color:#721c24;}
@@ -260,6 +288,8 @@ section{padding:6rem 5vw;}
 .safety-section{background:var(--cream);}
 .safety-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1.5rem;margin-top:3.5rem;}
 .safety-card{background:#fff;border:1px solid rgba(26,46,26,0.08);border-radius:4px;padding:2rem 1.5rem;text-align:center;transition:all 0.3s;}
+
+/* ── SAFETY PROTOCOLS: Trek safety guidelines and icons grid ── */
 .safety-card:hover{transform:translateY(-4px);box-shadow:0 12px 32px var(--shadow);}
 .safety-icon{width:56px;height:56px;background:var(--forest);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 1.25rem;}
 .safety-icon svg{width:26px;height:26px;stroke:var(--gold-light);fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;}
@@ -270,6 +300,8 @@ section{padding:6rem 5vw;}
 .trail{background:var(--snow);display:grid;grid-template-columns:1fr 1fr;min-height:520px;padding:0;}
 .trail-image{position:relative;overflow:hidden;min-height:400px;}
 .trail-image img{width:100%;height:100%;object-fit:cover;}
+
+/* ── TRAIL STEP SECTIONS: Milestones showing timeline guides ── */
 .trail-content{padding:5rem 6vw;display:flex;flex-direction:column;justify-content:center;background:var(--forest-mid);}
 .trail-content .section-title{color:var(--cream);}
 .trail-content .section-lead{color:var(--mist);margin-bottom:2rem;}
@@ -304,6 +336,8 @@ section{padding:6rem 5vw;}
 .faq-section{background:var(--snow);}
 .faq-wrap{max-width:780px;margin:3.5rem auto 0;}
 .faq-item{border-bottom:1px solid rgba(26,46,26,0.1);}
+
+/* ── FREQUENTLY ASKED QUESTIONS: Interactive accordion layout ── */
 .faq-q{
   width:100%;background:none;border:none;text-align:left;padding:1.4rem 0;
   display:flex;align-items:center;justify-content:space-between;cursor:pointer;
@@ -335,9 +369,13 @@ section{padding:6rem 5vw;}
 footer{background:#0c180c;padding:4rem 5vw 2rem;}
 .footer-grid{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:3rem;margin-bottom:3rem;padding-bottom:3rem;border-bottom:1px solid rgba(200,146,42,0.1);}
 .footer-brand-name{font-family:'Playfair Display',serif;font-size:1.6rem;font-weight:700;color:var(--cream);letter-spacing:0.04em;margin-bottom:1rem;display:block;}
+
+/* ── FOOTER: Navigation links, social links, and copyrights ── */
 .footer-brand-name span{color:var(--gold-light);}
 .footer-tagline{font-size:0.87rem;line-height:1.7;color:rgba(168,197,160,0.6);margin-bottom:1.5rem;}
 .footer-social{display:flex;gap:0.65rem;}
+
+/* ── SOCIAL HUB CHAT: Real-time user message threads ── */
 .social-link{
   width:38px;height:38px;border:1px solid rgba(200,146,42,0.25);border-radius:3px;
   display:flex;align-items:center;justify-content:center;text-decoration:none;
@@ -365,10 +403,14 @@ footer{background:#0c180c;padding:4rem 5vw 2rem;}
   .testi-grid{grid-template-columns:1fr;}
   .map-wrap{grid-template-columns:1fr;}
   .footer-grid{grid-template-columns:1fr 1fr;}
+
+/* ── KEY PERFORMANCE STATS: Core KPI and stats tracking panels ── */
   .stats-bar{grid-template-columns:repeat(3,1fr);}
   .features-intro{grid-template-columns:1fr;}
   .treks-grid{grid-template-columns:repeat(2,1fr);}
 }
+
+/* ── MEDIA QUERIES: Mobile, tablet, and responsive media adaptations ── */
 @media(max-width:560px){
   .footer-grid{grid-template-columns:1fr;}
   .features-grid{grid-template-columns:1fr;}
@@ -453,6 +495,8 @@ footer{background:#0c180c;padding:4rem 5vw 2rem;}
   z-index: 0;
   filter: blur(40px);
 }
+
+/* ── AUTH CONTAINER PAGES: Login, Signup, and reset templates ── */
 .login-glow-2 {
   position: absolute;
   width: 500px;
@@ -481,6 +525,8 @@ footer{background:#0c180c;padding:4rem 5vw 2rem;}
     transform: translateY(0);
   }
 }
+
+/* ── GLASSMORPHIC CARD: Glass containers for authentication ── */
 .login-card-ts {
   background: rgba(26, 46, 26, 0.82);
   backdrop-filter: blur(18px);

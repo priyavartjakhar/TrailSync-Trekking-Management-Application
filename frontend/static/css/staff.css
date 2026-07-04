@@ -1,10 +1,12 @@
 /* ============================================================
-   staff_style.css — TrailSync Staff Operations Dashboard
+   staff.css — TrailSync Staff Operations Dashboard
    Forest / Gold / Cream palette — Playfair + DM Sans + Space Mono
    ============================================================ */
 
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=DM+Sans:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap');
 
+
+/* ── COLOR SYSTEM & THEMING VARIABLES: Core HSL/HEX color tokens and styles ── */
 :root {
   --forest: #1a2e1a;
   --forest-mid: #2d4a2d;
@@ -22,9 +24,13 @@
   --transition: all 0.28s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+
+/* ── BASE STYLES & RESET: Standard global styles and document resets ── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; }
 body { font-family: 'DM Sans', sans-serif; background: var(--snow); color: var(--bark); overflow-x: hidden; }
+
+/* ── SYSTEM SCROLLBARS: Custom design scrollbars for webkit engines ── */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: var(--cream); }
 ::-webkit-scrollbar-thumb { background: var(--mist); border-radius: 3px; }
@@ -65,6 +71,8 @@ body { font-family: 'DM Sans', sans-serif; background: var(--snow); color: var(-
   min-height: 60px;
   flex-shrink: 0;
 }
+
+/* ── SIDEBAR CONTAINER: Main side navigation and brand logo items ── */
 .sidebar-header-row .brand-name {
   font-family: 'Playfair Display', serif; font-size: 1.2rem; font-weight: 700;
   color: #fff; text-decoration: none;
@@ -79,6 +87,8 @@ body { font-family: 'DM Sans', sans-serif; background: var(--snow); color: var(-
   cursor: pointer; transition: var(--transition); flex-shrink: 0;
 }
 .sidebar-toggle-btn:hover { background: rgba(200,146,42,0.2); color: var(--gold-light); border-color: var(--gold); }
+
+/* ── BRAND IDENTITY: Company logo and branding text styles ── */
 .brand-name { font-family: 'Playfair Display', serif; font-size: 1.25rem; font-weight: 700; color: #fff; text-decoration: none; }
 .brand-name span { color: var(--gold-light); }
 
@@ -177,6 +187,8 @@ body { font-family: 'DM Sans', sans-serif; background: var(--snow); color: var(-
 .topbar-left-controls {
   display: flex; align-items: center; gap: 10px; flex-shrink: 0;
 }
+
+/* ── TOPBAR LAYOUT: Top section headers, profile dropdowns, notifications ── */
 .topbar-hamburger {
   background: none; border: none; color: var(--forest);
   cursor: pointer; padding: 0.3rem 0.4rem;
@@ -232,6 +244,8 @@ body { font-family: 'DM Sans', sans-serif; background: var(--snow); color: var(-
   overflow: hidden;
   animation: dropIn 0.18s ease;
 }
+
+/* ── ANIMATIONS: CSS Keyframes for dynamic page and hover transitions ── */
 @keyframes dropIn {
   from { opacity: 0; transform: translateY(-8px); }
   to { opacity: 1; transform: translateY(0); }
@@ -313,6 +327,8 @@ body { font-family: 'DM Sans', sans-serif; background: var(--snow); color: var(-
   background: radial-gradient(circle, rgba(74,222,128,0.06) 0%, transparent 70%);
   border-radius: 50%;
 }
+
+/* ── HERO BANNER: Main header introduction strips and hero visuals ── */
 .hero-left { position: relative; z-index: 1; }
 .hero-greeting { font-family: 'Space Mono', monospace; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.2em; color: var(--gold-light); margin-bottom: 0.35rem; }
 .hero-name { font-family: 'Playfair Display', serif; font-size: 1.85rem; font-weight: 700; color: #fff; margin-bottom: 0.4rem; }
@@ -345,6 +361,8 @@ body { font-family: 'DM Sans', sans-serif; background: var(--snow); color: var(-
 .ts-card { background: #fff; border: 1px solid rgba(26,46,26,0.07); border-radius: var(--radius); box-shadow: 0 2px 12px var(--shadow); overflow: hidden; }
 .ts-card-header { display: flex; align-items: center; justify-content: space-between; padding: 1.15rem 1.4rem; border-bottom: 1px solid rgba(26,46,26,0.06); }
 .ts-card-title { font-family: 'Playfair Display', serif; font-size: 1.05rem; font-weight: 700; color: var(--forest); }
+
+/* ── CONTENT CARDS: Rounded-corner layout card elements ── */
 .ts-card-sub { font-size: 0.75rem; color: var(--stone); margin-top: 1px; }
 .ts-card-action { font-family: 'Space Mono', monospace; font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--gold); cursor: pointer; background: none; border: none; transition: var(--transition); }
 .ts-card-action:hover { color: var(--gold-light); }
@@ -379,6 +397,8 @@ body { font-family: 'DM Sans', sans-serif; background: var(--snow); color: var(-
   background: var(--snow); border: 1px solid rgba(26,46,26,0.06); border-radius: var(--radius);
   transition: var(--transition);
 }
+
+/* ── TREK CARDS & LISTS: Core trek catalogs, batch listings, and stats ── */
 .trek-quick-item:hover { background: var(--cream); border-color: rgba(200,146,42,0.2); }
 .tqi-name { font-weight: 600; color: var(--forest); font-size: 0.9rem; margin-bottom: 2px; }
 .tqi-meta { font-size: 0.72rem; color: var(--stone); font-family: 'Space Mono', monospace; }
@@ -445,6 +465,8 @@ body { font-family: 'DM Sans', sans-serif; background: var(--snow); color: var(-
   border-bottom: 1px solid rgba(26,46,26,0.05);
   position: relative;
 }
+
+/* ── ACTIVITY & LOG FEEDS: Chronological timeline actions ── */
 .activity-item:last-child { border-bottom: none; }
 .activity-dot {
   width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
@@ -578,6 +600,8 @@ body { font-family: 'DM Sans', sans-serif; background: var(--snow); color: var(-
 .trek-selector-bar { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.25rem; }
 .ts-table-wrap { background: #fff; border: 1px solid rgba(26,46,26,0.07); border-radius: var(--radius); overflow: hidden; box-shadow: 0 2px 12px var(--shadow); }
 .ts-table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+
+/* ── DATA TABLES: Tabular views, column definitions, list grids ── */
 .ts-table th {
   background: var(--cream); color: var(--forest);
   font-size: 0.68rem; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase;
@@ -634,6 +658,8 @@ body { font-family: 'DM Sans', sans-serif; background: var(--snow); color: var(-
 .status-started { background: rgba(200,146,42,0.12); color: var(--gold); }
 
 .diff-pill { display: inline-block; padding: 2px 7px; border-radius: 2px; font-family: 'Space Mono', monospace; font-size: 0.58rem; font-weight: 700; text-transform: uppercase; }
+
+/* ── STATUS INDICATOR BADGES: Success, warning, danger tags and badges ── */
 .pill-easy { background: #d4edda; color: #1a5928; }
 .pill-moderate { background: #fff3cd; color: #7a5200; }
 .pill-hard { background: #f8d7da; color: #721c24; }
@@ -1177,6 +1203,8 @@ body { font-family: 'DM Sans', sans-serif; background: var(--snow); color: var(-
 .form-section-title { font-family: 'Playfair Display', serif; font-size: 1rem; font-weight: 700; color: var(--forest); margin-bottom: 1.1rem; padding-bottom: 0.55rem; border-bottom: 1px solid rgba(0,0,0,0.05); }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 0.85rem; }
 .form-row.full { grid-template-columns: 1fr; }
+
+/* ── INPUT FIELDS: Stylized input text, textarea, select containers ── */
 .form-group { display: flex; flex-direction: column; gap: 5px; }
 .form-group label { font-size: 0.7rem; font-weight: 600; color: var(--forest); text-transform: uppercase; letter-spacing: 0.06em; }
 .form-group input, .form-group select, .form-group textarea {
@@ -1190,6 +1218,8 @@ body { font-family: 'DM Sans', sans-serif; background: var(--snow); color: var(-
 .btn-primary-ts { padding: 0.55rem 1.35rem; background: var(--gold); border: none; border-radius: var(--radius); color: var(--forest); font-family: 'DM Sans', sans-serif; font-size: 0.83rem; font-weight: 600; cursor: pointer; transition: var(--transition); }
 .btn-primary-ts:hover { background: var(--gold-light); transform: translateY(-1px); }
 .btn-ghost { padding: 0.52rem 1.25rem; border: 1px solid rgba(200,146,42,0.5); border-radius: var(--radius); background: transparent; color: var(--gold); font-family: 'DM Sans', sans-serif; font-size: 0.83rem; font-weight: 500; cursor: pointer; transition: var(--transition); }
+
+/* ── GENERAL BUTTONS: Reusable theme buttons and styling ── */
 .btn-ghost:hover { background: rgba(200,146,42,0.09); }
 .btn-forest { padding: 0.55rem 1.35rem; background: var(--forest); border: none; border-radius: var(--radius); color: #fff; font-family: 'DM Sans', sans-serif; font-size: 0.83rem; font-weight: 600; cursor: pointer; transition: var(--transition); }
 .btn-forest:hover { background: var(--forest-mid); }
@@ -1217,6 +1247,8 @@ body { font-family: 'DM Sans', sans-serif; background: var(--snow); color: var(-
   background: var(--snow); border: 1px solid rgba(26,46,26,0.12); border-radius: var(--radius);
   padding: 0.5rem 1rem; width: 260px;
 }
+
+/* ── SEARCH & FILTER CONTROLS: Inputs for catalog search ── */
 .search-bar-inline svg { width: 14px; height: 14px; stroke: var(--stone); fill: none; stroke-width: 2; flex-shrink: 0; }
 .search-bar-inline input { border: none; background: transparent; outline: none; font-family: 'DM Sans', sans-serif; font-size: 0.84rem; color: var(--forest); width: 100%; }
 
@@ -1228,6 +1260,8 @@ body { font-family: 'DM Sans', sans-serif; background: var(--snow); color: var(-
 .ts-modal-overlay { position: fixed; inset: 0; background: rgba(8,18,8,0.7); z-index: 1000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px); }
 .ts-modal { background: #fff; border-radius: 10px; width: 100%; max-width: 500px; box-shadow: 0 24px 60px rgba(26,46,26,0.28); overflow: hidden; animation: modalIn 0.24s cubic-bezier(0.16,1,0.3,1); }
 .ts-modal-sm { max-width: 380px; }
+
+/* ── MODAL WINDOW OVERLAYS: Popups for detail edits and confirmations ── */
 .ts-modal-lg { max-width: 640px; }
 @keyframes modalIn { from { opacity: 0; transform: scale(0.95) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
 .ts-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 1.15rem 1.4rem; border-bottom: 1px solid rgba(26,46,26,0.08); background: var(--forest); }
@@ -1267,6 +1301,8 @@ body { font-family: 'DM Sans', sans-serif; background: var(--snow); color: var(-
   display: flex; align-items: center; gap: 9px; max-width: 320px;
 }
 .ts-toast svg { width: 15px; height: 15px; stroke: var(--gold-light); fill: none; stroke-width: 2; flex-shrink: 0; }
+
+/* ── TOAST NOTIFICATIONS: Popup system updates and warnings ── */
 .toast-enter-active, .toast-leave-active { transition: all 0.33s cubic-bezier(0.4,0,0.2,1); }
 .toast-enter-from, .toast-leave-to { opacity: 0; transform: translateX(18px); }
 
@@ -1279,6 +1315,8 @@ body { font-family: 'DM Sans', sans-serif; background: var(--snow); color: var(-
 @media (max-width: 1200px) {
   .stats-row { grid-template-columns: repeat(3, 1fr); }
 }
+
+/* ── MEDIA QUERIES: Mobile, tablet, and responsive media adaptations ── */
 @media (max-width: 1000px) {
   .dashboard-main-grid { grid-template-columns: 1fr; }
   .treks-grid-staff { grid-template-columns: 1fr; }
@@ -1295,6 +1333,8 @@ body { font-family: 'DM Sans', sans-serif; background: var(--snow); color: var(-
 @media (max-width: 860px) {
   .ts-sidebar { position: fixed; top: 0; left: 0; bottom: 0; transform: translateX(-100%); transition: transform 0.3s ease; z-index: 200; }
   .ts-sidebar.open { transform: translateX(0); }
+
+/* ── MAIN DASHBOARD VIEWPORT: Center stage for rendering features ── */
   .ts-main { margin-left: 0; }
   .mobile-toggle { display: flex; }
   .sidebar-overlay.visible { display: block; }
@@ -1344,6 +1384,8 @@ body { font-family: 'DM Sans', sans-serif; background: var(--snow); color: var(-
   grid-template-columns: 1fr 1fr;
   gap: 1rem;
 }
+
+/* ── STAT CARD ITEMS: Individual stat boxes, numeric layouts ── */
 .stat-item-grouped {
   display: flex;
   flex-direction: column;
@@ -1407,6 +1449,8 @@ body { font-family: 'DM Sans', sans-serif; background: var(--snow); color: var(-
 .chart-svg-wrap { margin-top: .75rem; overflow: hidden; }
 .chart-axis-label { font-family: 'Space Mono', monospace; font-size: 9px; fill: var(--stone); }
 .chart-grid-line { stroke: rgba(26,46,26,.06); stroke-width: 1; }
+
+/* ── CHART & GRAPH GRAPHICS: Visual SVG graphs, bars, and metrics ── */
 .chart-area-fill { fill: url(#areaGrad); }
 .chart-line-path { fill: none; stroke: var(--gold); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
 .chart-dot { fill: var(--gold); }
@@ -1795,6 +1839,8 @@ body { font-family: 'DM Sans', sans-serif; background: var(--snow); color: var(-
 .weather-card {
   background: #fff;
 }
+
+/* ── WEATHER PANEL: Live forecasts and weather overlays ── */
 .weather-card-premium .ts-card-header,
 .emergency-panel .ts-card-header {
   padding: 0.75rem 1rem !important;
@@ -1820,6 +1866,8 @@ body { font-family: 'DM Sans', sans-serif; background: var(--snow); color: var(-
 .social-tab-container {
   font-family: 'DM Sans', sans-serif;
 }
+
+/* ── SOCIAL HUB CHAT: Real-time user message threads ── */
 .social-channel-item {
   border-left: 4px solid transparent;
   background: transparent;

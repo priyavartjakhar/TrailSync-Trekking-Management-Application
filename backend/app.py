@@ -18,7 +18,10 @@ app = Flask(__name__,
             static_folder=os.path.join(os.path.dirname(__file__), '../frontend/static'))
 
 # Configure App Parameters
-app.config['SECRET_KEY'] = 'trailsync-secret-key-123456'
+app.config['SECRET_KEY'] = os.environ.get(
+    'SECRET_KEY',
+    'trailsync-dev-secret-key-2026-change-me-local-only'
+)
 if os.environ.get('TESTING') == 'true':
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
 else:

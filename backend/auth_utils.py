@@ -111,8 +111,13 @@ def jwt_required(roles=None):
                     return jsonify({'error': 'Access denied. Insufficient permissions.'}), 403
                 return redirect(url_for('public.serve_spa'))
                 
-            # Store user in Flask's global context object 'g'
+    # Store user in Flask's global context object 'g'
             g.current_user = user
+
+            # Debug hints for 403s (safe in dev; disable logs in prod)
+            if current_app.debug:
+                roles_required = roles
+                return f(*args, **kwargs)
             return f(*args, **kwargs)
         return decorated
     return decorator

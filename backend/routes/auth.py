@@ -12,7 +12,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 
 from backend.models.models import db, User
-from backend.auth_utils import generate_token, login_required
+from backend.auth_utils import generate_token
 
 # Instantiate the authentication Blueprint
 auth_bp = Blueprint('auth', __name__)
@@ -181,10 +181,11 @@ def api_register():
 
 
 @auth_bp.route('/api/auth/logout', methods=['POST'])
-@login_required
 def api_logout():
     """
-    Logs out the current user by deleting their access token cookie.
+    Logs out the browser session by deleting its access token cookie.
+    This endpoint is intentionally idempotent so stale tabs and expired tokens
+    can still clear their browser session without producing noisy 401/403 logs.
 
     Returns:
         JSON response indicating logout success.

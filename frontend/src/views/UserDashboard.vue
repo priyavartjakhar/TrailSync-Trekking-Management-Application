@@ -801,8 +801,8 @@ export default {
       // ── UI STATE ──────────────────────────────────
       activeTab: 'dashboard',
       sidebarOpen: false,
-      sidebarCollapsed: false,
-      showSidebar: false,
+      sidebarCollapsed: true,
+      showSidebar: true,
       toast: { show: false, msg: '', type: 'success' },
       showProfileDropdown: false,
 
@@ -1156,7 +1156,6 @@ export default {
       const isMobile = window.innerWidth <= 900;
       if (!isMobile) {
         this.sidebarOpen = false;
-        this.sidebarCollapsed = false;
       } else if (this.sidebarOpen) {
         this.sidebarCollapsed = false;
       } else {
@@ -1251,7 +1250,7 @@ export default {
         this.sidebarCollapsed = !this.sidebarOpen;
       } else {
         this.sidebarOpen = false;
-        this.sidebarCollapsed = false;
+        this.sidebarCollapsed = !this.sidebarCollapsed;
       }
     },
     goProfileTab() {
@@ -2124,6 +2123,10 @@ export default {
 
     // ── LOGOUT ────────────────────────────────────
     handleLogout() {
+      if (this.socialPollInterval) {
+        clearInterval(this.socialPollInterval);
+        this.socialPollInterval = null;
+      }
       localStorage.removeItem('userActiveTab');
       this.$emit('logout');
     },

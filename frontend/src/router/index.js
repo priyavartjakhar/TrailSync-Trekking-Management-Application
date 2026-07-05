@@ -5,6 +5,7 @@ import Register from '../views/Register.vue';
 import AdminDashboard from '../views/AdminDashboard.vue';
 import StaffDashboard from '../views/StaffDashboard.vue';
 import UserDashboard from '../views/UserDashboard.vue';
+import { clearAuthState, getSessionRole, normalizeRole } from '../auth/session';
 
 const routes = [
   { path: '/', component: Home },
@@ -30,24 +31,11 @@ if (typeof window !== 'undefined') {
   });
 }
 
-function normalizeRole(role) {
-  if (role === 'user' || role === 'trekker') return 'trekker';
-  return role;
-}
-
 function getDashboardPath(role) {
   const normalizedRole = normalizeRole(role);
   if (normalizedRole === 'admin') return '/admin';
   if (normalizedRole === 'staff') return '/staff';
   return '/dashboard';
-}
-
-function clearAuthState() {
-  localStorage.removeItem('ts_token');
-  localStorage.removeItem('ts_role');
-  localStorage.removeItem('adminActiveTab');
-  localStorage.removeItem('staffActiveTab');
-  localStorage.removeItem('userActiveTab');
 }
 
 function isProtectedPath(path) {
@@ -116,8 +104,7 @@ router.beforeEach((to, from, next) => {
   }
 
   const token = localStorage.getItem('ts_token');
-  const role = localStorage.getItem('ts_role');
-  const normalizedRole = normalizeRole(role);
+  const normalizedRole = getSessionRole();
 
   if (to.path === '/login' || to.path.startsWith('/login/')) {
     if (to.query.role || to.params.role || to.query.fresh === '1') {
@@ -142,8 +129,8 @@ router.beforeEach((to, from, next) => {
     } else {
       next();
     }
-  } else if (to.path === '/register' && token && role) {
-    next(getDashboardPath(role));
+  } else if (to.path === '/register' && token && normalizedRole) {
+    next(getDashboardPath(normalizedRole));
   } else {
     next();
   }

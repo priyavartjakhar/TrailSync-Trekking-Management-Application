@@ -10,6 +10,7 @@
     "start": "bash run.sh"
   },
   "dependencies": {
+    "chart.js": "^4.5.1",
     "vue": "^3.4.0",
     "vue-router": "^4.3.0"
   },

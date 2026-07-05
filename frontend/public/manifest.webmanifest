@@ -1,0 +1,26 @@
+{
+  "name": "TrailSync Trekking Management",
+  "short_name": "TrailSync",
+  "description": "Trekking routes, bookings, staff operations, reminders, and reports.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f7f3e8",
+  "theme_color": "#1a2e1a",
+  "orientation": "portrait-primary",
+  "categories": ["travel", "sports", "productivity"],
+  "icons": [
+    {
+      "src": "/static/images/trek_hero_bg.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/images/trek_bg_kedarnath.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

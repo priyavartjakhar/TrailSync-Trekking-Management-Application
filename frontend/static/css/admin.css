@@ -2196,3 +2196,15 @@ body { font-family:'DM Sans',sans-serif; background:var(--snow); color:var(--bar
   box-shadow: 0 4px 12px rgba(13, 148, 136, 0.2);
   transform: translateY(-1px);
 }
+
+.admin-chart-frame {
+  position: relative;
+  width: 100%;
+  min-height: 220px;
+  padding-top: 0.25rem;
+}
+
+.admin-chart-frame canvas {
+  width: 100% !important;
+  height: 100% !important;
+}

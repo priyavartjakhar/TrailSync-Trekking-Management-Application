@@ -5,10 +5,58 @@
     <p class="section-lead">From the Himalayas in the north to the Western Ghats in the south — hover any state to preview its treks, click to pin the detail panel.</p>
     <div class="map-wrap">
       <div>
-        <div id="d3-map-container" ref="mapContainer">
+        <div id="map-container" ref="mapContainer" @mouseleave="hideTooltip">
           <div v-if="loading" class="map-loading">
             <div class="map-loading-spinner"></div>
             <span style="font-size:0.78rem;color:var(--stone);font-family:'Space Mono',monospace;letter-spacing:0.1em;">Loading map boundaries…</span>
+          </div>
+          <div v-else-if="mapError" class="map-error">
+            Could not load map. Check your connection.
+          </div>
+          <svg v-else-if="mapFeatures.length" viewBox="0 0 460 480" width="100%" class="india-map-svg" aria-label="Interactive India trek map">
+            <g>
+              <path
+                v-for="feature in mapFeatures"
+                :key="feature.key"
+                :d="feature.path"
+                :class="['map-state', { 'active-state': pinnedState === feature.name }]"
+                @mouseenter="showTooltip($event, feature)"
+                @mousemove="moveTooltip($event)"
+                @mouseleave="hideTooltip"
+                @click="toggleState(feature)"
+              />
+            </g>
+            <g>
+              <text
+                v-for="feature in labelFeatures"
+                :key="`${feature.key}-label`"
+                class="state-label"
+                :x="feature.labelX"
+                :y="feature.labelY"
+              >
+                {{ feature.label }}
+              </text>
+            </g>
+          </svg>
+          <div
+            v-if="tooltipVisible"
+            class="map-tooltip"
+            :style="{ left: `${tooltipX}px`, top: `${tooltipY}px`, opacity: 1 }"
+          >
+            <div class="map-tooltip-state">{{ tooltipName }}</div>
+            <template v-if="tooltipTreks.length">
+              <div class="tooltip-count-badge">{{ tooltipCount }}</div>
+              <ul class="map-tooltip-treks">
+                <li v-for="t in tooltipTreks" :key="t.id">
+                  <span class="tooltip-trek-name">
+                    {{ t.name }}
+                    <span :class="t.status === 'Open' ? 'status-tag-open' : 'status-tag-closed'">{{ t.status }}</span>
+                  </span>
+                  <span class="tooltip-trek-meta">{{ t.difficulty }}<br>{{ t.duration }} days</span>
+                </li>
+              </ul>
+            </template>
+            <div v-else class="tooltip-no-treks">No treks listed for this state.</div>
           </div>
         </div>
         <div class="map-hint" v-if="!loading">HOVER to preview treks &nbsp;·&nbsp; CLICK to pin details &nbsp;·&nbsp; CLICK again to unpin</div>
@@ -57,6 +105,13 @@ export default {
       panelCount: '',
       panelTreks: [],
       loading: true,
+      mapError: false,
+      mapFeatures: [],
+      tooltipVisible: false,
+      tooltipName: '',
+      tooltipTreks: [],
+      tooltipX: 0,
+      tooltipY: 0,
       treksList: []
     };
   },
@@ -78,13 +133,32 @@ export default {
         }
       });
       return map;
+    },
+    labelFeatures() {
+      return this.mapFeatures.filter(feature => feature.label);
+    },
+    tooltipCount() {
+      const count = this.tooltipTreks.length;
+      return `${count} trek${count !== 1 ? 's' : ''}`;
     }
   },
   mounted() {
-    this.fetchTreks();
+    this.loadMapData();
   },
   methods: {
     pillClass(d) { return pillClass(d); },
+    async loadMapData() {
+      this.loading = true;
+      this.mapError = false;
+      try {
+        await Promise.all([this.fetchTreks(), this.fetchBoundaries()]);
+      } catch (e) {
+        this.mapError = true;
+        console.error('Error loading map:', e);
+      } finally {
+        this.loading = false;
+      }
+    },
     async fetchTreks() {
       try {
         const res = await fetch('/api/public/trek_routes');
@@ -97,10 +171,103 @@ export default {
         }
       } catch (e) {
         console.error('Error fetching map treks:', e);
-      } finally {
-        this.loading = false;
-        this.$nextTick(() => this.initMap());
       }
+    },
+    async fetchBoundaries() {
+      const geoJsonUrl = 'https://raw.githubusercontent.com/Subhash9325/GeoJson-Data-of-Indian-States/master/Indian_States';
+      const res = await fetch(geoJsonUrl);
+      if (!res.ok) throw new Error(`Map boundaries request failed with ${res.status}`);
+      const data = await res.json();
+      this.mapFeatures = (data.features || [])
+        .map((feature, index) => this.buildFeature(feature, index))
+        .filter(feature => feature && feature.name);
+    },
+    buildFeature(feature, index) {
+      const rawName = feature?.properties?.NAME_1 || '';
+      const name = normalizeName(rawName);
+      if (!name) return null;
+
+      const path = this.geometryToPath(feature.geometry);
+      if (!path) return null;
+
+      const centroid = this.geometryCentroid(feature.geometry);
+      const label = SKIP_LABELS.has(rawName) ? '' : (SHORT_NAMES[rawName] || SHORT_NAMES[name] || rawName);
+
+      return {
+        key: `${rawName}-${index}`,
+        rawName,
+        name,
+        path,
+        label,
+        labelX: centroid.x,
+        labelY: centroid.y
+      };
+    },
+    geometryToPath(geometry) {
+      if (!geometry) return '';
+      if (geometry.type === 'Polygon') {
+        return this.polygonToPath(geometry.coordinates);
+      }
+      if (geometry.type === 'MultiPolygon') {
+        return geometry.coordinates.map(polygon => this.polygonToPath(polygon)).join(' ');
+      }
+      return '';
+    },
+    polygonToPath(rings = []) {
+      return rings.map((ring) => {
+        const points = ring
+          .map(point => this.project(point))
+          .filter(Boolean);
+        if (!points.length) return '';
+        const [first, ...rest] = points;
+        return `M${this.fmt(first.x)},${this.fmt(first.y)}${rest.map(p => `L${this.fmt(p.x)},${this.fmt(p.y)}`).join('')}Z`;
+      }).join(' ');
+    },
+    geometryCentroid(geometry) {
+      const points = this.collectProjectedPoints(geometry);
+      if (!points.length) return { x: 0, y: 0 };
+      const totals = points.reduce((acc, point) => {
+        acc.x += point.x;
+        acc.y += point.y;
+        return acc;
+      }, { x: 0, y: 0 });
+      return {
+        x: this.fmt(totals.x / points.length),
+        y: this.fmt(totals.y / points.length)
+      };
+    },
+    collectProjectedPoints(geometry) {
+      const points = [];
+      const addRing = (ring = []) => {
+        ring.forEach((coord) => {
+          const projected = this.project(coord);
+          if (projected) points.push(projected);
+        });
+      };
+      if (geometry?.type === 'Polygon') {
+        (geometry.coordinates || []).forEach(addRing);
+      } else if (geometry?.type === 'MultiPolygon') {
+        (geometry.coordinates || []).forEach(polygon => polygon.forEach(addRing));
+      }
+      return points;
+    },
+    project(coord) {
+      if (!Array.isArray(coord) || coord.length < 2) return null;
+      const [lng, lat] = coord;
+      const toRad = Math.PI / 180;
+      const scale = 870;
+      const centerLng = 82;
+      const centerLat = 22.5;
+      const translateX = 460 / 2 - 15;
+      const translateY = 480 / 2 + 10;
+      const mercY = (value) => Math.log(Math.tan(Math.PI / 4 + (value * toRad) / 2));
+      return {
+        x: translateX + (lng - centerLng) * toRad * scale,
+        y: translateY + (mercY(centerLat) - mercY(lat)) * scale
+      };
+    },
+    fmt(value) {
+      return Number(value.toFixed(2));
     },
     showPanel(sn) {
       const treks = this.trekDataMap[sn] || [];
@@ -109,85 +276,34 @@ export default {
       this.panelTreks = treks;
       this.panelVisible = true;
     },
-    initMap() {
+    showTooltip(event, feature) {
+      this.tooltipName = feature.name;
+      this.tooltipTreks = this.trekDataMap[feature.name] || [];
+      this.tooltipVisible = true;
+      this.moveTooltip(event);
+    },
+    moveTooltip(event) {
       const container = this.$refs.mapContainer;
-      if (!container || typeof d3 === 'undefined') return;
-
-      const W = 460, H = 480;
-      const svg = d3.select(container).append('svg')
-        .attr('viewBox', `0 0 ${W} ${H}`)
-        .attr('width', '100%')
-        .style('display', 'none');
-
-      const tooltip = d3.select(container).append('div').attr('class', 'map-tooltip');
-      const projection = d3.geoMercator().center([82, 22.5]).scale(870).translate([W / 2 - 15, H / 2 + 10]);
-      const path = d3.geoPath().projection(projection);
-      const pG = svg.append('g');
-      const lG = svg.append('g');
-      const vm = this;
-
-      const GEOJSON = 'https://raw.githubusercontent.com/Subhash9325/GeoJson-Data-of-Indian-States/master/Indian_States';
-
-      d3.json(GEOJSON).then(data => {
-        vm.loading = false;
-        svg.style('display', 'block');
-
-        pG.selectAll('path').data(data.features).enter().append('path')
-          .attr('d', path).attr('class', 'map-state')
-          .on('mouseover', function(event, d) {
-            const sn = normalizeName(d.properties.NAME_1);
-            if (!sn) return;
-            const treks = vm.trekDataMap[sn] || [];
-            let html = `<div class="map-tooltip-state">${sn}</div>`;
-            if (treks.length > 0) {
-              html += `<div class="tooltip-count-badge">${treks.length} trek${treks.length !== 1 ? 's' : ''}</div><ul class="map-tooltip-treks">`;
-              treks.forEach(t => {
-                const statusTag = t.status === 'Open' ? '<span class="status-tag-open">Open</span>' : '<span class="status-tag-closed">Closed</span>';
-                html += `<li><span class="tooltip-trek-name">${t.name} ${statusTag}</span><span class="tooltip-trek-meta">${t.difficulty}<br>${t.duration} days</span></li>`;
-              });
-              html += `</ul>`;
-            } else {
-              html += `<div class="tooltip-no-treks">No treks listed for this state.</div>`;
-            }
-            tooltip.html(html).style('opacity', 1);
-            d3.select(this).raise(); lG.raise();
-          })
-          .on('mousemove', function(event) {
-            const r = container.getBoundingClientRect();
-            let x = event.clientX - r.left + 14, y = event.clientY - r.top + 14;
-            if (x + 280 > r.width) x = x - 280 - 28;
-            tooltip.style('left', x + 'px').style('top', y + 'px');
-          })
-          .on('mouseout', function() {
-            tooltip.style('opacity', 0);
-          })
-          .on('click', function(event, d) {
-            const sn = normalizeName(d.properties.NAME_1);
-            if (!sn) return;
-            if (vm.pinnedState === sn) {
-              vm.pinnedState = null;
-              pG.selectAll('.map-state').classed('active-state', false);
-              vm.panelVisible = false;
-              return;
-            }
-            vm.pinnedState = sn;
-            pG.selectAll('.map-state').classed('active-state', false);
-            d3.select(this).classed('active-state', true);
-            vm.showPanel(sn);
-            tooltip.style('opacity', 0);
-          });
-
-        lG.selectAll('text').data(data.features).enter().append('text')
-          .attr('class', 'state-label')
-          .attr('transform', d => { const c = path.centroid(d); return `translate(${c[0]},${c[1]})`; })
-          .text(d => { const n = d.properties.NAME_1; if (SKIP_LABELS.has(n)) return ''; return SHORT_NAMES[n] || n; })
-          .attr('pointer-events', 'none');
-
-      }).catch(err => {
-        vm.loading = false;
-        container.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--stone);font-size:0.88rem;">Could not load map. Check your connection.</div>';
-        console.error(err);
-      });
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      let x = event.clientX - rect.left + 14;
+      let y = event.clientY - rect.top + 14;
+      if (x + 280 > rect.width) x = x - 280 - 28;
+      this.tooltipX = x;
+      this.tooltipY = y;
+    },
+    hideTooltip() {
+      this.tooltipVisible = false;
+    },
+    toggleState(feature) {
+      if (this.pinnedState === feature.name) {
+        this.pinnedState = null;
+        this.panelVisible = false;
+        return;
+      }
+      this.pinnedState = feature.name;
+      this.showPanel(feature.name);
+      this.hideTooltip();
     }
   }
 };

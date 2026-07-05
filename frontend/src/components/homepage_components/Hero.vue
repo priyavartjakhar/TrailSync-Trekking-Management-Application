@@ -1,10 +1,7 @@
 <template>
   <section class="hero">
     <div class="hero-video-wrap">
-      <video autoplay muted loop playsinline id="hero-video"
-        poster="https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=1800&q=80">
-        <source src="https://assets.mixkit.co/videos/preview/mixkit-hiking-through-a-meadow-with-mountains-in-the-background-41360-large.mp4" type="video/mp4">
-      </video>
+      <img ref="heroMedia" src="/static/images/trek_hero_bg.png" alt="">
     </div>
     <div class="hero-overlay"></div>
     <div class="hero-grain"></div>
@@ -24,13 +21,17 @@
 <script>
 export default {
   name: 'TsHero',
-  name: 'TsHero',
   mounted() {
-    const hv = document.getElementById('hero-video');
-    window.addEventListener('scroll', () => {
-      if (window.scrollY < window.innerHeight && hv)
-        hv.style.transform = `scale(1.08) translateY(${window.scrollY * 0.22}px)`;
-    });
+    this.handleScroll = () => {
+      const heroMedia = this.$refs.heroMedia;
+      if (window.scrollY < window.innerHeight && heroMedia) {
+        heroMedia.style.transform = `scale(1.08) translateY(${window.scrollY * 0.22}px)`;
+      }
+    };
+    window.addEventListener('scroll', this.handleScroll);
+  },
+  beforeUnmount() {
+    window.removeEventListener('scroll', this.handleScroll);
   }
 };
 </script>

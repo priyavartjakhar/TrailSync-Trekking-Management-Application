@@ -43,6 +43,18 @@ def get_public_trek_routes():
     return jsonify(get_public_routes_cached())
 
 
+@public_bp.route('/manifest.webmanifest')
+def serve_manifest():
+    """Serves the PWA manifest when the Flask server handles the SPA directly."""
+    return send_from_directory(os.path.join(FRONTEND_DIR, 'public'), 'manifest.webmanifest')
+
+
+@public_bp.route('/service-worker.js')
+def serve_service_worker():
+    """Serves the PWA service worker from the same origin as the app."""
+    return send_from_directory(os.path.join(FRONTEND_DIR, 'public'), 'service-worker.js')
+
+
 @public_bp.route('/', defaults={'path': ''})
 @public_bp.route('/<path:path>')
 def serve_spa(path):

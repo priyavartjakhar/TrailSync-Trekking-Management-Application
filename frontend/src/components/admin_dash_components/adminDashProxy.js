@@ -368,6 +368,7 @@ export function adminDashComponent(name, options = {}) {
   return {
     name,
     inject: ['adminDash'],
+    components: options.components || {},
     emits: options.emits || [],
     computed: {
       ...proxyFields(options.fields || []),

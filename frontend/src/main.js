@@ -3,14 +3,24 @@ import App from './App.vue';
 import router from './router';
 import { clearAuthState, isAuthFailurePayload } from './auth/session';
 
-// ── Unregister any stale Service Workers ─────────────────────────────────────
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.getRegistrations().then((registrations) => {
-    registrations.forEach((sw) => {
-      sw.unregister();
-      console.log('[TrailSync] Unregistered stale Service Worker:', sw.scope);
+// ── PWA Service Worker ─────────────────────────────────────
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/service-worker.js').catch((err) => {
+      console.warn('[TrailSync] Service worker registration failed:', err);
     });
   });
+} else if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then((registrations) => {
+    registrations.forEach((registration) => registration.unregister());
+  });
+  if ('caches' in window) {
+    caches.keys().then((keys) => {
+      keys
+        .filter((key) => key.startsWith('trailsync-'))
+        .forEach((key) => caches.delete(key));
+    });
+  }
 }
 
 // ── Global fetch interceptor ─────────────────────────────────

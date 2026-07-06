@@ -8,6 +8,16 @@
 </template>
 
 <script>
+/**
+ * =========================================================================
+ * StatsBar.vue
+ * =========================================================================
+ * Prominent metrics banner detailing aggregated team figures (completed hikes, active guides, satisfaction rate).
+ * 
+ * Part of the public landing page components. Renders static descriptions
+ * and interactive catalog sections prior to authentication.
+ */
+
 export default {
   name: 'TsStatsBar',
   name: 'TsStatsBar',

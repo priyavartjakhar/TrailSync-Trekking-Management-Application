@@ -7,6 +7,16 @@
 </template>
 
 <script>
+/**
+ * =========================================================================
+ * CtaBanner.vue
+ * =========================================================================
+ * Call-to-action banner section prompting users to sign up, log in, or schedule their next trip.
+ * 
+ * Part of the public landing page components. Renders static descriptions
+ * and interactive catalog sections prior to authentication.
+ */
+
 export default {
   name: 'TsCtaBanner',
   name: 'TsCtaBanner'

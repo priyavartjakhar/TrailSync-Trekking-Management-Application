@@ -16,6 +16,16 @@
 </template>
 
 <script>
+/**
+ * =========================================================================
+ * Safety.vue
+ * =========================================================================
+ * Essential safety regulations section listing rules for altitude sickness prevention, clothing layers, and communication.
+ * 
+ * Part of the public landing page components. Renders static descriptions
+ * and interactive catalog sections prior to authentication.
+ */
+
 export default {
   name: 'TsSafety',
   name: 'TsSafety',

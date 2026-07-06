@@ -88,6 +88,16 @@
 </template>
 
 <script>
+/**
+ * =========================================================================
+ * Map.vue
+ * =========================================================================
+ * Interactive coordinate visualizer showcasing the geographic placement of routes using lightweight responsive SVGs.
+ * 
+ * Part of the public landing page components. Renders static descriptions
+ * and interactive catalog sections prior to authentication.
+ */
+
 import {
   SHORT_NAMES,
   SKIP_LABELS,

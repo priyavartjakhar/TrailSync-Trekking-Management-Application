@@ -19,6 +19,16 @@
 </template>
 
 <script>
+/**
+ * =========================================================================
+ * Hero.vue
+ * =========================================================================
+ * High-impact greeting section containing the brand tagline, background visual layers, and core navigation buttons.
+ * 
+ * Part of the public landing page components. Renders static descriptions
+ * and interactive catalog sections prior to authentication.
+ */
+
 export default {
   name: 'TsHero',
   mounted() {

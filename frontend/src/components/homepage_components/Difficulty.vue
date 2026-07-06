@@ -22,6 +22,16 @@
 </template>
 
 <script>
+/**
+ * =========================================================================
+ * Difficulty.vue
+ * =========================================================================
+ * Information segment explaining difficulty classifications (Easy, Moderate, Hard) and expected physical preparation.
+ * 
+ * Part of the public landing page components. Renders static descriptions
+ * and interactive catalog sections prior to authentication.
+ */
+
 export default {
   name: 'TsDifficulty',
   name: 'TsDifficulty',

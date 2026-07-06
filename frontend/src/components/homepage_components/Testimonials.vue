@@ -22,6 +22,16 @@
 </template>
 
 <script>
+/**
+ * =========================================================================
+ * Testimonials.vue
+ * =========================================================================
+ * Slider container showcasing positive feedback, hiking experiences, and quotes from past trekkers.
+ * 
+ * Part of the public landing page components. Renders static descriptions
+ * and interactive catalog sections prior to authentication.
+ */
+
 export default {
   name: 'TsTestimonials',
   name: 'TsTestimonials',

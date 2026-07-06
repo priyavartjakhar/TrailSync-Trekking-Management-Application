@@ -27,6 +27,16 @@
 </template>
 
 <script>
+/**
+ * =========================================================================
+ * TrailSteps.vue
+ * =========================================================================
+ * Visual step-by-step indicator (Explore, Schedule, Pack, Summit) illustrating the user journey.
+ * 
+ * Part of the public landing page components. Renders static descriptions
+ * and interactive catalog sections prior to authentication.
+ */
+
 export default {
   name: 'TsTrailSteps',
   name: 'TsTrailSteps'

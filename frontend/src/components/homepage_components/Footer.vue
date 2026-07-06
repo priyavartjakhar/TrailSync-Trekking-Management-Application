@@ -64,6 +64,16 @@
 </template>
 
 <script>
+/**
+ * =========================================================================
+ * Footer.vue
+ * =========================================================================
+ * Standard landing page footer containing social links, routes shortcuts, contacts, and copyright information.
+ * 
+ * Part of the public landing page components. Renders static descriptions
+ * and interactive catalog sections prior to authentication.
+ */
+
 export default {
   name: 'TsFooter',
   name: 'TsFooter'

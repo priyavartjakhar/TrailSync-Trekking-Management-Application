@@ -19,6 +19,16 @@
 </template>
 
 <script>
+/**
+ * =========================================================================
+ * Faq.vue
+ * =========================================================================
+ * Interactive FAQ accordion displaying common queries regarding gear, scheduling, safety, and payments.
+ * 
+ * Part of the public landing page components. Renders static descriptions
+ * and interactive catalog sections prior to authentication.
+ */
+
 export default {
   name: 'TsFaq',
   name: 'TsFaq',

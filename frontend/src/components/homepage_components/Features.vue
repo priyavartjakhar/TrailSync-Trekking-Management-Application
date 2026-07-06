@@ -18,6 +18,16 @@
 </template>
 
 <script>
+/**
+ * =========================================================================
+ * Features.vue
+ * =========================================================================
+ * Highlight section summarizing core product value propositions (acclimatized routing, certified staff, PWA tracking).
+ * 
+ * Part of the public landing page components. Renders static descriptions
+ * and interactive catalog sections prior to authentication.
+ */
+
 export default {
   name: 'TsFeatures',
   name: 'TsFeatures',

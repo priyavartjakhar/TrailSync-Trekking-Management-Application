@@ -23,6 +23,16 @@
 </template>
 
 <script>
+/**
+ * =========================================================================
+ * Navbar.vue
+ * =========================================================================
+ * Main header navigation bar providing anchor links to details sections and direct access to authentication endpoints.
+ * 
+ * Part of the public landing page components. Renders static descriptions
+ * and interactive catalog sections prior to authentication.
+ */
+
 export default {
   name: 'Navbar',
   data() { return { scrolled: false }; },

@@ -54,6 +54,16 @@
 </template>
 
 <script>
+/**
+ * =========================================================================
+ * Treks.vue
+ * =========================================================================
+ * Catalog preview grid displaying summary route cards with tags for difficulty levels, locations, and pricing.
+ * 
+ * Part of the public landing page components. Renders static descriptions
+ * and interactive catalog sections prior to authentication.
+ */
+
 export default {
   name: 'TsTreks',
   name: 'TsTreks',

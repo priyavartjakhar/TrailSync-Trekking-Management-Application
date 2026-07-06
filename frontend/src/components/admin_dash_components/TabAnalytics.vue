@@ -208,6 +208,16 @@
 </template>
 
 <script>
+/**
+ * =========================================================================
+ * TabAnalytics.vue
+ * =========================================================================
+ * Analytics metrics view showing statistical graphs for popular routes, user growth, booking channels, and difficulty distributions.
+ * 
+ * Uses 'adminDashComponent' dynamic options proxying to link state/methods
+ * reactivity directly with the parent 'AdminDashboard' coordinator.
+ */
+
 import { adminDashComponent } from './adminDashProxy';
 import AdminChart from './AdminChart.vue';
 

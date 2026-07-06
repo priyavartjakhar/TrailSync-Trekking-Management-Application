@@ -410,8 +410,6 @@ def admin_dashboard_data():
             'date': u.registered_at.strftime('%Y-%m-%d') if u.registered_at else '2026-06-09'
         })
         
-    pending_treks = []
-    
     # 14. Action items warnings counts
     inactive_staff_count = User.query.filter_by(role='staff', active=False).count()
     unassigned_treks_count = Trek.query.filter(Trek.status.in_(['Open', 'Approved']), Trek.staff_id == None).count()
@@ -478,7 +476,7 @@ def admin_dashboard_data():
         'userGrowth': user_growth,
         'revenueData': revenue_data,
         'blacklistedUsers': blacklisted_users,
-        'pendingTreks': pending_treks,
+        'pendingTreks': [],          # Reserved: no draft/pending trek status in current schema
         'supportTickets': support_tickets,
         'trekRoutes': trek_routes_json
     }
@@ -1605,6 +1603,7 @@ def admin_resolve_support_ticket(ticket_id):
                 profile.custom_blocked_dates = ','.join(sorted(existing_list))
 
     db.session.commit()
+    invalidate_all_trek_caches()
     return jsonify({'success': True, 'message': f'Ticket #{ticket_id} resolved.', 'ticket': ticket.to_json()})
 
 
@@ -1696,9 +1695,9 @@ def admin_trigger_report():
     
     if report_type == 'monthly':
         from backend.tasks import generate_monthly_report
-        generate_monthly_report.delay()
+        generate_monthly_report.delay(is_manual=True)
         return jsonify({'message': 'Monthly HTML report triggered via Celery.'})
     else:
         from backend.tasks import send_daily_reminders
-        send_daily_reminders.delay()
+        send_daily_reminders.delay(is_manual=True)
         return jsonify({'message': 'Daily reminders triggered via Celery.'})

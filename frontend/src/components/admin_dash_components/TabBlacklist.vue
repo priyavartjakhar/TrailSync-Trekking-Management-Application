@@ -27,7 +27,35 @@
 </template>
 
 <script>
+/**
+ * =========================================================================
+ * TabBlacklist.vue
+ * =========================================================================
+ * Safety panel displaying blacklisted trekker and guide accounts with reason logs and restoration triggers.
+ * 
+ * Uses 'adminDashComponent' dynamic options proxying to link state/methods
+ * reactivity directly with the parent 'AdminDashboard' coordinator.
+ */
+
 import { adminDashComponent } from './adminDashProxy';
 
-export default adminDashComponent('TabBlacklist');
+export default adminDashComponent('TabBlacklist', {
+  methods: {
+    async restoreBlacklist(u) {
+      try {
+        const res = await fetch(`/api/admin/users/restore/${u.id}`, { method: 'POST' });
+        if (res.ok) {
+          this.adminDash.showToast(`User ${u.name} restored successfully`);
+          this.adminDash.loadData();
+        } else {
+          const d = await res.json();
+          this.adminDash.showToast(d.error || 'Failed to restore user.');
+        }
+      } catch (err) {
+        console.error(err);
+        this.adminDash.showToast('Failed to restore user.');
+      }
+    }
+  }
+});
 </script>

@@ -417,6 +417,16 @@
 </template>
 
 <script>
+/**
+ * =========================================================================
+ * TabRevenue.vue
+ * =========================================================================
+ * Financial metrics dashboard illustrating revenue by locations, payment methods, average occupancy levels, and refund analytics.
+ * 
+ * Uses 'adminDashComponent' dynamic options proxying to link state/methods
+ * reactivity directly with the parent 'AdminDashboard' coordinator.
+ */
+
 import { adminDashComponent } from './adminDashProxy';
 
 export default adminDashComponent('TabRevenue');

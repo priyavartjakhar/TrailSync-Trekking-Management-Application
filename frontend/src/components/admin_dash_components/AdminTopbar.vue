@@ -24,6 +24,20 @@
 </template>
 
 <script>
+/**
+ * =========================================================================
+ * AdminTopbar.vue
+ * =========================================================================
+ * Top header bar with the dynamic page title, breadcrumb URL pill, global
+ * search input, and context-sensitive action buttons.
+ *
+ * The breadcrumb shows the current tab as a real URL path (e.g. /admin/bookings)
+ * and exposes a copy-link button so admins can bookmark or share specific tabs.
+ *
+ * Uses 'adminDashComponent' dynamic options proxying to link state/methods
+ * reactivity directly with the parent 'AdminDashboard' coordinator.
+ */
+
 import { adminDashComponent } from './adminDashProxy';
 
 export default adminDashComponent('AdminTopbar', { emits: ['logout'] });

@@ -176,6 +176,16 @@
 </template>
 
 <script>
+/**
+ * =========================================================================
+ * TabStaffAvailability.vue
+ * =========================================================================
+ * Interactive monthly scheduling grid tracking daily guides assignments, leave schedules, and availability/conflict alerts.
+ * 
+ * Uses 'adminDashComponent' dynamic options proxying to link state/methods
+ * reactivity directly with the parent 'AdminDashboard' coordinator.
+ */
+
 import { adminDashComponent } from './adminDashProxy';
 
 export default adminDashComponent('TabStaffAvailability');

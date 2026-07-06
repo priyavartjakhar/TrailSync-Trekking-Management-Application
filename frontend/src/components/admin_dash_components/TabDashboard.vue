@@ -226,6 +226,16 @@
 </template>
 
 <script>
+/**
+ * =========================================================================
+ * TabDashboard.vue
+ * =========================================================================
+ * Overview dashboard containing operational summary KPI cards (Total Trekkers, Total Bookings, Active Batches), activity logs, and system health monitors.
+ * 
+ * Uses 'adminDashComponent' dynamic options proxying to link state/methods
+ * reactivity directly with the parent 'AdminDashboard' coordinator.
+ */
+
 import { adminDashComponent } from './adminDashProxy';
 
 export default adminDashComponent('TabDashboard');

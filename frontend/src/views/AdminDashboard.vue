@@ -25,15 +25,66 @@
       <TabTrekHistory v-if="activeTab==='trek_history'" />
     </main><!-- /ts-main -->
 
-    <SAdminModals />
+    <!-- ════════ CUSTOM CONFIRMATION MODAL ════════ -->
+    <div v-if="showConfirmModal" class="ts-modal-overlay" @click.self="closeConfirmModal" style="z-index: 3000;">
+      <div class="ts-modal" style="max-width: 400px;">
+        <div class="ts-modal-header" style="border-bottom: none; padding-bottom: 0;">
+          <h3 class="ts-modal-title" style="color: var(--red); display: flex; align-items: center; gap: 8px;">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+            <span>{{ confirmTitle }}</span>
+          </h3>
+          <button class="modal-close" @click="closeConfirmModal">✕</button>
+        </div>
+        <div class="ts-modal-body" style="padding-top: 1rem; padding-bottom: 1.5rem; font-size: 0.9rem; color: var(--forest-mid);">
+          {{ confirmMessage }}
+        </div>
+        <div class="ts-modal-footer" style="background: var(--snow); border-top: 1px solid var(--stone-light);">
+          <button class="btn-ghost" @click="closeConfirmModal">Cancel</button>
+          <button class="btn-primary-ts" style="background: var(--red); border-color: var(--red);" @click="onConfirmYes">{{ confirmBtnLabel }}</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════ TOAST ════════ -->
+    <transition name="toast">
+      <div v-if="toast.show" class="ts-toast">{{ toast.msg }}</div>
+    </transition>
 
   </div>
 </template>
 
 <script>
+/**
+ * =========================================================================
+ * Admin Dashboard View Component (Root Admin Controller)
+ * =========================================================================
+ * This is the parent coordinator for all administrative views. It retains
+ * statistical logs, lists for routes, staff lists, user lists, support logs,
+ * and handles direct communication with the Flask REST APIs.
+ * 
+ * To reduce structural code bloat in child components, it uses a custom
+ * dependency injection and computed proxy wrapper (adminDashProxy.js).
+ * Child components (prefixed with `Tab`) inject `adminDash` to read state
+ * or trigger operations (like deleting routes, assigning staff, or running Celery jobs).
+ * 
+ * Main Sub-Tabs Managed:
+ * 1. TabDashboard: Summary KPI cards and latest activity feed.
+ * 2. TabTreks: CRUD of Master Trek Catalog (routes).
+ * 3. TabBatches: CRUD of Scheduled Trek Dates and guide assignment.
+ * 4. TabStaff: Admin controls to hire guides and view profiles.
+ * 5. TabStaffAvailability: Calendar display tracking guides' leaves/bookings.
+ * 6. TabUsers: Listing registered users and triggering blacklisting.
+ * 7. TabBookings: Complete booking logs, cancellation, and refund execution.
+ * 8. TabAnalytics / TabRevenue: Analytics graphs and visual aggregates.
+ * 9. TabReports: Monthly summary compiling triggers.
+ * 10. TabJobs: Manage and manually trigger asynchronous Celery jobs.
+ * 11. TabBlacklist: Restore or inspect deactivated guides/trekkers.
+ * 12. TabSupportTickets: Review and resolve user questions and leaves.
+ * 13. TabTrekHistory: Deep operational log archives of completed treks.
+ */
+
 import AdminSidebar from '../components/admin_dash_components/AdminSidebar.vue';
 import AdminTopbar from '../components/admin_dash_components/AdminTopbar.vue';
-import SAdminModals from '../components/admin_dash_components/SAdminModals.vue';
 import TabDashboard from '../components/admin_dash_components/TabDashboard.vue';
 import TabTreks from '../components/admin_dash_components/TabTreks.vue';
 import TabBatches from '../components/admin_dash_components/TabBatches.vue';
@@ -69,7 +120,8 @@ import {
   DIFFICULTY_DIST,
   USER_GROWTH,
   REVENUE_DATA,
-  BLACKLISTED_USERS
+  BLACKLISTED_USERS,
+  ADMIN_ALERTS_AND_TASKS
 } from '../data/admin_data';
 
 export default {
@@ -77,7 +129,6 @@ export default {
   components: {
     AdminSidebar,
     AdminTopbar,
-    SAdminModals,
     TabDashboard,
     TabTreks,
     TabBatches,
@@ -99,7 +150,15 @@ export default {
   },
   data() {
     return {
-      activeTab: localStorage.getItem('adminActiveTab') || 'dashboard',
+      // Initialise from URL param first, then localStorage, then default to dashboard
+      activeTab: (() => {
+        const validTabs = ['dashboard','treks','batches','staff','staff_availability','users','bookings','analytics','revenue','reports','jobs','blacklist','support_tickets','trek_history'];
+        const fromRoute = window.location.pathname.split('/admin/')[1]?.split('/')[0];
+        if (fromRoute && validTabs.includes(fromRoute)) return fromRoute;
+        const fromStorage = localStorage.getItem('adminActiveTab');
+        if (fromStorage && validTabs.includes(fromStorage)) return fromStorage;
+        return 'dashboard';
+      })(),
       sidebarCollapsed: false,
       lastIsSmall: null,
       searchQuery: '',
@@ -1121,8 +1180,24 @@ export default {
   },
 
   watch: {
+    // Sync activeTab → URL whenever tab changes programmatically
     activeTab(newTab) {
       localStorage.setItem('adminActiveTab', newTab);
+      const currentSlug = this.$route.params.tab_slug;
+      if (currentSlug !== newTab) {
+        this.$router.push(`/admin/${newTab}`);
+      }
+      this.resetSearchQueries();
+    },
+    // Sync URL → activeTab when browser back/forward is used
+    '$route.params.tab_slug'(newSlug) {
+      if (newSlug && newSlug !== this.activeTab) {
+        this.activeTab = newSlug;
+        this.resetSearchQueries();
+      } else if (!newSlug && this.activeTab !== 'dashboard') {
+        this.activeTab = 'dashboard';
+        this.resetSearchQueries();
+      }
     },
     showRouteModal(val) {
       if (!val) this.routeStateSearchQuery = '';
@@ -1136,6 +1211,10 @@ export default {
   },
 
   mounted() {
+    // If on /admin (no slug), redirect to /admin/dashboard for a canonical URL
+    if (!this.$route.params.tab_slug) {
+      this.$router.replace(`/admin/${this.activeTab}`);
+    }
     this.loadData();
     window.addEventListener('click', this.handleGlobalClick);
     this.checkScreenSize();
@@ -1147,79 +1226,14 @@ export default {
   },
 
   methods: {
-    checkScreenSize() {
-      const isSmall = window.innerWidth <= 1024;
-      if (isSmall !== this.lastIsSmall) {
-        this.sidebarCollapsed = isSmall;
-        this.lastIsSmall = isSmall;
-      }
-    },
-    selectStateForRoute(state) {
-      this.routeForm.location = state;
-      this.showRouteStateDropdown = false;
-      this.routeStateSearchQuery = '';
-    },
-    handleGlobalClick(event) {
-      if (this.showRouteStateDropdown) {
-        const selector = event.target.closest('.route-state-dropdown-wrapper');
-        if (!selector) {
-          this.showRouteStateDropdown = false;
-        }
-      }
-    },
-    selectRouteForBatch(route) {
-      this.trekForm.trekRouteId = route.id;
-      this.showRouteDropdown = false;
+    resetSearchQueries() {
+      this.searchQuery = '';
       this.routeSearchQuery = '';
-    },
-    selectStaffForBatch(staff) {
-      this.trekForm.staff_id = staff ? staff.id : null;
-      this.showStaffDropdown = false;
+      this.trekSearchQuery = '';
       this.staffSearchQuery = '';
-    },
-    getWeekdayLetter(day) {
-      const date = new Date(this.calendarYear, this.calendarMonth, day);
-      const days = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-      return days[date.getDay()];
-    },
-    isWeekend(day) {
-      const date = new Date(this.calendarYear, this.calendarMonth, day);
-      const dayOfWeek = date.getDay();
-      return dayOfWeek === 0 || dayOfWeek === 6;
-    },
-    getConflictTrekForDay(staff, day) {
-      if (!staff.treksDone) return null;
-      const dStr = `${this.calendarYear}-${String(this.calendarMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-      return staff.treksDone.find(t => dStr >= t.startDate && dStr <= t.endDate) || null;
-    },
-    checkRangeStatus(staff) {
-      if (!staff.treksDone || !this.availabilityStart || !this.availabilityEnd) {
-        return { status: 'Available' };
-      }
-      const start = new Date(this.availabilityStart);
-      const end = new Date(this.availabilityEnd);
-      for (const t of staff.treksDone) {
-        const tStart = new Date(t.startDate);
-        const tEnd = new Date(t.endDate);
-        if (tStart <= end && tEnd >= start) {
-          return {
-            status: 'Busy',
-            trekName: t.trekName,
-            batchId: t.batchId,
-            range: `${t.startDate} to ${t.endDate}`
-          };
-        }
-      }
-      return { status: 'Available' };
-    },
-    isStaffBusyOnDay(staff, day) {
-      if (this.getConflictTrekForDay(staff, day)) return true;
-      const dStr = `${this.calendarYear}-${String(this.calendarMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-      if (staff.customBlockedDates) {
-        const dates = staff.customBlockedDates.split(',').map(x => x.trim());
-        if (dates.includes(dStr)) return true;
-      }
-      return false;
+      this.calendarSearchQuery = '';
+      this.routeStateSearchQuery = '';
+      this.showTrekSearch = false;
     },
     async toggleDayAvailability(staff, day) {
       const dStr = `${this.calendarYear}-${String(this.calendarMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
@@ -1245,7 +1259,21 @@ export default {
           this.showToast('Failed to toggle date availability.');
         }
       } catch (err) {
-        this.showToast('Network error toggling date availability.');
+        // Toggle offline in memory
+        let blocked = staff.customBlockedDates ? staff.customBlockedDates.split(',').map(x => x.trim()).filter(Boolean) : [];
+        let action = '';
+        if (blocked.includes(dStr)) {
+          blocked = blocked.filter(x => x !== dStr);
+          action = 'available';
+        } else {
+          blocked.push(dStr);
+          action = 'busy';
+        }
+        staff.customBlockedDates = blocked.join(',');
+        this.showToast(`Guide availability updated (offline): marked as ${action === 'busy' ? 'Unavailable' : 'Available'}.`);
+        if (this.calendarTooltip.show) {
+          this.showTooltip(null, staff, day);
+        }
       }
     },
     showTooltip(e, staff, day) {
@@ -1305,268 +1333,187 @@ export default {
       this.checkedEnd = this.availabilityEnd;
       this.hasCheckedRange = true;
     },
-    handleGlobalClick(e) {
-      this.showRouteDropdown = false;
-      this.showStaffDropdown = false;
-      this.showAssignStaffDropdown = false;
-      this.showAssignTrekDropdown = false;
-      this.showDiffFilterDropdown = false;
-      this.showDaysFilterDropdown = false;
-      this.showActiveFilterDropdown = false;
-      this.showStateFilterDropdown = false;
-      this.showDistFilterDropdown = false;
-      this.showFormDiffDropdown = false;
-      
-      this.showReportTypeDropdown = false;
-      this.showReportMonthDropdown = false;
-      this.showReportTrekDropdown = false;
-      this.showReportTrekSubtypeDropdown = false;
-      this.showReportBatchDropdown = false;
-      this.showReportUserSubtypeDropdown = false;
-      this.showReportStaffSubtypeDropdown = false;
-    },
-    calculateEndDate() {
-      const duration = this.selectedRouteDuration;
-      const start = this.trekForm.startDate;
-      if (start && duration > 0) {
-        const dateObj = new Date(start);
-        dateObj.setDate(dateObj.getDate() + duration);
-        const y = dateObj.getFullYear();
-        const m = String(dateObj.getMonth() + 1).padStart(2, '0');
-        const d = String(dateObj.getDate()).padStart(2, '0');
-        this.trekForm.endDate = `${y}-${m}-${d}`;
-      }
-    },
-    resetRouteFilters() {
-      this.tempRouteDiffFilter = 'All';
-      this.tempRouteDaysFilter = 'All';
-      this.tempRouteActiveFilter = 'All';
-      this.tempRouteStateFilter = 'All';
-      this.tempRouteDistFilter = 'All';
-      this.routeDiffFilter = 'All';
-      this.routeDaysFilter = 'All';
-      this.routeActiveFilter = 'All';
-      this.routeStateFilter = 'All';
-      this.routeDistFilter = 'All';
-      this.searchQuery = '';
-    },
-    setRouteFilter(filterKey, value) {
-      this[filterKey] = value;
-      if (filterKey === 'routeDiffFilter') {
-        this.tempRouteDiffFilter = value;
-      } else if (filterKey === 'routeDaysFilter') {
-        this.tempRouteDaysFilter = value;
-      } else if (filterKey === 'routeActiveFilter') {
-        this.tempRouteActiveFilter = value;
-      } else if (filterKey === 'routeStateFilter') {
-        this.tempRouteStateFilter = value;
-      } else if (filterKey === 'routeDistFilter') {
-        this.tempRouteDistFilter = value;
-      }
-    },
-    applyRouteFilters() {
-      this.routeDiffFilter = this.tempRouteDiffFilter;
-      this.routeDaysFilter = this.tempRouteDaysFilter;
-      this.routeActiveFilter = this.tempRouteActiveFilter;
-      this.routeStateFilter = this.tempRouteStateFilter;
-      this.routeDistFilter = this.tempRouteDistFilter;
-      this.showToast('Filters updated');
-    },
-    toggleRouteFilterDropdown(type) {
-      const current = this[type];
-      this.showDiffFilterDropdown = false;
-      this.showDaysFilterDropdown = false;
-      this.showActiveFilterDropdown = false;
-      this.showStateFilterDropdown = false;
-      this.showDistFilterDropdown = false;
-      this[type] = !current;
-    },
-    async handleImageUpload(e) {
-      const file = e.target.files[0];
-      if (!file) return;
-      const formData = new FormData();
-      formData.append('image', file);
+    async triggerReport(type) {
       try {
-        this.showToast('Uploading image...');
-        const res = await fetch('/api/admin/upload_image', {
-          method: 'POST',
-          body: formData
+        const res = await fetch('/api/admin/report', {
+          method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ type })
+        });
+        if (res.ok) { const d = await res.json(); this.showToast(d.message); return; }
+      } catch (_) {}
+      this.showToast(`${type} report triggered (mock — Celery job queued)`);
+    },
+    async triggerJob(job) {
+      job.status = 'Running';
+      try {
+        const res = await fetch('/api/admin/jobs/trigger', {
+          method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ name: job.name })
         });
         if (res.ok) {
-          const data = await res.json();
-          if (data.success) {
-            this.routeForm.imageUrl = data.imageUrl;
-            this.showToast('Image uploaded successfully!');
-          } else {
-            this.showToast('Upload failed: ' + (data.error || 'unknown error'));
-          }
-        } else {
-          this.showToast('Upload failed');
-        }
-      } catch (err) {
-        this.showToast('Upload failed (connection error)');
-      }
-    },
-    async handleStaffPhotoUpload(e) {
-      const file = e.target.files[0];
-      if (!file) return;
-      const formData = new FormData();
-      formData.append('image', file);
-      try {
-        this.showToast('Uploading photo...');
-        const res = await fetch('/api/admin/upload_image', {
-          method: 'POST',
-          body: formData
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.success) {
-            this.staffForm.photoUrl = data.imageUrl;
-            this.showToast('Photo uploaded successfully!');
-          } else {
-            this.showToast('Upload failed: ' + (data.error || 'unknown error'));
-          }
-        } else {
-          this.showToast('Upload failed');
-        }
-      } catch (err) {
-        this.showToast('Upload failed (connection error)');
-      }
-    },
-    viewStaffDetails(s) {
-      this.selectedStaffDetails = s;
-      this.showStaffDetailsModal = true;
-    },
-    closeStaffDetails() {
-      this.showStaffDetailsModal = false;
-      this.selectedStaffDetails = null;
-    },
-    viewUserDetails(u) {
-      const photos = [
-        "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&h=300&fit=crop",
-        "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&h=300&fit=crop",
-        "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300&h=300&fit=crop",
-        "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=300&h=300&fit=crop",
-        "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=300&h=300&fit=crop"
-      ];
-      u.photoUrl = photos[u.id % photos.length];
-      u.bookingsList = this.allBookings.filter(b => b.userId === u.id);
-      this.selectedUserDetails = u;
-      this.showUserDetailsModal = true;
-    },
-    closeUserDetails() {
-      this.showUserDetailsModal = false;
-      this.selectedUserDetails = null;
-    },
-    openTicketDetails(ticket) {
-      const user = this.users.find(u => u.id === ticket.userId);
-      if (user) {
-        const photos = [
-          "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&h=300&fit=crop",
-          "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&h=300&fit=crop",
-          "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300&h=300&fit=crop",
-          "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=300&h=300&fit=crop",
-          "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=300&h=300&fit=crop"
-        ];
-        user.photoUrl = photos[user.id % photos.length];
-        user.bookingsList = this.allBookings.filter(b => b.userId === user.id);
-        ticket.userDetails = user;
-      } else {
-        const staff = this.staffList ? this.staffList.find(s => s.id === ticket.userId) : null;
-        if (staff) {
-          ticket.userDetails = {
-            id: staff.id,
-            memberId: staff.memberId,
-            name: staff.name,
-            email: staff.contact,
-            phone: staff.phone,
-            city: '—',
-            emergency: '—',
-            registered: staff.joined,
-            bookingsList: [],
-            bio: 'Trek Guide / Staff member',
-            photoUrl: staff.photoUrl,
-            role: 'staff',
-            designation: staff.designation,
-            experience: staff.experience,
-            skills: staff.skills,
-            certifications: staff.certifications
-          };
-        } else {
-          ticket.userDetails = null;
-        }
-      }
-      this.selectedTicketDetails = ticket;
-      this.showTicketDetailsModal = true;
-    },
-    closeTicketDetails() {
-      this.showTicketDetailsModal = false;
-      this.selectedTicketDetails = null;
-    },
-    getCategoryClass(category) {
-      const map = {
-        'General Inquiry': 'cat-general',
-        'Booking & Reservation': 'cat-booking',
-        'Payments & Refunds': 'cat-payment',
-        'Profile & Account Settings': 'cat-profile',
-        'Technical Issue / Bug': 'cat-bug',
-        'Feedback & Suggestions': 'cat-feedback',
-        'Leave Request': 'cat-leave'
-      };
-      return map[category] || 'cat-general';
-    },
-    closeBlacklistModal() {
-      this.showBlacklistModal = false;
-      this.blacklistTargetUser = null;
-      this.blacklistReasonText = '';
-    },
-    async submitBlacklist() {
-      if (!this.blacklistTargetUser) return;
-      const u = this.blacklistTargetUser;
-      const reason = this.blacklistReasonText.trim() || 'Policy violation';
-      try {
-        const res = await fetch(`/api/admin/users/blacklist/${u.id}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ reason: reason })
-        });
-        if (res.ok) {
-          this.showToast(`${u.name} blacklisted`);
-          this.closeBlacklistModal();
-          this.loadData();
+          this.showToast(`Job "${job.name}" triggered`);
+          setTimeout(() => { this.loadData(); }, 1500);
           return;
         }
       } catch (_) {}
-      u.blacklisted = true;
-      const idx = this.blacklistedUsers.findIndex(b => b.id === u.id);
-      if (idx === -1) {
-        this.blacklistedUsers.push({
-          id: u.id,
-          name: u.name,
-          reason: reason,
-          date: new Date().toISOString().slice(0, 10)
-        });
-      }
-      this.showToast(`${u.name} blacklisted (mock)`);
-      this.closeBlacklistModal();
+      this.showToast(`"${job.name}" triggered (mock)`);
     },
-    async toggleStaffBlacklist(s) {
-      if (s.blacklisted) {
-        try {
-          const res = await fetch(`/api/admin/users/restore/${s.id}`, { method: 'POST' });
-          if (res.ok) {
-            this.showToast(`Staff ${s.name} restored`);
-            this.loadData();
-            return;
-          }
-        } catch (_) {}
-        s.blacklisted = false;
-        this.showToast(`Staff ${s.name} restored (mock)`);
-      } else {
-        this.blacklistTargetUser = s;
-        this.blacklistReasonText = '';
-        this.showBlacklistModal = true;
+    async triggerWelcomeTest(type, email) {
+      if (!email) {
+        this.showToast("Please enter a valid recipient email address.");
+        return;
       }
+      try {
+        const res = await fetch('/api/admin/jobs/test_welcome', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ type, email })
+        });
+        if (res.ok) {
+          const d = await res.json();
+          this.showToast(d.message || `Test welcome email (${type}) sent.`);
+          return;
+        } else {
+          const err = await res.json();
+          this.showToast(err.error || "Failed to send test email.");
+        }
+      } catch (_) {
+        this.showToast("Error sending test welcome email.");
+      }
+    },
+    async exportCSV(type) {
+      this.showToast(`Exporting ${type} CSV… you'll be notified when ready.`);
+      try {
+        await fetch('/api/admin/export', {
+          method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ type })
+        });
+      } catch (_) {}
+    },
+
+    /**
+     * ── UI & GENERAL HELPERS ───────────────────────────────────────────────
+     * Handles viewport check, layout state, state selection, and drop-down clicks.
+     */
+    checkScreenSize() {
+      const isSmall = window.innerWidth <= 1024;
+      if (isSmall !== this.lastIsSmall) {
+        this.sidebarCollapsed = isSmall;
+        this.lastIsSmall = isSmall;
+      }
+    },
+    handleGlobalClick(event) {
+      if (this.showRouteStateDropdown) {
+        const selector = event.target.closest('.route-state-dropdown-wrapper');
+        if (!selector) {
+          this.showRouteStateDropdown = false;
+        }
+      }
+    },
+    getWeekdayLetter(day) {
+      const date = new Date(this.calendarYear, this.calendarMonth, day);
+      const days = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+      return days[date.getDay()];
+    },
+    isWeekend(day) {
+      const date = new Date(this.calendarYear, this.calendarMonth, day);
+      const dayOfWeek = date.getDay();
+      return dayOfWeek === 0 || dayOfWeek === 6;
+    },
+    getConflictTrekForDay(staff, day) {
+      if (!staff.treksDone) return null;
+      const dStr = `${this.calendarYear}-${String(this.calendarMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      return staff.treksDone.find(t => dStr >= t.startDate && dStr <= t.endDate) || null;
+    },
+    checkRangeStatus(staff) {
+      if (!staff.treksDone || !this.availabilityStart || !this.availabilityEnd) {
+        return { status: 'Available' };
+      }
+      const start = new Date(this.availabilityStart);
+      const end = new Date(this.availabilityEnd);
+      for (const t of staff.treksDone) {
+        const tStart = new Date(t.startDate);
+        const tEnd = new Date(t.endDate);
+        if (tStart <= end && tEnd >= start) {
+          return {
+            status: 'Busy',
+            trekName: t.trekName,
+            batchId: t.batchId,
+            range: `${t.startDate} to ${t.endDate}`
+          };
+        }
+      }
+      return { status: 'Available' };
+    },
+    isStaffBusyOnDay(staff, day) {
+      if (this.getConflictTrekForDay(staff, day)) return true;
+      const dStr = `${this.calendarYear}-${String(this.calendarMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      if (staff.leaves && staff.leaves.some(l => l.status === 'Approved' && dStr >= l.startDate && dStr <= l.endDate)) {
+        return true;
+      }
+      if (staff.customBlockedDates) {
+        const blockedDates = staff.customBlockedDates.split(',').map(x => x.trim()).filter(Boolean);
+        if (blockedDates.includes(dStr)) {
+          return true;
+        }
+      }
+      return false;
+    },
+    openRouteModal(route = null) {
+      this.activeTab = 'treks';
+      this.editingRoute = route;
+      this.routeForm = route
+        ? { ...route }
+        : { name: '', location: '', place: '', difficulty: 'Moderate', duration: 5, distance: 15, imageUrl: '', description: '', latitude: null, longitude: null };
+      this.imageMode = (route && route.imageUrl && route.imageUrl.startsWith('/static/uploads')) ? 'upload' : 'link';
+      this.showRouteModal = true;
+    },
+    closeRouteModal() {
+      this.showRouteModal = false;
+      this.showFormDiffDropdown = false;
+      this.editingRoute = null;
+    },
+    openTrekModal(trek = null) {
+      this.activeTab = 'batches';
+      this.editingTrek = trek;
+      this.trekForm = trek
+        ? { ...trek }
+        : { name:'', location:'', difficulty:'Moderate', startDate:'', endDate:'', slots:20, price:5000, status:'Open', imageUrl:'', description:'' };
+      this.showTrekModal = true;
+    },
+    closeTrekModal() {
+      this.showTrekModal = false;
+      this.editingTrek = null;
+    },
+    openStaffModal(staff = null) {
+      this.activeTab = 'staff';
+      this.editingStaff = staff;
+      this.staffForm = staff
+        ? { ...staff }
+        : { name:'', email:'', phone:'', password:'' };
+      this.showStaffModal = true;
+    },
+    closeStaffModal() {
+      this.showStaffModal = false;
+      this.editingStaff = null;
+    },
+    openTrekkerModal(trekker = null) {
+      this.activeTab = 'users';
+      this.editingTrekker = trekker;
+      this.trekkerForm = trekker
+        ? {
+            id: trekker.id,
+            name: trekker.name,
+            email: trekker.email,
+            phone: trekker.phone || '',
+            password: '',
+            city: trekker.city || '',
+            emergency: trekker.emergency || '',
+            bio: trekker.bio || ''
+          }
+        : { name: '', email: '', phone: '', password: '', city: '', emergency: '', bio: '' };
+      this.showTrekkerModal = true;
+    },
+    closeTrekkerModal() {
+      this.showTrekkerModal = false;
+      this.editingTrekker = null;
     },
     handleTaskAction(type) {
       if (type === 'inactive_staff') {
@@ -1601,6 +1548,7 @@ export default {
         stats: ADMIN_STATS,
         trekStatusOverview: TREK_STATUS_OVERVIEW,
         alerts: ADMIN_ALERTS,
+        alertsAndTasks: ADMIN_ALERTS_AND_TASKS,
         recentBookings: RECENT_BOOKINGS,
         treks: ADMIN_TREKS,
         staffList: ADMIN_STAFF_LIST,
@@ -1623,542 +1571,11 @@ export default {
         trekRoutes: [],
       });
     },
-
     applyData(d) {
       Object.keys(d).forEach(k => { if (this[k] !== undefined) this[k] = d[k]; });
     },
 
-    // ── Trek Route CRUD ─────────────────────────────────────
-    openRouteModal(route = null) {
-      this.editingRoute = route;
-      this.routeForm = route
-        ? { ...route }
-        : { name:'', location:'', place:'', difficulty:'Moderate', duration:5, distance:15, imageUrl:'', description:'', latitude:null, longitude:null };
-      if (route && route.imageUrl && route.imageUrl.startsWith('/static/uploads')) {
-        this.imageMode = 'upload';
-      } else {
-        this.imageMode = 'link';
-      }
-      this.showRouteModal = true;
-    },
-    closeRouteModal() {
-      this.showRouteModal = false;
-      this.showFormDiffDropdown = false;
-      this.editingRoute = null;
-    },
-    async saveRoute() {
-      if (!this.routeForm.name || !this.routeForm.name.trim()) {
-        this.showToast('Trek Route Name is required');
-        return;
-      }
-      if (!this.routeForm.location || !this.routeForm.location.trim()) {
-        this.showToast('Location is required');
-        return;
-      }
-      if (!this.routeForm.difficulty) {
-        this.showToast('Difficulty is required');
-        return;
-      }
-      if (!this.routeForm.duration || this.routeForm.duration <= 0) {
-        this.showToast('Duration must be greater than 0');
-        return;
-      }
-      if (!this.routeForm.distance || this.routeForm.distance <= 0) {
-        this.showToast('Distance must be greater than 0');
-        return;
-      }
-      if (!this.routeForm.imageUrl || !this.routeForm.imageUrl.trim()) {
-        this.showToast('Image is required');
-        return;
-      }
-      if (!this.routeForm.description || !this.routeForm.description.trim()) {
-        this.showToast('Description is required');
-        return;
-      }
-      try {
-        const payload = this.editingRoute ? { id: this.editingRoute.id, ...this.routeForm } : { ...this.routeForm };
-        const res = await fetch('/api/admin/trek_routes', {
-          method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload)
-        });
-        if (res.ok) {
-          this.showToast(this.editingRoute ? 'Route updated' : 'Route created');
-          this.loadData();
-          this.closeRouteModal();
-        } else {
-          this.showToast('Failed to save route');
-        }
-      } catch (_) {
-        this.showToast('Failed to save route (error)');
-      }
-    },
-    deleteRoute(id) {
-      this.triggerConfirm(
-        'Confirm Deletion',
-        'Are you sure you want to remove this trek route? All its scheduled batches will be deleted!',
-        'Delete',
-        async () => {
-          try {
-            const res = await fetch(`/api/admin/trek_routes/${id}`, { method: 'DELETE' });
-            if (res.ok) { this.showToast('Route removed'); this.loadData(); }
-            else          this.showToast('Failed to remove route');
-          } catch (_) {
-            this.showToast('Failed to remove route (error)');
-          }
-        }
-      );
-    },
-    async toggleRouteStatus(route) {
-      try {
-        const res = await fetch(`/api/admin/trek_routes/toggle/${route.id}`, { method: 'POST' });
-        if (res.ok) {
-          const d = await res.json();
-          route.active = d.active;
-          this.showToast(`Route ${route.active ? 'opened (activated)' : 'closed (deactivated)'}`);
-          this.loadData();
-        }
-      } catch (_) {
-        this.showToast('Failed to toggle status');
-      }
-    },
-    async toggleBatchStatus(trek) {
-      try {
-        const res = await fetch(`/api/admin/batches/toggle/${trek.id}`, { method: 'POST' });
-        if (res.ok) {
-          const d = await res.json();
-          trek.status = d.active ? 'Open' : 'Closed';
-          this.showToast(`Batch ${d.active ? 'opened' : 'closed'}`);
-          this.loadData();
-        } else {
-          const err = await res.json();
-          this.showToast(err.error || 'Failed to toggle batch status');
-        }
-      } catch (_) {
-        this.showToast('Failed to toggle batch status');
-      }
-    },
-    viewRouteDetails(route) {
-      const routeBatches = this.treks.filter(b => 
-        (b.trekRouteId !== undefined && b.trekRouteId !== null && route.id !== undefined && route.id !== null && Number(b.trekRouteId) === Number(route.id)) || 
-        (b.name && route.name && b.name.trim().toLowerCase() === route.name.trim().toLowerCase())
-      );
-      const processedCount = routeBatches.length;
-      let sumPrice = 0;
-      let totalBookings = 0;
-      const priceTrends = [];
-      const bookedUsers = [];
-      
-      routeBatches.forEach(b => {
-        sumPrice += Number(b.price) || 0;
-        totalBookings += Number(b.booked) || 0;
-        priceTrends.push({
-          batchCode: b.batchCode,
-          startDate: b.startDate,
-          price: Number(b.price) || 0,
-          booked: Number(b.booked) || 0,
-          slots: Number(b.slots) || 0,
-          status: b.status,
-          staff: b.staff
-        });
-        
-        // Get booked users for this batch
-        const batchBookings = this.allBookings.filter(bk => bk.trekId !== undefined && b.id !== undefined && Number(bk.trekId) === Number(b.id) && bk.status === 'Booked');
-        batchBookings.forEach(bk => {
-          bookedUsers.push({
-            userName: bk.user,
-            userEmail: bk.userEmail || bk.userId,
-            batchCode: b.batchCode,
-            bookedOn: bk.bookedOn
-          });
-        });
-      });
-
-      const avgPrice = processedCount ? Math.round(sumPrice / processedCount) : 0;
-      
-      this.selectedRouteDetails = {
-        route: route,
-        processedCount: processedCount,
-        avgPrice: avgPrice,
-        totalBookings: totalBookings,
-        priceTrends: priceTrends,
-        bookedUsers: bookedUsers
-      };
-      this.showRouteDetailsModal = true;
-    },
-    closeRouteDetails() {
-      this.showRouteDetailsModal = false;
-      this.selectedRouteDetails = null;
-    },
-
-    // ── Trek CRUD ──────────────────────────────────────────
-    openTrekModal(trek = null) {
-      this.editingTrek = trek;
-      this.routeSearchQuery = '';
-      this.staffSearchQuery = '';
-      this.showRouteDropdown = false;
-      this.showStaffDropdown = false;
-      this.batchTrekkers = [];
-      this.showTrekSearch = false;
-      this.trekkerManageMode = '';
-      this.trekSearchQuery = '';
-      if (trek) {
-        this.trekForm = { ...trek };
-        this.fetchBatchTrekkers(trek.id);
-      } else {
-        this.trekForm = {
-          trekRouteId: '',
-          startDate: '',
-          endDate: '',
-          slots: '',
-          price: '',
-          status: 'Open',
-          staff_id: null
-        };
-      }
-      this.showTrekModal = true;
-    },
-    closeTrekModal() { this.showTrekModal = false; this.editingTrek = null; },
-
-    async fetchBatchTrekkers(trekId) {
-      try {
-        const res = await fetch(`/api/admin/batches/${trekId}/trekkers`);
-        if (res.ok) {
-          const d = await res.json();
-          this.batchTrekkers = d.trekkers || [];
-        }
-      } catch (e) {
-        console.error("Error fetching batch trekkers:", e);
-      }
-    },
-    async addTrekkerToBatch(user) {
-      try {
-        const res = await fetch('/api/admin/batches/add_trekker', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ trek_id: this.editingTrek.id, user_id: user.id })
-        });
-        const d = await res.json();
-        if (res.ok) {
-          this.showToast(d.message || 'Trekker added successfully.');
-          this.fetchBatchTrekkers(this.editingTrek.id);
-          this.loadData();
-          this.trekSearchQuery = '';
-          this.showTrekSearch = false;
-        } else {
-          this.showToast(d.error || 'Failed to add trekker.');
-        }
-      } catch (e) {
-        this.showToast('Error adding trekker.');
-      }
-    },
-    async removeTrekkerFromBatch(user) {
-      try {
-        const res = await fetch('/api/admin/batches/remove_trekker', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ trek_id: this.editingTrek.id, user_id: user.userId })
-        });
-        const d = await res.json();
-        if (res.ok) {
-          this.showToast(d.message || 'Trekker removed successfully.');
-          this.fetchBatchTrekkers(this.editingTrek.id);
-          this.loadData();
-          this.trekSearchQuery = '';
-          this.showTrekSearch = false;
-        } else {
-          this.showToast(d.error || 'Failed to remove trekker.');
-        }
-      } catch (e) {
-        this.showToast('Error removing trekker.');
-      }
-    },
-
-    async saveTrek() {
-      // Frontend validation
-      if (!this.editingTrek && !this.trekForm.trekRouteId) {
-        this.showToast('Please select a Trek Route.');
-        return;
-      }
-      if (!this.trekForm.startDate || !this.trekForm.endDate) {
-        this.showToast('Start date and End date are required.');
-        return;
-      }
-      if (this.trekForm.slots === '' || this.trekForm.slots === null || this.trekForm.slots <= 0) {
-        this.showToast('Available slots must be a positive integer.');
-        return;
-      }
-      if (this.trekForm.price === '' || this.trekForm.price === null || this.trekForm.price < 0) {
-        this.showToast('Price must be a positive number.');
-        return;
-      }
-      if (new Date(this.trekForm.startDate) >= new Date(this.trekForm.endDate)) {
-        this.showToast('Start date must be before End date.');
-        return;
-      }
-
-      try {
-        const payload = this.editingTrek ? { id: this.editingTrek.id, ...this.trekForm } : { ...this.trekForm };
-        const res = await fetch('/api/admin/treks', {
-          method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload)
-        });
-        if (res.ok) {
-          this.showToast(this.editingTrek ? 'Trek updated' : 'Trek created');
-          this.loadData();
-          this.closeTrekModal();
-        } else {
-          const errData = await res.json();
-          this.showToast(errData.error || 'Failed to save trek');
-        }
-      } catch (_) {
-        if (this.editingTrek) {
-          const i = this.treks.findIndex(t => t.id === this.editingTrek.id);
-          if (i !== -1) this.treks[i] = { ...this.editingTrek, ...this.trekForm };
-        } else {
-          this.treks.push({ id: Date.now(), ...this.trekForm, staff: null, totalSlots: this.trekForm.slots });
-        }
-        this.showToast(this.editingTrek ? 'Trek updated (mock)' : 'Trek created (mock)');
-        this.closeTrekModal();
-      }
-    },
-
-    deleteTrek(id) {
-      this.triggerConfirm(
-        'Confirm Deletion',
-        'Are you sure you want to remove this trek batch? This action cannot be undone.',
-        'Delete',
-        async () => {
-          try {
-            const res = await fetch(`/api/admin/treks/${id}`, { method:'DELETE' });
-            if (res.ok) { this.showToast('Trek removed'); this.loadData(); }
-            else          this.showToast('Failed to remove trek');
-          } catch (_) {
-            this.treks = this.treks.filter(t => t.id !== id);
-            this.showToast('Trek removed (mock)');
-          }
-        }
-      );
-    },
-
-    closeBatch(trek) {
-      this.triggerConfirm(
-        'Close Batch',
-        `Close batch '${trek.name}' (${trek.batchCode})? Users will not be able to book this batch once closed.`,
-        'Close Batch',
-        async () => {
-          try {
-            const res = await fetch(`/api/admin/batches/${trek.id}/close`, { method:'POST' });
-            if (res.ok) {
-              const data = await res.json();
-              this.showToast(data.message || 'Batch closed successfully');
-              this.loadData();
-            } else {
-              const err = await res.json();
-              this.showToast(err.error || 'Failed to close batch');
-            }
-          } catch (_) {
-            trek.status = 'Closed';
-            this.showToast('Batch closed (mock)');
-          }
-        }
-      );
-    },
-
-    completeBatch(trek) {
-      this.triggerConfirm(
-        'Mark as Completed',
-        `Are you sure you want to mark batch '${trek.name}' (${trek.batchCode}) as Completed? This will also update the status of all active bookings for this batch to Completed.`,
-        'Mark Completed',
-        async () => {
-          try {
-            const res = await fetch(`/api/admin/batches/${trek.id}/complete`, { method:'POST' });
-            if (res.ok) {
-              const data = await res.json();
-              this.showToast(data.message || 'Batch completed successfully');
-              this.loadData();
-            } else {
-              const err = await res.json();
-              this.showToast(err.error || 'Failed to complete batch');
-            }
-          } catch (_) {
-            trek.status = 'Completed';
-            this.showToast('Batch completed (mock)');
-          }
-        }
-      );
-    },
-
-
-
-    // ── Staff CRUD ─────────────────────────────────────────
-    openStaffModal(staff = null) {
-      this.editingStaff = staff;
-      if (staff) {
-        this.staffForm = {
-          id: staff.id,
-          name: staff.name,
-          email: staff.contact,
-          phone: staff.phone || '',
-          password: '',
-          skills: staff.skills || 'Wilderness First Aid, Navigation',
-          experience: staff.experience || 2,
-          designation: staff.designation || 'Lead Guide',
-          certifications: staff.certifications || 'Wilderness First Responder (WFR)',
-          languages: staff.languages || 'English, Hindi',
-          completedTreksCount: staff.completedTreksCount || 10,
-          photoUrl: staff.photoUrl || ''
-        };
-        this.staffImageMode = staff.photoUrl ? 'link' : 'upload';
-      } else {
-        this.staffForm = {
-          name: '',
-          email: '',
-          phone: '',
-          password: '',
-          skills: 'Wilderness First Aid, Navigation',
-          experience: 2,
-          designation: 'Lead Guide',
-          certifications: 'Wilderness First Responder (WFR)',
-          languages: 'English, Hindi',
-          completedTreksCount: 10,
-          photoUrl: ''
-        };
-        this.staffImageMode = 'upload';
-      }
-      this.showStaffModal = true;
-    },
-    closeStaffModal() {
-      this.showStaffModal = false;
-      this.editingStaff = null;
-    },
-
-    async saveStaff() {
-      if (!this.staffForm.name || !this.staffForm.name.trim()) {
-        this.showToast('Name is required');
-        return;
-      }
-      if (!this.staffForm.email || !this.staffForm.email.trim()) {
-        this.showToast('Email is required');
-        return;
-      }
-
-      try {
-        const res = await fetch('/api/admin/staff', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(this.staffForm)
-        });
-        if (res.ok) {
-          this.showToast(this.editingStaff ? 'Staff profile updated' : 'Staff member added');
-          this.loadData();
-        } else {
-          const d = await res.json();
-          this.showToast(d.error || 'Failed to save staff');
-        }
-      } catch (_) {
-        if (this.editingStaff) {
-          const idx = this.staffList.findIndex(s => s.id === this.editingStaff.id);
-          if (idx !== -1) {
-            this.staffList[idx] = { ...this.editingStaff, ...this.staffForm, contact: this.staffForm.email };
-          }
-        } else {
-          this.staffList.push({
-            id: Date.now(),
-            name: this.staffForm.name,
-            contact: this.staffForm.email,
-            phone: this.staffForm.phone,
-            treks: [],
-            active: true,
-            joined: new Date().toISOString().slice(0, 10),
-            skills: this.staffForm.skills,
-            experience: this.staffForm.experience,
-            designation: this.staffForm.designation,
-            certifications: this.staffForm.certifications,
-            languages: this.staffForm.languages,
-            completedTreksCount: this.staffForm.completedTreksCount,
-            photoUrl: this.staffForm.photoUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&h=300&fit=crop'
-          });
-        }
-        this.showToast(this.editingStaff ? 'Staff profile updated (mock)' : 'Staff added (mock)');
-      }
-      this.closeStaffModal();
-    },
-
-    openTrekkerModal(user = null) {
-      this.editingTrekker = user;
-      if (user) {
-        this.trekkerForm = {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          phone: user.phone || '',
-          password: '',
-          city: user.city || '',
-          emergency: user.emergency || '',
-          bio: user.bio || ''
-        };
-      } else {
-        this.trekkerForm = { name: '', email: '', phone: '', password: '', city: '', emergency: '', bio: '' };
-      }
-      this.showTrekkerModal = true;
-    },
-    closeTrekkerModal() {
-      this.showTrekkerModal = false;
-      this.editingTrekker = null;
-    },
-    async openHistoryModal(trek) {
-      this.selectedHistoryTrek = trek;
-      this.showHistoryModal = true;
-      await this.fetchBatchTrekkers(trek.id);
-    },
-
-    async saveTrekker() {
-      if (!this.trekkerForm.name || !this.trekkerForm.name.trim()) {
-        this.showToast('Name is required');
-        return;
-      }
-      if (!this.trekkerForm.email || !this.trekkerForm.email.trim()) {
-        this.showToast('Email is required');
-        return;
-      }
-      try {
-        const res = await fetch('/api/admin/trekkers', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(this.trekkerForm)
-        });
-        if (res.ok) {
-          this.showToast(this.editingTrekker ? 'Trekker profile updated' : 'Trekker added successfully');
-          this.closeTrekkerModal();
-          this.loadData();
-        } else {
-          const err = await res.json();
-          this.showToast(err.error || 'Failed to save trekker');
-        }
-      } catch (_) {
-        if (this.editingTrekker) {
-          const idx = this.users.findIndex(u => u.id === this.editingTrekker.id);
-          if (idx !== -1) {
-            this.users[idx] = { ...this.editingTrekker, ...this.trekkerForm };
-          }
-        } else {
-          this.users.push({
-            id: Date.now(),
-            name: this.trekkerForm.name,
-            email: this.trekkerForm.email,
-            phone: this.trekkerForm.phone,
-            city: this.trekkerForm.city,
-            emergency: this.trekkerForm.emergency,
-            bio: this.trekkerForm.bio,
-            bookings: 0,
-            blacklisted: false,
-            registered: new Date().toISOString().slice(0, 10),
-            memberId: 'TS26T' + Date.now().toString().slice(-4)
-          });
-        }
-        this.showToast(this.editingTrekker ? 'Trekker profile updated (mock)' : 'Trekker added (mock)');
-        this.closeTrekkerModal();
-      }
-    },
-
+    // ── Confirmation Modal Helpers ──────────────────────────
     triggerConfirm(title, message, confirmBtnLabel, callback) {
       this.confirmTitle = title;
       this.confirmMessage = message;
@@ -2180,1294 +1597,6 @@ export default {
       this.confirmCallback = null;
     },
 
-    async toggleStaffStatus(s) {
-      try {
-        const res = await fetch(`/api/admin/staff/toggle/${s.id}`, { method:'POST' });
-        if (res.ok) { this.showToast(`${s.name} status updated`); this.loadData(); return; }
-      } catch (_) {}
-      s.active = !s.active;
-      this.showToast(`${s.name} ${s.active ? 'activated' : 'deactivated'} (mock)`);
-    },
-
-    assignTrekToStaff(s) {
-      this.assignStaffObj = s;
-      this.trekSearchQuery = '';
-      this.showAssignTrekDropdown = false;
-      this.tempTrekId = null;
-      this.selectedAssignTrekCode = '';
-      this.showAssignTrekModal = true;
-    },
-    closeAssignTrekModal() {
-      this.showAssignTrekModal = false;
-      this.assignStaffObj = null;
-      this.tempTrekId = null;
-      this.selectedAssignTrekCode = '';
-    },
-    selectTrekForAssign(trek) {
-      this.tempTrekId = trek ? trek.id : null;
-      this.selectedAssignTrekCode = trek ? `[${trek.batchCode}] ${trek.name} (${this.formatDate(trek.startDate)})` : '';
-      this.showAssignTrekDropdown = false;
-    },
-    async submitAssignTrek() {
-      if (!this.tempTrekId) {
-        this.showToast('Please select a trek batch.');
-        return;
-      }
-      try {
-        const res = await fetch(`/api/admin/treks/assign/${this.tempTrekId}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: this.assignStaffObj.contact })
-        });
-        if (res.ok) {
-          this.showToast(`Trek successfully assigned to ${this.assignStaffObj.name}`);
-          this.loadData();
-        } else {
-          const d = await res.json();
-          this.showToast(d.error || 'Failed to assign trek');
-        }
-      } catch (_) {
-        const trek = this.treks.find(t => t.id === this.tempTrekId);
-        if (trek) {
-          if (!this.assignStaffObj.treks.includes(trek.name)) {
-            this.assignStaffObj.treks.push(trek.name);
-          }
-          trek.staff = this.assignStaffObj.name;
-        }
-        this.showToast(`Trek assigned (mock)`);
-      }
-      this.closeAssignTrekModal();
-    },
-
-    assignStaffToTrek(trek) {
-      this.assignTrekObj = trek;
-      this.staffSearchQuery = '';
-      this.showAssignStaffDropdown = false;
-      const currentStaff = this.staffList.find(s => s.name === trek.staff);
-      if (currentStaff) {
-        this.tempStaffId = currentStaff.id;
-        this.selectedAssignStaffName = currentStaff.name;
-      } else {
-        this.tempStaffId = null;
-        this.selectedAssignStaffName = 'No Staff Assigned';
-      }
-      this.showAssignModal = true;
-    },
-    closeAssignModal() {
-      this.showAssignModal = false;
-      this.assignTrekObj = null;
-      this.tempStaffId = null;
-      this.selectedAssignStaffName = '';
-      this.showAssignStaffDropdown = false;
-      this.staffSearchQuery = '';
-    },
-    selectStaffForAssign(s) {
-      if (s === null) {
-        this.tempStaffId = null;
-        this.selectedAssignStaffName = 'No Staff Assigned';
-      } else {
-        this.tempStaffId = s.id;
-        this.selectedAssignStaffName = s.name;
-      }
-      this.showAssignStaffDropdown = false;
-    },
-    async saveAssignGuide() {
-      if (!this.assignTrekObj) return;
-      const trek = this.assignTrekObj;
-      const s = this.staffList.find(x => x.id === this.tempStaffId);
-      const email = s ? s.contact : null;
-      try {
-        const res = await fetch(`/api/admin/treks/assign/${trek.id}`, {
-          method: 'POST',
-          headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({ email })
-        });
-        if (res.ok) {
-          this.showToast(email ? `Staff guide assigned to ${trek.name}` : `Staff guide removed from ${trek.name}`);
-          this.loadData();
-          this.closeAssignModal();
-        } else {
-          const d = await res.json();
-          this.showToast(d.error || 'Assignment failed');
-        }
-      } catch (_) {
-        this.showToast('Failed to assign guide (error)');
-      }
-    },
-    viewBatchDetails(batch) {
-      const bookings = this.allBookings.filter(bk => Number(bk.trekId) === Number(batch.id) && bk.status === 'Booked');
-      this.selectedBatchDetails = {
-        batch: batch,
-        bookings: bookings.map(bk => {
-          const userObj = this.users.find(usr => Number(usr.id) === Number(bk.userId));
-          return {
-            id: bk.id,
-            userId: bk.userId,
-            memberId: userObj ? userObj.memberId : ('TS26T' + bk.userId),
-            userName: userObj ? userObj.name : bk.user,
-            userEmail: userObj ? userObj.email : '—',
-            userPhone: userObj ? userObj.phone : '—',
-            userCity: userObj ? userObj.city : '—',
-            bookedOn: bk.date,
-            paid: bk.paid,
-            transactionId: bk.transactionId,
-            bookingId: bk.bookingId || ('BK' + bk.id)
-          };
-        })
-      };
-      this.showBatchDetailsModal = true;
-    },
-    closeBatchDetails() {
-      this.showBatchDetailsModal = false;
-      this.selectedBatchDetails = null;
-    },
-    formatDate(dateStr) {
-      if (!dateStr) return '—';
-      const parts = dateStr.split(' ');
-      const datePart = parts[0];
-      const timePart = parts[1] ? ' ' + parts[1] : '';
-      const dParts = datePart.split('-');
-      if (dParts.length !== 3) return dateStr;
-      const year = dParts[0];
-      const monthNum = parseInt(dParts[1], 10);
-      const day = parseInt(dParts[2], 10);
-      const monthNames = [
-        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-      ];
-      if (monthNum >= 1 && monthNum <= 12) {
-        return `${day} ${monthNames[monthNum - 1]} ${year}${timePart}`;
-      }
-      return dateStr;
-    },
-
-    // ── User Management ────────────────────────────────────
-    async toggleBlacklist(u) {
-      if (u.blacklisted) {
-        try {
-          const res = await fetch(`/api/admin/users/restore/${u.id}`, { method:'POST' });
-          if (res.ok) { this.showToast(`${u.name} restored`); this.loadData(); return; }
-        } catch (_) {}
-        u.blacklisted = false;
-        this.blacklistedUsers = this.blacklistedUsers.filter(b => b.id !== u.id);
-        this.showToast(`${u.name} restored (mock)`);
-      } else {
-        this.blacklistTargetUser = u;
-        this.blacklistReasonText = '';
-        this.showBlacklistModal = true;
-      }
-    },
-
-    async restoreBlacklist(u) {
-      try {
-        const res = await fetch(`/api/admin/users/restore/${u.id}`, { method:'POST' });
-        if (res.ok) { this.showToast(`${u.name} restored`); this.loadData(); return; }
-      } catch (_) {}
-      this.blacklistedUsers = this.blacklistedUsers.filter(b => b.id !== u.id);
-      const user = this.users.find(usr => usr.id === u.id);
-      if (user) user.blacklisted = false;
-      this.showToast(`${u.name} restored (mock)`);
-    },
-
-    // ── Booking Actions ────────────────────────────────────
-    viewBookingDetails(b) {
-      const userObj = this.users.find(usr => usr.id === b.userId);
-      this.selectedBookingDetails = {
-        booking: b,
-        user: userObj || {
-          memberId: b.trekkerId || ('TS26T' + b.userId),
-          name: b.user,
-          email: '—',
-          phone: '—',
-          city: '—',
-          emergency: '—',
-          bio: '—'
-        }
-      };
-      this.showBookingDetailsModal = true;
-    },
-    closeBookingDetails() {
-      this.showBookingDetailsModal = false;
-      this.selectedBookingDetails = null;
-    },
-    cancelBooking(b) {
-      this.triggerConfirm(
-        'Cancel Booking',
-        `Are you sure you want to cancel booking ${b.bookingId || ('#' + b.id)} for ${b.user}?`,
-        'Cancel Booking',
-        async () => {
-          try {
-            const res = await fetch(`/api/admin/bookings/cancel/${b.id}`, { method:'POST' });
-            if (res.ok) { this.showToast('Booking cancelled'); this.loadData(); return; }
-          } catch (_) {
-            b.status = 'Cancelled';
-            this.showToast('Booking cancelled (mock)');
-          }
-        }
-      );
-    },
-    openRefundModal(b) {
-      this.refundTarget = b;
-      this.refundAmountInput = Number(b.amountPaid || b.bookingPrice || 5000);
-      this.showRefundModal = true;
-    },
-    closeRefundModal() {
-      this.showRefundModal = false;
-      this.refundTarget = null;
-      this.refundAmountInput = 0;
-    },
-    async submitRefund() {
-      if (!this.refundTarget) return;
-      const maxRefund = Number(this.refundTarget.amountPaid || this.refundTarget.bookingPrice || 5000);
-      if (this.refundAmountInput < 0 || this.refundAmountInput > maxRefund) {
-        this.showToast(`Please enter a valid refund amount between 0 and ${maxRefund}.`);
-        return;
-      }
-      try {
-        const res = await fetch(`/api/admin/bookings/refund/${this.refundTarget.id}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ refund_amount: this.refundAmountInput })
-        });
-        if (res.ok) {
-          this.showToast('Refund processed successfully');
-          this.closeRefundModal();
-          this.loadData();
-        } else {
-          const err = await res.json();
-          this.showToast(err.error || 'Failed to process refund');
-        }
-      } catch (_) {
-        this.refundTarget.paymentStatus = 'Refunded';
-        this.refundTarget.refundAmount = this.refundAmountInput;
-        this.showToast('Refund processed successfully (mock)');
-        this.closeRefundModal();
-      }
-    },
-
-    async resolveTicket(ticket, resolutionMessage) {
-      let finalMessage = resolutionMessage;
-      if (resolutionMessage === undefined) {
-        const promptMsg = window.prompt("Enter resolution message (optional):", "");
-        if (promptMsg === null) return; // User cancelled
-        finalMessage = promptMsg;
-      }
-      try {
-        const res = await fetch(`/api/admin/support_tickets/resolve/${ticket.id}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ resolution_message: finalMessage })
-        });
-        if (res.ok) {
-          const data = await res.json();
-          const tId = ticket.ticketId || `TS26AS${String(ticket.id).padStart(3, '0')}`;
-          this.showToast(`Ticket ${tId} resolved`);
-          if (this.selectedTicketDetails && this.selectedTicketDetails.id === ticket.id) {
-            this.selectedTicketDetails.status = 'Resolved';
-            this.selectedTicketDetails.resolutionMessage = finalMessage;
-          }
-          // Update in local list too
-          const idx = this.supportTickets ? this.supportTickets.findIndex(t => t.id === ticket.id) : -1;
-          if (idx >= 0) {
-            this.supportTickets[idx].status = 'Resolved';
-            this.supportTickets[idx].resolutionMessage = finalMessage;
-          }
-          this.loadData();
-          return;
-        }
-      } catch (_) {}
-      ticket.status = 'Resolved';
-      ticket.resolutionMessage = finalMessage;
-      const tId = ticket.ticketId || `TS26AS${String(ticket.id).padStart(3, '0')}`;
-      this.showToast(`Ticket ${tId} resolved (mock)`);
-    },
-
-    // ── Reports / Jobs ─────────────────────────────────────
-    async triggerReport(type) {
-      try {
-        const res = await fetch('/api/admin/report', {
-          method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ type })
-        });
-        if (res.ok) { const d = await res.json(); this.showToast(d.message); return; }
-      } catch (_) {}
-      this.showToast(`${type} report triggered (mock — Celery job queued)`);
-    },
-
-    async triggerJob(job) {
-      job.status = 'Running';
-      try {
-        const res = await fetch('/api/admin/jobs/trigger', {
-          method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ name: job.name })
-        });
-        if (res.ok) {
-          this.showToast(`Job "${job.name}" triggered`);
-          setTimeout(() => { this.loadData(); }, 1500);
-          return;
-        }
-      } catch (_) {}
-      this.showToast(`"${job.name}" triggered (mock)`);
-    },
-
-    async triggerWelcomeTest(type, email) {
-      if (!email) {
-        this.showToast("Please enter a valid recipient email address.");
-        return;
-      }
-      try {
-        const res = await fetch('/api/admin/jobs/test_welcome', {
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ type, email })
-        });
-        if (res.ok) {
-          const d = await res.json();
-          this.showToast(d.message || `Test welcome email (${type}) sent.`);
-          return;
-        } else {
-          const err = await res.json();
-          this.showToast(err.error || "Failed to send test email.");
-        }
-      } catch (_) {
-        this.showToast("Error sending test welcome email.");
-      }
-    },
-
-    async exportCSV(type) {
-      this.showToast(`Exporting ${type} CSV… you'll be notified when ready.`);
-      try {
-        await fetch('/api/admin/export', {
-          method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ type })
-        });
-      } catch (_) {}
-    },
-
-    compileReport(type = null) {
-      const rType = type || this.selectedReportType;
-      let headers = [];
-      let rows = [];
-      let title = "";
-      let parameters = "";
-      
-      const monthsNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      
-      if (rType === 'monthly_activity') {
-        title = `Monthly Activity Report - ${this.selectedReportMonth || 'All'}`;
-        parameters = `Month: ${this.selectedReportMonth || 'All'}`;
-        headers = ['Trek Name', 'Batch Code', 'Start Date', 'Booked Slots', 'Total Slots', 'Occupancy %', 'Revenue'];
-        
-        const filterMonth = this.selectedReportMonth;
-        
-        this.treks.forEach(t => {
-          let matches = true;
-          if (filterMonth && t.startDate) {
-            const mIdx = new Date(t.startDate).getMonth();
-            matches = monthsNames[mIdx] === filterMonth;
-          }
-          if (matches) {
-            const booked = t.booked || t.bookedSlots || 0;
-            const total = t.slots || 20;
-            const occ = total > 0 ? Math.round((booked / total) * 100) : 0;
-            const price = t.price || 5000;
-            const rev = booked * price;
-            rows.push([
-              t.name,
-              t.batchCode || `TID${String(t.id).padStart(3, '0')}B01`,
-              t.startDate,
-              booked,
-              total,
-              `${occ}%`,
-              `₹${rev}`
-            ]);
-          }
-        });
-      }
-      else if (rType === 'trek_route') {
-        const trekName = this.selectedReportTrek;
-        const subTrek = this.selectedReportTrekSubtype || 'summary';
-        
-        parameters = `Trek: ${trekName || 'All'} | Aspect: ${subTrek}`;
-        if (this.reportStartDate || this.reportEndDate) {
-          parameters += ` | Range: ${this.reportStartDate || 'Any'} to ${this.reportEndDate || 'Any'}`;
-        }
-        
-        if (subTrek === 'summary') {
-          title = `Trek Route Summary - ${trekName || 'All'}`;
-          headers = ['Batch Code', 'Start Date', 'End Date', 'Status', 'Booked', 'Slots', 'Revenue', 'Assigned Staff'];
-          
-          this.treks.forEach(t => {
-            if (!trekName || t.name === trekName) {
-              if (this.reportStartDate && t.startDate < this.reportStartDate) return;
-              if (this.reportEndDate && t.startDate > this.reportEndDate) return;
-              
-              const booked = t.booked || t.bookedSlots || 0;
-              const total = t.slots || 20;
-              const price = t.price || 5000;
-              const rev = booked * price;
-              const staffName = t.staffName || t.staff || 'Unassigned';
-              rows.push([
-                t.batchCode || `TID${String(t.id).padStart(3, '0')}B01`,
-                t.startDate,
-                t.endDate,
-                t.status,
-                booked,
-                total,
-                `₹${rev}`,
-                staffName
-              ]);
-            }
-          });
-        }
-        else if (subTrek === 'participants') {
-          title = `Trek Route Participants - ${trekName || 'All'}`;
-          headers = ['Booking ID', 'Batch Code', 'Trekker Name', 'Email', 'Phone', 'Booking Date', 'Status', 'Amount Paid'];
-          
-          this.allBookings.forEach(b => {
-            if (!trekName || b.trek === trekName) {
-              if (this.reportStartDate && b.date < this.reportStartDate) return;
-              if (this.reportEndDate && b.date > this.reportEndDate) return;
-              
-              const userObj = this.users.find(u => u.id === b.userId || u.name === b.user);
-              const email = b.email || (userObj ? userObj.email : '—');
-              const phone = b.phone || (userObj ? userObj.phone : '—');
-              rows.push([
-                b.bookingId || `#${b.id}`,
-                b.batchCode || '—',
-                b.user,
-                email,
-                phone,
-                b.date,
-                b.status,
-                `₹${b.amountPaid}`
-              ]);
-            }
-          });
-        }
-        else if (subTrek === 'staff') {
-          title = `Trek Route Staff Details - ${trekName || 'All'}`;
-          headers = ['Batch Code', 'Start Date', 'End Date', 'Staff Name', 'Email', 'Phone', 'Designation'];
-          
-          this.treks.forEach(t => {
-            if (!trekName || t.name === trekName) {
-              if (this.reportStartDate && t.startDate < this.reportStartDate) return;
-              if (this.reportEndDate && t.startDate > this.reportEndDate) return;
-              
-              const staffName = t.staffName || t.staff;
-              if (!staffName || staffName === 'Unassigned') {
-                rows.push([
-                  t.batchCode || `TID${String(t.id).padStart(3, '0')}B01`,
-                  t.startDate,
-                  t.endDate,
-                  'Unassigned',
-                  '—',
-                  '—',
-                  '—'
-                ]);
-              } else {
-                const sObj = this.staffList.find(s => s.name === staffName || s.id === t.staff_id);
-                const email = sObj ? sObj.contact : '—';
-                const phone = sObj ? sObj.phone : '—';
-                const des = sObj ? sObj.designation : 'Guide';
-                rows.push([
-                  t.batchCode || `TID${String(t.id).padStart(3, '0')}B01`,
-                  t.startDate,
-                  t.endDate,
-                  staffName,
-                  email,
-                  phone,
-                  des
-                ]);
-              }
-            }
-          });
-        }
-        else if (subTrek === 'all') {
-          title = `Trek Route Compiled Performance - ${trekName || 'All'}`;
-          headers = ['Period (Month)', 'Trek Route', 'Total Batches', 'Total Bookings', 'Occupancy %', 'Total Revenue'];
-          
-          const groups = {};
-          this.treks.forEach(t => {
-            if (!trekName || t.name === trekName) {
-              if (this.reportStartDate && t.startDate < this.reportStartDate) return;
-              if (this.reportEndDate && t.startDate > this.reportEndDate) return;
-              
-              const mIdx = new Date(t.startDate).getMonth();
-              const mName = monthsNames[mIdx] || 'Unknown';
-              const key = `${mName}`;
-              
-              if (!groups[key]) {
-                groups[key] = { trek: t.name, batches: 0, booked: 0, slots: 0, revenue: 0 };
-              }
-              const booked = t.booked || t.bookedSlots || 0;
-              groups[key].batches += 1;
-              groups[key].booked += booked;
-              groups[key].slots += (t.slots || 20);
-              groups[key].revenue += booked * (t.price || 5000);
-            }
-          });
-          
-          Object.entries(groups).forEach(([period, data]) => {
-            const avgOcc = data.slots > 0 ? Math.round((data.booked / data.slots) * 100) : 0;
-            rows.push([
-              period,
-              data.trek,
-              data.batches,
-              data.booked,
-              `${avgOcc}%`,
-              `₹${data.revenue}`
-            ]);
-          });
-        }
-      }
-      else if (rType === 'all_treks_combined') {
-        title = `All Treks Combined Performance Report`;
-        parameters = `Date Range: ${this.reportStartDate || 'Any'} to ${this.reportEndDate || 'Any'}`;
-        headers = ['Trek Route', 'Total Batches', 'Total Bookings', 'Average Occupancy %', 'Total Revenue'];
-        
-        const trekMap = {};
-        this.treks.forEach(t => {
-          if (this.reportStartDate && t.startDate < this.reportStartDate) return;
-          if (this.reportEndDate && t.startDate > this.reportEndDate) return;
-          
-          if (!trekMap[t.name]) {
-            trekMap[t.name] = { batches: 0, booked: 0, slots: 0, revenue: 0 };
-          }
-          const booked = t.booked || t.bookedSlots || 0;
-          trekMap[t.name].batches += 1;
-          trekMap[t.name].booked += booked;
-          trekMap[t.name].slots += (t.slots || 20);
-          trekMap[t.name].revenue += booked * (t.price || 5000);
-        });
-        
-        Object.entries(trekMap).forEach(([name, data]) => {
-          const avgOcc = data.slots > 0 ? Math.round((data.booked / data.slots) * 100) : 0;
-          rows.push([
-            name,
-            data.batches,
-            data.booked,
-            `${avgOcc}%`,
-            `₹${data.revenue}`
-          ]);
-        });
-      }
-      else if (rType === 'batch_wise') {
-        const targetBatch = this.selectedReportBatch;
-        title = `Batch Wise Performance Report`;
-        parameters = targetBatch ? `Batch: ${targetBatch}` : `Date Range: ${this.reportStartDate || 'Any'} to ${this.reportEndDate || 'Any'}`;
-        headers = ['Batch ID', 'Trek Route', 'Start Date', 'Status', 'Total Bookings', 'Revenue', 'Staff Assigned'];
-        
-        this.treks.forEach(t => {
-          const bCode = t.batchCode || `TID${String(t.id).padStart(3, '0')}B01`;
-          if (targetBatch && bCode !== targetBatch) return;
-          if (this.reportStartDate && t.startDate < this.reportStartDate) return;
-          if (this.reportEndDate && t.startDate > this.reportEndDate) return;
-          
-          const booked = t.booked || t.bookedSlots || 0;
-          const rev = booked * (t.price || 5000);
-          const staffName = t.staffName || t.staff || 'Unassigned';
-          rows.push([
-            bCode,
-            t.name,
-            t.startDate,
-            t.status,
-            booked,
-            `₹${rev}`,
-            staffName
-          ]);
-        });
-      }
-      else if (rType === 'batch_users') {
-        const targetBatch = this.selectedReportBatch;
-        title = `Batch User List - ${targetBatch || 'None'}`;
-        parameters = `Batch: ${targetBatch || 'None'}`;
-        headers = ['Booking ID', 'Member ID', 'Name', 'Email', 'Phone', 'Booking Status', 'Amount Paid', 'Payment Status'];
-        
-        if (targetBatch) {
-          this.allBookings.forEach(b => {
-            const bCode = b.batchCode || '';
-            if (bCode === targetBatch) {
-              const userObj = this.users.find(u => u.id === b.userId || u.name === b.user);
-              const email = b.email || (userObj ? userObj.email : '—');
-              const phone = userObj ? userObj.phone : '—';
-              rows.push([
-                b.bookingId || `#${b.id}`,
-                b.trekkerId || '—',
-                b.user,
-                email,
-                phone,
-                b.status,
-                `₹${b.amountPaid}`,
-                b.paymentStatus
-              ]);
-            }
-          });
-        }
-      }
-      else if (rType === 'user_participation') {
-        const subUser = this.selectedReportUserSubtype || 'active';
-        title = `User Participation Report - ${subUser.toUpperCase()}`;
-        parameters = `Filters: Aspect ${subUser}`;
-        
-        if (subUser === 'active') {
-          headers = ['Trekker Name', 'Email', 'Phone', 'Member ID', 'Total Bookings', 'Total Spent', 'Last Booking Date'];
-          const userMap = {};
-          this.allBookings.forEach(b => {
-            const name = b.user;
-            if (!userMap[name]) {
-              const uObj = this.users.find(u => u.id === b.userId || u.name === name);
-              userMap[name] = {
-                email: b.email || (uObj ? uObj.email : '—'),
-                phone: uObj ? uObj.phone : '—',
-                memberId: b.trekkerId || (uObj ? uObj.memberId : '—'),
-                bookings: 0,
-                spent: 0,
-                lastDate: '2026-06-01'
-              };
-            }
-            userMap[name].bookings += 1;
-            if (b.paymentStatus === 'Paid') {
-              userMap[name].spent += Number(b.amountPaid) || 0;
-            } else if (b.paymentStatus === 'Refunded') {
-              const paid = Number(b.amountPaid || b.bookingPrice || 5000);
-              const ref = Number(b.refundAmount) || 0;
-              userMap[name].spent += Math.max(0, paid - ref);
-            }
-            if (b.date && b.date > userMap[name].lastDate) {
-              userMap[name].lastDate = b.date;
-            }
-          });
-          
-          Object.entries(userMap).forEach(([name, data]) => {
-            rows.push([
-              name,
-              data.email,
-              data.phone,
-              data.memberId,
-              data.bookings,
-              `₹${data.spent}`,
-              data.lastDate
-            ]);
-          });
-          rows.sort((a, b) => b[4] - a[4]); // Sort by bookings descending
-        }
-        else if (subUser === 'difficulty') {
-          headers = ['Trekker Name', 'Email', 'Easy Bookings', 'Moderate Bookings', 'Hard Bookings', 'Total Bookings'];
-          const userMap = {};
-          this.allBookings.forEach(b => {
-            const name = b.user;
-            if (!userMap[name]) {
-              const uObj = this.users.find(u => u.id === b.userId || u.name === name);
-              userMap[name] = {
-                email: b.email || (uObj ? uObj.email : '—'),
-                easy: 0,
-                moderate: 0,
-                hard: 0,
-                total: 0
-              };
-            }
-            userMap[name].total += 1;
-            const diff = (b.difficulty || 'moderate').toLowerCase();
-            if (diff === 'easy') userMap[name].easy += 1;
-            else if (diff === 'hard') userMap[name].hard += 1;
-            else userMap[name].moderate += 1;
-          });
-          
-          Object.entries(userMap).forEach(([name, data]) => {
-            rows.push([
-              name,
-              data.email,
-              data.easy,
-              data.moderate,
-              data.hard,
-              data.total
-            ]);
-          });
-          rows.sort((a, b) => b[5] - a[5]);
-        }
-        else if (subUser === 'trends') {
-          headers = ['Month', 'Total Bookings', 'Paid Bookings', 'Cancelled Bookings', 'Total Revenue'];
-          const monthlyMap = {};
-          this.allBookings.forEach(b => {
-            if (!b.date) return;
-            const mIdx = new Date(b.date).getMonth();
-            const mName = monthsNames[mIdx] || 'Unknown';
-            if (!monthlyMap[mName]) {
-              monthlyMap[mName] = { total: 0, paid: 0, cancelled: 0, rev: 0 };
-            }
-            monthlyMap[mName].total += 1;
-            if (b.status === 'Cancelled') {
-              monthlyMap[mName].cancelled += 1;
-            } else {
-              monthlyMap[mName].paid += 1;
-            }
-            if (b.paymentStatus === 'Paid') {
-              monthlyMap[mName].rev += Number(b.amountPaid) || 0;
-            } else if (b.paymentStatus === 'Refunded') {
-              const paid = Number(b.amountPaid || b.bookingPrice || 5000);
-              const ref = Number(b.refundAmount) || 0;
-              monthlyMap[mName].rev += Math.max(0, paid - ref);
-            }
-          });
-          
-          monthsNames.forEach(m => {
-            if (monthlyMap[m]) {
-              const data = monthlyMap[m];
-              rows.push([
-                m,
-                data.total,
-                data.paid,
-                data.cancelled,
-                `₹${data.rev}`
-              ]);
-            }
-          });
-        }
-        else if (subUser === 'history') {
-          headers = ['Booking ID', 'Member ID', 'Trekker Name', 'Trek Route', 'Batch Code', 'Booking Date', 'Status', 'Paid Amount'];
-          this.allBookings.forEach(b => {
-            rows.push([
-              b.bookingId || `#${b.id}`,
-              b.trekkerId || '—',
-              b.user,
-              b.trek,
-              b.batchCode || '—',
-              b.date,
-              b.status,
-              `₹${b.amountPaid}`
-            ]);
-          });
-        }
-      }
-      else if (rType === 'staff_performance') {
-        const subStaff = this.selectedReportStaffSubtype || 'performance';
-        title = `Staff Performance Report - ${subStaff.toUpperCase()}`;
-        parameters = `Filters: Aspect ${subStaff}`;
-        
-        if (subStaff === 'performance') {
-          headers = ['Guide Name', 'Email', 'Phone', 'Treks Managed', 'Total Participants Led', 'Avg Occupancy %', 'Avg Rating'];
-          
-          this.staffLeaderboard.forEach(s => {
-            const sObj = this.staffList.find(st => st.name === s.name);
-            const phone = sObj ? sObj.phone : '—';
-            rows.push([
-              s.name,
-              s.email || (sObj ? sObj.contact : '—'),
-              phone,
-              s.treks,
-              s.participants,
-              `${s.avgOccupancy}%`,
-              `★ ${s.rating}`
-            ]);
-          });
-        }
-        else if (subStaff === 'assignments') {
-          headers = ['Guide Name', 'Batch Code', 'Trek Route', 'Start Date', 'End Date', 'Status'];
-          
-          this.treks.forEach(t => {
-            const staffName = t.staffName || t.staff || 'Unassigned';
-            rows.push([
-              staffName,
-              t.batchCode || `TID${String(t.id).padStart(3, '0')}B01`,
-              t.name,
-              t.startDate,
-              t.endDate,
-              t.status
-            ]);
-          });
-        }
-      }
-      
-      return { title, headers, rows, parameters };
-    },
-
-    generateReport() {
-      const { title, headers, rows, parameters } = this.compileReport();
-      if (rows.length === 0) {
-        this.showToast('No records found matching these parameters.');
-        return;
-      }
-      
-      const newReport = {
-        id: Date.now(),
-        title: title,
-        type: this.selectedReportType,
-        generatedAt: new Date().toLocaleString(),
-        parameters: parameters,
-        headers: headers,
-        rows: rows
-      };
-      
-      this.reportsList.unshift(newReport);
-      this.showToast('Report generated successfully!');
-    },
-
-    toggleReportDropdown(dropdownName) {
-      const current = this[dropdownName];
-      this.closeAllReportDropdowns();
-      this[dropdownName] = !current;
-    },
-    closeAllReportDropdowns() {
-      this.showReportTypeDropdown = false;
-      this.showReportMonthDropdown = false;
-      this.showReportTrekDropdown = false;
-      this.showReportTrekSubtypeDropdown = false;
-      this.showReportBatchDropdown = false;
-      this.showReportUserSubtypeDropdown = false;
-      this.showReportStaffSubtypeDropdown = false;
-    },
-    getReportTypeName(type) {
-      const match = this.reportTypeOptions.find(o => o.value === type);
-      return match ? match.label : 'Select Report Type';
-    },
-    getTrekSubtypeName(type) {
-      const match = this.trekSubtypeOptions.find(o => o.value === type);
-      return match ? match.label : 'Select Aspect';
-    },
-    getUserSubtypeName(type) {
-      const match = this.userSubtypeOptions.find(o => o.value === type);
-      return match ? match.label : 'Select Aspect';
-    },
-    getStaffSubtypeName(type) {
-      const match = this.staffSubtypeOptions.find(o => o.value === type);
-      return match ? match.label : 'Select Aspect';
-    },
-
-    generateHTMLReportString(title, headers, dataRows, parameters) {
-      let sumPaid = 0;
-      let sumBooked = 0;
-      let avgOcc = 0;
-      let occCount = 0;
-      
-      dataRows.forEach(row => {
-        row.forEach((val, idx) => {
-          if (!headers[idx]) return;
-          const hName = headers[idx].toLowerCase();
-          if (hName.includes('revenue') || hName.includes('spent') || hName.includes('amount')) {
-            const num = Number(String(val).replace(/[^0-9.-]+/g, ""));
-            if (!isNaN(num)) sumPaid += num;
-          }
-          if (hName.includes('booked') || hName.includes('participants')) {
-            const num = Number(String(val).replace(/[^0-9.-]+/g, ""));
-            if (!isNaN(num)) sumBooked += num;
-          }
-          if (hName.includes('occupancy')) {
-            const num = Number(String(val).replace(/[^0-9.-]+/g, ""));
-            if (!isNaN(num)) { avgOcc += num; occCount++; }
-          }
-        });
-      });
-      
-      const averageOccupancy = occCount > 0 ? Math.round(avgOcc / occCount) : null;
-      
-      let statCardsHTML = "";
-      if (sumPaid > 0) {
-        statCardsHTML += `
-          <div class="stat-card">
-            <div class="stat-title">Total Revenue / Spent</div>
-            <div class="stat-value">₹${sumPaid.toLocaleString()}</div>
-          </div>
-        `;
-      }
-      if (sumBooked > 0) {
-        statCardsHTML += `
-          <div class="stat-card">
-            <div class="stat-title">Total Participants / Bookings</div>
-            <div class="stat-value">${sumBooked}</div>
-          </div>
-        `;
-      }
-      if (averageOccupancy !== null) {
-        statCardsHTML += `
-          <div class="stat-card">
-            <div class="stat-title">Average Occupancy</div>
-            <div class="stat-value">${averageOccupancy}%</div>
-          </div>
-        `;
-      }
-      
-      const headerHTML = headers.map(h => `<th>${h}</th>`).join('');
-      const rowsHTML = dataRows.map(row => {
-        const cells = row.map(cell => `<td>${cell}</td>`).join('');
-        return `<tr>${cells}</tr>`;
-      }).join('');
-      
-      return `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>${title}</title>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@700&family=Space+Mono&display=swap');
-    
-    :root {
-      --forest: #1A2E1A;
-      --forest-light: #2C5E3B;
-      --gold: #C8922A;
-      --gold-dark: #A47318;
-      --snow: #F4F6F4;
-      --cream: #F9F6EE;
-      --bark: #2E251A;
-      --stone: #8C8070;
-    }
-    
-    body {
-      font-family: 'DM Sans', sans-serif;
-      margin: 0;
-      padding: 30px;
-      color: var(--bark);
-      background-color: #ffffff;
-      line-height: 1.5;
-    }
-    
-    .report-container {
-      max-width: 1000px;
-      margin: 0 auto;
-    }
-    
-    .header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      border-bottom: 2px solid var(--forest);
-      padding-bottom: 20px;
-      margin-bottom: 25px;
-    }
-    
-    .brand {
-      display: flex;
-      flex-direction: column;
-    }
-    
-    .brand-logo {
-      font-family: 'Playfair Display', serif;
-      font-size: 24px;
-      font-weight: 700;
-      color: var(--forest);
-      letter-spacing: 0.02em;
-    }
-    
-    .brand-sub {
-      font-family: 'Space Mono', monospace;
-      font-size: 10px;
-      color: var(--stone);
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      margin-top: 3px;
-    }
-    
-    .meta-info {
-      text-align: right;
-      font-family: 'Space Mono', monospace;
-      font-size: 11px;
-      color: var(--stone);
-    }
-    
-    .title-section {
-      margin-bottom: 25px;
-    }
-    
-    .title {
-      font-family: 'Playfair Display', serif;
-      font-size: 28px;
-      font-weight: 700;
-      color: var(--forest);
-      margin: 0 0 10px 0;
-    }
-    
-    .parameters {
-      background-color: var(--snow);
-      border-left: 4px solid var(--gold);
-      padding: 12px 16px;
-      border-radius: 0 4px 4px 0;
-      font-size: 13px;
-      color: var(--forest);
-    }
-    
-    .stats-row {
-      display: flex;
-      gap: 15px;
-      margin-bottom: 30px;
-    }
-    
-    .stat-card {
-      flex: 1;
-      background-color: var(--cream);
-      border: 1px solid rgba(200, 146, 42, 0.15);
-      border-radius: 6px;
-      padding: 15px 20px;
-    }
-    
-    .stat-title {
-      font-size: 11px;
-      font-weight: 700;
-      color: var(--stone);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      margin-bottom: 5px;
-    }
-    
-    .stat-value {
-      font-family: 'DM Sans', sans-serif;
-      font-size: 22px;
-      font-weight: 700;
-      color: var(--forest);
-    }
-    
-    .table-container {
-      overflow-x: auto;
-      border: 1px solid rgba(26, 46, 26, 0.08);
-      border-radius: 6px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.01);
-      margin-bottom: 30px;
-    }
-    
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      text-align: left;
-      font-size: 13px;
-    }
-    
-    th {
-      background-color: var(--forest);
-      color: var(--cream);
-      font-weight: 600;
-      text-transform: uppercase;
-      font-size: 11px;
-      letter-spacing: 0.02em;
-      padding: 12px 16px;
-    }
-    
-    td {
-      padding: 12px 16px;
-      border-bottom: 1px solid rgba(26, 46, 26, 0.05);
-      color: var(--bark);
-    }
-    
-    tr:nth-child(even) {
-      background-color: var(--snow);
-    }
-    
-    tr:hover {
-      background-color: rgba(200, 146, 42, 0.03);
-    }
-    
-    .footer {
-      border-top: 1px solid rgba(26, 46, 26, 0.08);
-      padding-top: 20px;
-      margin-top: 40px;
-      display: flex;
-      justify-content: space-between;
-      font-size: 11px;
-      color: var(--stone);
-      font-family: 'Space Mono', monospace;
-    }
-    
-    @media print {
-      body {
-        padding: 0;
-      }
-      .stat-card {
-        border: 1px solid #ddd;
-      }
-    }
-  </style>
-</head>
-<body>
-  <div class="report-container">
-    <div class="header">
-      <div class="brand">
-        <div class="brand-logo">TrailSync</div>
-        <div class="brand-sub">Platform Executive Report</div>
-      </div>
-      <div class="meta-info">
-        <div>Generated: ${new Date().toLocaleString()}</div>
-        <div>System: ONLINE</div>
-      </div>
-    </div>
-    
-    <div class="title-section">
-      <h1 class="title">${title}</h1>
-      <div class="parameters">
-        <strong>Report Parameters:</strong> ${parameters}
-      </div>
-    </div>
-    
-    ${statCardsHTML ? `<div class="stats-row">${statCardsHTML}</div>` : ''}
-    
-    <div class="table-container">
-      <table>
-        <thead>
-          <tr>
-            ${headerHTML}
-          </tr>
-        </thead>
-        <tbody>
-          ${rowsHTML}
-        </tbody>
-      </table>
-    </div>
-    
-    <div class="footer">
-      <div>© 2026 TrailSync Systems</div>
-      <div>Confidential - Admin Portal Access</div>
-    </div>
-  </div>
-</body>
-</html>
-      `;
-    },
-
-    previewCurrentReport() {
-      const compiled = this.compileReport();
-      if (compiled.rows.length === 0) {
-        this.showToast('No records found matching these parameters.');
-        return;
-      }
-      this.reportPreviewData = compiled;
-      this.iframeSrcDoc = this.generateHTMLReportString(compiled.title, compiled.headers, compiled.rows, compiled.parameters);
-      this.showReportPreviewModal = true;
-    },
-
-    viewReport(report) {
-      let headers = [];
-      let rows = [];
-      let title = report.title;
-      let parameters = report.parameters;
-      
-      if (report.headers && report.rows) {
-        headers = report.headers;
-        rows = report.rows;
-      } else {
-        const prevType = this.selectedReportType;
-        const prevMonth = this.selectedReportMonth;
-        const prevTrek = this.selectedReportTrek;
-        const prevBatch = this.selectedReportBatch;
-        
-        this.selectedReportType = report.type;
-        if (report.type === 'monthly_activity') this.selectedReportMonth = 'May';
-        if (report.type === 'trek_route') this.selectedReportTrek = this.trekRoutes[0] ? this.trekRoutes[0].name : '';
-        
-        const compiled = this.compileReport();
-        headers = compiled.headers;
-        rows = compiled.rows;
-        parameters = compiled.parameters;
-        
-        this.selectedReportType = prevType;
-        this.selectedReportMonth = prevMonth;
-        this.selectedReportTrek = prevTrek;
-        this.selectedReportBatch = prevBatch;
-      }
-      
-      this.reportPreviewData = { title, headers, rows, parameters };
-      this.iframeSrcDoc = this.generateHTMLReportString(title, headers, rows, parameters);
-      this.showReportPreviewModal = true;
-    },
-
-    downloadReport(report) {
-      this.downloadReportHTML(report);
-    },
-
-    downloadReportHTML(report) {
-      let headers = [];
-      let rows = [];
-      let title = report.title;
-      let parameters = report.parameters;
-      
-      if (report.headers && report.rows) {
-        headers = report.headers;
-        rows = report.rows;
-      } else {
-        const prevType = this.selectedReportType;
-        const prevMonth = this.selectedReportMonth;
-        const prevTrek = this.selectedReportTrek;
-        const prevBatch = this.selectedReportBatch;
-        
-        this.selectedReportType = report.type;
-        if (report.type === 'monthly_activity') this.selectedReportMonth = 'May';
-        if (report.type === 'trek_route') this.selectedReportTrek = this.trekRoutes[0] ? this.trekRoutes[0].name : '';
-        
-        const compiled = this.compileReport();
-        headers = compiled.headers;
-        rows = compiled.rows;
-        parameters = compiled.parameters;
-        
-        this.selectedReportType = prevType;
-        this.selectedReportMonth = prevMonth;
-        this.selectedReportTrek = prevTrek;
-        this.selectedReportBatch = prevBatch;
-      }
-      
-      const htmlContent = this.generateHTMLReportString(title, headers, rows, parameters);
-      const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.setAttribute("href", url);
-      link.setAttribute("download", `${title.replace(/\s+/g, '_')}.html`);
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      this.showToast('HTML report download started');
-    },
-
-    downloadReportCSV(report) {
-      let headers = [];
-      let rows = [];
-      let title = report.title;
-      
-      if (report.headers && report.rows) {
-        headers = report.headers;
-        rows = report.rows;
-      } else {
-        const prevType = this.selectedReportType;
-        const prevMonth = this.selectedReportMonth;
-        const prevTrek = this.selectedReportTrek;
-        const prevBatch = this.selectedReportBatch;
-        
-        this.selectedReportType = report.type;
-        if (report.type === 'monthly_activity') this.selectedReportMonth = 'May';
-        if (report.type === 'trek_route') this.selectedReportTrek = this.trekRoutes[0] ? this.trekRoutes[0].name : '';
-        
-        const compiled = this.compileReport();
-        headers = compiled.headers;
-        rows = compiled.rows;
-        
-        this.selectedReportType = prevType;
-        this.selectedReportMonth = prevMonth;
-        this.selectedReportTrek = prevTrek;
-        this.selectedReportBatch = prevBatch;
-      }
-      
-      this.exportReportCSV(title, headers, rows);
-    },
-
-    exportReportCSV(title, headers, dataRows) {
-      const escapeCSV = val => {
-        if (val === null || val === undefined) return '';
-        let str = String(val).replace(/"/g, '""');
-        if (str.includes(',') || str.includes('\n') || str.includes('"')) {
-          str = `"${str}"`;
-        }
-        return str;
-      };
-      
-      const headerRow = headers.map(escapeCSV).join(',');
-      const bodyRows = dataRows.map(row => row.map(escapeCSV).join(','));
-      const csvContent = [headerRow, ...bodyRows].join('\n');
-      
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.setAttribute("href", url);
-      link.setAttribute("download", `${title.replace(/\s+/g, '_')}.csv`);
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      this.showToast('CSV download started');
-    },
-
     // ── Notifications ──────────────────────────────────────
     markAllRead() {
       this.notifications.forEach(n => n.read = true);
@@ -3478,6 +1607,11 @@ export default {
     showToast(msg) {
       this.toast = { show: true, msg };
       setTimeout(() => { this.toast.show = false; }, 3000);
+    },
+    formatDate(dateStr) {
+      if (!dateStr) return '';
+      const d = new Date(dateStr);
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     },
 
     occColor(pct) {
@@ -3513,7 +1647,6 @@ export default {
       return 'Other';
     },
 
-    // SVG line chart path builder
     buildLinePath(data, key, w, h, pad) {
       if (!data || !data.length) return '';
       const max = Math.max(...data.map(d => d[key]));
@@ -3534,6 +1667,7 @@ export default {
       return line + `L${lastX},${baseY} L${firstX},${baseY}Z`;
     },
   },
+
 
   // ── TEMPLATE ──────────────────────────────────────────────
 };

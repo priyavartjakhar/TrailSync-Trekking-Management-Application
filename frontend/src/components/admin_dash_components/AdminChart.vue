@@ -5,6 +5,16 @@
 </template>
 
 <script>
+/**
+ * =========================================================================
+ * AdminChart.vue
+ * =========================================================================
+ * Renders visual charts and visual aggregates using dynamic responsive SVGs (revenue curves, monthly trends, user growth, and booking breakdowns).
+ * 
+ * Uses 'adminDashComponent' dynamic options proxying to link state/methods
+ * reactivity directly with the parent 'AdminDashboard' coordinator.
+ */
+
 import Chart from 'chart.js/auto';
 
 export default {

@@ -28,75 +28,75 @@
 
       <nav class="sidebar-nav">
         <div class="nav-section-label">Command Centre</div>
-        <a class="nav-item" :class="{ active: activeTab==='dashboard' }" @click="activeTab='dashboard'">
+        <router-link class="nav-item" :class="{ active: activeTab==='dashboard' }" to="/admin/dashboard" @click="closeSidebarOnMobile">
           <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
           <span>Dashboard</span>
-        </a>
+        </router-link>
 
 
         <div class="nav-section-label">Treks</div>
-        <a class="nav-item" :class="{ active: activeTab==='treks' }" @click="activeTab='treks'">
+        <router-link class="nav-item" :class="{ active: activeTab==='treks' }" to="/admin/treks" @click="closeSidebarOnMobile">
           <svg viewBox="0 0 24 24"><path d="M3 17l4-8 4 4 4-6 4 10"/><path d="M3 20h18"/></svg>
           <span>Trek Routes</span>
-        </a>
-        <a class="nav-item" :class="{ active: activeTab==='batches' }" @click="activeTab='batches'">
+        </router-link>
+        <router-link class="nav-item" :class="{ active: activeTab==='batches' }" to="/admin/batches" @click="closeSidebarOnMobile">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
           <span>Trek Batches</span>
-        </a>
-        <a class="nav-item" :class="{ active: activeTab==='trek_history' }" @click="activeTab='trek_history'">
+        </router-link>
+        <router-link class="nav-item" :class="{ active: activeTab==='trek_history' }" to="/admin/trek_history" @click="closeSidebarOnMobile">
           <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7"/><polyline points="3 3 3 9 9 9"/><polyline points="12 7 12 12 15 14"/></svg>
           <span>Trek History</span>
-        </a>
+        </router-link>
 
         <div class="nav-section-label">Staff</div>
-        <a class="nav-item" :class="{ active: activeTab==='staff' }" @click="activeTab='staff'">
+        <router-link class="nav-item" :class="{ active: activeTab==='staff' }" to="/admin/staff" @click="closeSidebarOnMobile">
           <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
           <span>Trek Staff</span>
-        </a>
-        <a class="nav-item" :class="{ active: activeTab==='staff_availability' }" @click="activeTab='staff_availability'">
+        </router-link>
+        <router-link class="nav-item" :class="{ active: activeTab==='staff_availability' }" to="/admin/staff_availability" @click="closeSidebarOnMobile">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line><path d="M8 14h.01"></path><path d="M12 14h.01"></path><path d="M16 14h.01"></path><path d="M8 18h.01"></path><path d="M12 18h.01"></path><path d="M16 18h.01"></path></svg>
           <span>Staff Availability</span>
-        </a>
+        </router-link>
 
         <div class="nav-section-label">Users</div>
-        <a class="nav-item" :class="{ active: activeTab==='users' }" @click="activeTab='users'">
+        <router-link class="nav-item" :class="{ active: activeTab==='users' }" to="/admin/users" @click="closeSidebarOnMobile">
           <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M2 19c0-3 3-5 7-5"/><circle cx="16" cy="10" r="3"/><path d="M13 19c0-3 2.7-5 6-5"/></svg>
           <span>Users</span>
-        </a>
-        <a class="nav-item" :class="{ active: activeTab==='bookings' }" @click="activeTab='bookings'">
+        </router-link>
+        <router-link class="nav-item" :class="{ active: activeTab==='bookings' }" to="/admin/bookings" @click="closeSidebarOnMobile">
           <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
           <span>Bookings</span>
-        </a>
+        </router-link>
 
         <div class="nav-section-label">Support</div>
-        <a class="nav-item" :class="{ active: activeTab==='blacklist' }" @click="activeTab='blacklist'">
+        <router-link class="nav-item" :class="{ active: activeTab==='blacklist' }" to="/admin/blacklist" @click="closeSidebarOnMobile">
           <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
           <span>Blacklisted Accounts</span>
-        </a>
-        <a class="nav-item" :class="{ active: activeTab==='support_tickets' }" @click="activeTab='support_tickets'">
+        </router-link>
+        <router-link class="nav-item" :class="{ active: activeTab==='support_tickets' }" to="/admin/support_tickets" @click="closeSidebarOnMobile">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
           <span>Support Tickets</span>
-        </a>
+        </router-link>
 
         <div class="nav-section-label">Insights</div>
-        <a class="nav-item" :class="{ active: activeTab==='analytics' }" @click="activeTab='analytics'">
+        <router-link class="nav-item" :class="{ active: activeTab==='analytics' }" to="/admin/analytics" @click="closeSidebarOnMobile">
           <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
           <span>Analytics</span>
-        </a>
-        <a class="nav-item" :class="{ active: activeTab==='revenue' }" @click="activeTab='revenue'">
+        </router-link>
+        <router-link class="nav-item" :class="{ active: activeTab==='revenue' }" to="/admin/revenue" @click="closeSidebarOnMobile">
           <svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
           <span>Revenue</span>
-        </a>
-        <a class="nav-item" :class="{ active: activeTab==='reports' }" @click="activeTab='reports'">
+        </router-link>
+        <router-link class="nav-item" :class="{ active: activeTab==='reports' }" to="/admin/reports" @click="closeSidebarOnMobile">
           <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
           <span>Reports</span>
-        </a>
+        </router-link>
 
         <div class="nav-section-label">System</div>
-        <a class="nav-item" :class="{ active: activeTab==='jobs' }" @click="activeTab='jobs'">
+        <router-link class="nav-item" :class="{ active: activeTab==='jobs' }" to="/admin/jobs" @click="closeSidebarOnMobile">
           <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
           <span>Scheduled Jobs</span>
-        </a>
+        </router-link>
       </nav>
 
       <div class="sidebar-signout">
@@ -109,7 +109,32 @@
 </template>
 
 <script>
+/**
+ * =========================================================================
+ * AdminSidebar.vue
+ * =========================================================================
+ * Side navigation panel housing the brand logo, collapsible drawer toggles,
+ * and router-link anchors for all administrative dashboard tabs.
+ *
+ * Each nav-item is now a <router-link> pointing to /admin/:tab_slug, giving
+ * every tab its own shareable, bookmarkable URL (e.g. /admin/bookings).
+ * The active state is still derived from the shared `activeTab` proxy so
+ * the highlight is immediate even before the route transition completes.
+ *
+ * Uses 'adminDashComponent' dynamic options proxying to link state/methods
+ * reactivity directly with the parent 'AdminDashboard' coordinator.
+ */
+
 import { adminDashComponent } from './adminDashProxy';
 
-export default adminDashComponent('AdminSidebar', { emits: ['logout'] });
+export default adminDashComponent('AdminSidebar', {
+  emits: ['logout'],
+  methods: {
+    closeSidebarOnMobile() {
+      if (typeof window !== 'undefined' && window.innerWidth <= 1024) {
+        this.sidebarCollapsed = true;
+      }
+    }
+  }
+});
 </script>

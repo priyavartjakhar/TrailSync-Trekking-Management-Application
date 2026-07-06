@@ -68,6 +68,16 @@
 </template>
 
 <script>
+/**
+ * =========================================================================
+ * TabJobs.vue
+ * =========================================================================
+ * Backend celery scheduler manager displaying last runs and statuses of daily reminders, monthly reports, and marketing campaigns.
+ * 
+ * Uses 'adminDashComponent' dynamic options proxying to link state/methods
+ * reactivity directly with the parent 'AdminDashboard' coordinator.
+ */
+
 import { adminDashComponent } from './adminDashProxy';
 
 export default adminDashComponent('TabJobs');

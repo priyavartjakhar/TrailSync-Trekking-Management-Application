@@ -11,6 +11,7 @@ from flask import Flask
 from backend.models.models import db
 from backend.routes import register_blueprints
 from backend.seeding import run_migrations_and_seeding
+from backend import redis_utils
 
 # Initialize Flask application instance
 app = Flask(__name__, 

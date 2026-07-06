@@ -1,7 +1,18 @@
 // ============================================================
-//  data.js  — shared trek + map data for TrailSync Vue app
+//  trek_data.js — shared trek + map data for TrailSync Vue app
+//  Contains the static trek catalogue, state name mappings,
+//  SVG-label abbreviations, skip-sets, and featured trek cards.
 // ============================================================
 
+// ── Trek Catalogue ────────────────────────────────────────────
+// A state-keyed map of all trekking routes available in the app.
+// Each entry is an array of trek objects with the following shape:
+//   { n: string,    — Trek name
+//     diff: string, — Difficulty: 'Easy' | 'Moderate' | 'Difficult'
+//     dur: string   — Typical duration (e.g. '2 days', '4-5 hrs') }
+//
+// Data is organised by Indian state / union territory name.
+// States without notable treks are omitted entirely.
 export const TREK_DATA = {
   "Andhra Pradesh":[{n:"Nagalapuram Falls Trek",diff:"Easy",dur:"1 day"},{n:"Tada Falls Trek",diff:"Easy",dur:"1 day"},{n:"Jindhagada Peak",diff:"Moderate",dur:"1-2 days"},{n:"Talakona Waterfalls",diff:"Easy",dur:"4-5 hrs"}],
   "Arunachal Pradesh":[{n:"Bailey Trail",diff:"Difficult",dur:"14 days"},{n:"Seven Lakes Trek",diff:"Difficult",dur:"10-12 days"},{n:"Talle Valley Trek",diff:"Moderate",dur:"5-7 days"},{n:"Gorichen Base Camp",diff:"Difficult",dur:"15-20 days"},{n:"Mechuka Trek",diff:"Moderate",dur:"3-4 days"}],
@@ -34,41 +45,93 @@ export const TREK_DATA = {
   "Ladakh":[{n:"Chadar Trek",diff:"Difficult",dur:"9 days"},{n:"Markha Valley",diff:"Moderate",dur:"8 days"},{n:"Stok Kangri",diff:"Difficult",dur:"9 days"},{n:"Sham Valley Trek",diff:"Easy",dur:"4 days"}]
 };
 
+// ── State Name Normalisation Map ──────────────────────────────
+// Maps legacy / alternate state names (as they may appear in
+// GeoJSON or external data sources) to the canonical names used
+// as keys in TREK_DATA above.
+// A null value means the territory has no trekking data and
+// should be rendered without a tooltip / click handler on the map.
 export const STATE_NAME_MAP = {
-  "Uttaranchal":"Uttarakhand","Orissa":"Odisha","Tamilnadu":"Tamil Nadu",
-  "Andaman & Nicobar Island":null,"Lakshadweep":null,"Chandigarh":null,
-  "Delhi":null,"Daman & Diu":null,"Dadra & Nagar Haveli":null,
-  "Dadra and Nagar Haveli":null,"Daman and Diu":null,"Pondicherry":null
+  "Uttaranchal":"Uttarakhand",           // Old name for Uttarakhand
+  "Orissa":"Odisha",                     // Old name for Odisha
+  "Tamilnadu":"Tamil Nadu",             // Common spelling variant
+
+  // Union territories / islands without trek data
+  "Andaman & Nicobar Island":null,
+  "Lakshadweep":null,
+  "Chandigarh":null,
+  "Delhi":null,
+  "Daman & Diu":null,
+  "Dadra & Nagar Haveli":null,
+  "Dadra and Nagar Haveli":null,
+  "Daman and Diu":null,
+  "Pondicherry":null
 };
 
+// ── Short Display Names ───────────────────────────────────────
+// Abbreviated state names used as SVG text labels on the India
+// map when there is insufficient space for the full name.
 export const SHORT_NAMES = {
-  "Himachal Pradesh":"H.P.","Arunachal Pradesh":"Arunachal","Uttaranchal":"Uttarakhand",
-  "West Bengal":"W. Bengal","Andhra Pradesh":"A.P.","Madhya Pradesh":"M.P.",
-  "Uttar Pradesh":"U.P.","Jammu and Kashmir":"J&K","Chhattisgarh":"C'garh"
+  "Himachal Pradesh":"H.P.",
+  "Arunachal Pradesh":"Arunachal",
+  "Uttaranchal":"Uttarakhand",    // Alias kept for legacy GeoJSON compatibility
+  "West Bengal":"W. Bengal",
+  "Andhra Pradesh":"A.P.",
+  "Madhya Pradesh":"M.P.",
+  "Uttar Pradesh":"U.P.",
+  "Jammu and Kashmir":"J&K",
+  "Chhattisgarh":"C'garh"
 };
 
+// ── Skip-Label Set ────────────────────────────────────────────
+// State / territory names for which no label should be rendered
+// on the SVG map (too small, offshore, or layout-breaking).
 export const SKIP_LABELS = new Set([
-  'Chandigarh','Daman and Diu','Dadra and Nagar Haveli','Pondicherry',
-  'Lakshadweep','Andaman & Nicobar Island','Andaman and Nicobar'
+  'Chandigarh',
+  'Daman and Diu',
+  'Dadra and Nagar Haveli',
+  'Pondicherry',
+  'Lakshadweep',
+  'Andaman & Nicobar Island',
+  'Andaman and Nicobar'
 ]);
 
+// ── normalizeName ─────────────────────────────────────────────
+// Resolves an incoming state name to its canonical form using
+// STATE_NAME_MAP. If the name is not listed, it is returned
+// unchanged. Returns null for territories with no trek data.
 export function normalizeName(n) {
   return STATE_NAME_MAP.hasOwnProperty(n) ? STATE_NAME_MAP[n] : n;
 }
 
+// ── pillClass ─────────────────────────────────────────────────
+// Returns the CSS class name for a difficulty badge ("pill")
+// based on the difficulty string. Case-insensitive matching
+// covers minor typos or alternate spellings.
 export function pillClass(d) {
   const l = d.toLowerCase();
   if (l.includes('easy')) return 'pill-easy';
   if (l.includes('moderate')) return 'pill-moderate';
   if (l.includes('difficult') || l.includes('hard')) return 'pill-hard';
-  return 'pill-default';
+  return 'pill-default'; // Fallback for unrecognised difficulty levels
 }
 
+// ── Featured Treks ────────────────────────────────────────────
+// Curated list of treks displayed in the home-page carousel /
+// highlights section. Each entry contains marketing-ready data:
+//   name     — Trek display name
+//   loc      — Location string (district, state)
+//   date     — Next available batch label
+//   days     — Trip duration in days
+//   slots    — Remaining available slots
+//   price    — Formatted price string (₹)
+//   diff     — Difficulty key: 'easy' | 'moderate' | 'hard'
+//   img      — Optimised Unsplash thumbnail URL
 export const FEATURED_TREKS = [
-  { name:"Kedarkantha Trek", loc:"Uttarakhand", date:"Next batch: Dec 15, 2025", days:6, slots:14, price:"₹6,500", diff:"moderate", img:"https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=600&q=80" },
-  { name:"Valley of Flowers", loc:"Chamoli, Uttarakhand", date:"Next batch: Jun 10, 2026", days:4, slots:22, price:"₹4,200", diff:"easy", img:"https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=600&q=80" },
-  { name:"Roopkund Lake", loc:"Chamoli, Uttarakhand", date:"Next batch: Sep 5, 2026", days:8, slots:6, price:"₹11,000", diff:"hard", img:"https://images.unsplash.com/photo-1585409677983-0f6c41ca9c3b?w=600&q=80" },
-  { name:"Hampta Pass", loc:"Kullu, Himachal Pradesh", date:"Next batch: Jul 20, 2026", days:7, slots:9, price:"₹8,200", diff:"moderate", img:"https://images.unsplash.com/photo-1551632811-561732d1e306?w=800&q=80" },
-  { name:"Nag Tibba Trek", loc:"Dehradun, Uttarakhand", date:"Next batch: Dec 28, 2025", days:3, slots:18, price:"₹2,800", diff:"easy", img:"https://images.unsplash.com/photo-1486870591958-9b9d0d1dda99?w=600&q=80" },
-  { name:"Sandakphu – Phalut", loc:"Darjeeling, West Bengal", date:"Next batch: Apr 10, 2026", days:10, slots:11, price:"₹13,500", diff:"hard", img:"https://images.unsplash.com/photo-1519681393784-d120267933ba?w=600&q=80" },
+  { name:"Kedarkantha Trek",    loc:"Uttarakhand",              date:"Next batch: Dec 15, 2025", days:6,  slots:14, price:"₹6,500",  diff:"moderate", img:"https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=600&q=80" },
+  { name:"Valley of Flowers",   loc:"Chamoli, Uttarakhand",     date:"Next batch: Jun 10, 2026", days:4,  slots:22, price:"₹4,200",  diff:"easy",     img:"https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=600&q=80" },
+  { name:"Roopkund Lake",       loc:"Chamoli, Uttarakhand",     date:"Next batch: Sep 5, 2026",  days:8,  slots:6,  price:"₹11,000", diff:"hard",     img:"https://images.unsplash.com/photo-1585409677983-0f6c41ca9c3b?w=600&q=80" },
+  { name:"Hampta Pass",         loc:"Kullu, Himachal Pradesh",  date:"Next batch: Jul 20, 2026", days:7,  slots:9,  price:"₹8,200",  diff:"moderate", img:"https://images.unsplash.com/photo-1551632811-561732d1e306?w=800&q=80" },
+  { name:"Nag Tibba Trek",      loc:"Dehradun, Uttarakhand",    date:"Next batch: Dec 28, 2025", days:3,  slots:18, price:"₹2,800",  diff:"easy",     img:"https://images.unsplash.com/photo-1486870591958-9b9d0d1dda99?w=600&q=80" },
+  { name:"Sandakphu – Phalut",  loc:"Darjeeling, West Bengal",  date:"Next batch: Apr 10, 2026", days:10, slots:11, price:"₹13,500", diff:"hard",     img:"https://images.unsplash.com/photo-1519681393784-d120267933ba?w=600&q=80" },
 ];

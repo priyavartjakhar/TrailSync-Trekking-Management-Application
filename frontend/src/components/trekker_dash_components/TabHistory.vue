@@ -9,7 +9,7 @@
         <div class="page-title">Trek <em>History</em></div>
       </div>
       <!-- Export button — disabled while the async CSV job is pending -->
-      <button class="btn-outline" style="padding: 0.45rem 0.9rem; font-size: 0.82rem; display: inline-flex; align-items: center; gap: 0.45rem;" :disabled="exportPending" @click="$emit('request-export')">
+      <button class="btn-outline" style="padding: 0.45rem 0.9rem; font-size: 0.82rem; display: inline-flex; align-items: center; gap: 0.45rem;" :disabled="exportPending" @click="requestExport">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         {{ exportPending ? 'Preparing CSV...' : 'Export as CSV' }}
       </button>
@@ -73,8 +73,7 @@
  *
  * Communication Structure:
  * - Inputs (Props): `trekHistory` — full booking history array from UserDashboard.
- * - Outputs (Events): `change-tab` (navigation), `show-toast` (status messages),
- *   `request-export` (delegated to parent for CSV export).
+ * - Outputs (Events): `change-tab` (navigation), `show-toast` (status messages).
  */
 
 export default {

@@ -235,6 +235,9 @@ def cancel_booking(booking_id):
         return jsonify({'error': 'Unauthorized.'}), 403
         
     booking.status = 'Cancelled'
+    if booking.paid and booking.payment_status not in ('Refunded', 'Refund Initiated'):
+        booking.payment_status = 'Refund Initiated'
+        booking.paid = False
     db.session.commit()
     
     invalidate_all_trek_caches()

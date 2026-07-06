@@ -1,0 +1,413 @@
+openapi: 3.0.3
+info:
+  title: Trail Sync - Trekking Management Application API
+  description: REST API specification for Trail Sync, a trekking management platform connecting Trekkers, Guides, and Administrators.
+  version: 1.0.0
+servers:
+  - url: http://localhost:8000
+    description: Development backend server
+paths:
+  /api/auth/register:
+    post:
+      summary: Register a new trekker
+      description: Creates a new user profile with trekker details and optional profile picture.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                name:
+                  type: string
+                password:
+                  type: string
+                phone:
+                  type: string
+                city:
+                  type: string
+                emergency:
+                  type: string
+                bio:
+                  type: string
+                dob:
+                  type: string
+                blood_group:
+                  type: string
+                medical_info:
+                  type: string
+                fitness_level:
+                  type: string
+                treks_done:
+                  type: integer
+                profile_image:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Registration successful, session cookie set.
+        '400':
+          description: Bad request or email already exists.
+
+  /api/auth/login:
+    post:
+      summary: Authenticate user
+      description: Validates user credentials and sets a secure JWT token cookie.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+                role:
+                  type: string
+                  enum: [trekker, staff, admin]
+      responses:
+        '200':
+          description: Authentication successful, cookie set.
+        '400':
+          description: Invalid email or password.
+        '403':
+          description: Account is inactive or blacklisted.
+
+  /api/auth/check-availability:
+    get:
+      summary: Check availability of email or phone
+      parameters:
+        - name: email
+          in: query
+          schema:
+            type: string
+        - name: phone
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Check results.
+
+  /api/auth/logout:
+    post:
+      summary: Clear session
+      description: Idempotent endpoint to delete the access token cookie.
+      responses:
+        '200':
+          description: Logout successful.
+
+  /api/public/treks:
+    get:
+      summary: Fetch open scheduled treks
+      description: Returns a cached list of scheduled trek batches available for booking.
+      responses:
+        '200':
+          description: List of scheduled treks.
+
+  /api/public/trek_routes:
+    get:
+      summary: Fetch master trek routes catalog
+      description: Returns a list of all geographical destinations defined in the master catalog.
+      responses:
+        '200':
+          description: List of trek routes.
+
+  /api/user/dashboard_data:
+    get:
+      summary: Fetch trekker dashboard details
+      description: Returns available treks, booking lists, travel history, and the user's profile info. Requires authenticated User role.
+      responses:
+        '200':
+          description: Dashboard payload.
+        '403':
+          description: Unauthorized.
+
+  /api/bookings/book:
+    post:
+      summary: Register a new booking
+      description: Book a trek batch, initialize the custom packing checklist, and queue confirmation email.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - trek_id
+                - payment_method
+                - payment_details
+              properties:
+                trek_id:
+                  type: integer
+                payment_method:
+                  type: string
+                payment_details:
+                  type: object
+      responses:
+        '200':
+          description: Booking successful.
+        '400':
+          description: Trek full, closed, or already booked.
+
+  /api/bookings/cancel/{booking_id}:
+    post:
+      summary: Cancel a trek booking
+      parameters:
+        - name: booking_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Booking cancelled, refund initiated.
+
+  /api/bookings/{booking_id}/checklist:
+    get:
+      summary: Fetch packing checklist for booking
+      parameters:
+        - name: booking_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Packing checklist items.
+
+  /api/bookings/checklist/toggle:
+    post:
+      summary: Toggle packing checklist item completion state
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - item_id
+              properties:
+                item_id:
+                  type: integer
+      responses:
+        '200':
+          description: State toggled.
+
+  /api/bookings/pay/{booking_id}:
+    post:
+      summary: Complete simulated payment
+      parameters:
+        - name: booking_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                payment_status:
+                  type: string
+                payment_method:
+                  type: string
+                payment_details:
+                  type: object
+      responses:
+        '200':
+          description: Payment simulated successfully.
+
+  /api/user/export:
+    post:
+      summary: Trigger CSV export of booking history
+      description: Asynchronously generates booking history and sends it via email.
+      responses:
+        '200':
+          description: Export queued.
+
+  /api/user/profile:
+    post:
+      summary: Update trekker profile information
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                phone:
+                  type: string
+                city:
+                  type: string
+                emergency:
+                  type: string
+                bio:
+                  type: string
+                dob:
+                  type: string
+                blood_group:
+                  type: string
+                medical_info:
+                  type: string
+                fitness_level:
+                  type: string
+                treks_done:
+                  type: integer
+                profile_image:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Profile updated.
+
+  /api/user/tickets:
+    get:
+      summary: Fetch user support tickets
+      responses:
+        '200':
+          description: List of tickets.
+    post:
+      summary: Submit a support ticket
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - subject
+                - message
+              properties:
+                subject:
+                  type: string
+                message:
+                  type: string
+                category:
+                  type: string
+      responses:
+        '200':
+          description: Ticket submitted successfully.
+
+  /api/staff/dashboard_data:
+    get:
+      summary: Fetch staff guide dashboard
+      description: Returns guide profile, assigned trek batches, and participants list. Requires staff authentication.
+      responses:
+        '200':
+          description: Dashboard payload.
+
+  /api/staff/password:
+    post:
+      summary: Update guide password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - current
+                - new
+              properties:
+                current:
+                  type: string
+                new:
+                  type: string
+      responses:
+        '200':
+          description: Password updated.
+
+  /api/staff/treks/slots/{trek_id}:
+    post:
+      summary: Update batch slots capacity
+      parameters:
+        - name: trek_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - slots
+              properties:
+                slots:
+                  type: integer
+      responses:
+        '200':
+          description: Slots updated.
+
+  /api/social/chat/{trek_id}:
+    get:
+      summary: Fetch chat room messages
+      parameters:
+        - name: trek_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of chat messages.
+
+  /api/social/chat/send:
+    post:
+      summary: Send a text message to a group chat room
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - trek_id
+                - message_text
+              properties:
+                trek_id:
+                  type: integer
+                message_text:
+                  type: string
+      responses:
+        '200':
+          description: Message sent.
+
+  /api/social/chat/announcement:
+    post:
+      summary: Post a guide announcement in chat
+      description: Broadcasts a pinned announcement to the chat room and triggers asynchronous email notifications to all active participants.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - trek_id
+                - announcement_title
+                - message_text
+              properties:
+                trek_id:
+                  type: integer
+                announcement_title:
+                  type: string
+                message_text:
+                  type: string
+      responses:
+        '200':
+          description: Announcement broadcasted.

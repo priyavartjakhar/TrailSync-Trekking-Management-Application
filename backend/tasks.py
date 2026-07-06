@@ -383,7 +383,45 @@ def send_welcome_email(user_id):
             start_date_str = t.start_date.strftime('%b %d, %Y') if t.start_date else 'N/A'
             trek_cards_html += f"""
             <div class=\"trek-item\" style=\"border: 1px solid #edf2f7; border-radius: 8px; padding: 15px; margin-bottom: 15px; background-color: #ffffff;\">\n<h4 style=\"margin: 0 0 5px 0; color: #1e3f20; font-size: 1.1rem;\">{t.name}</h4>\n<p style=\"margin: 3px 0; font-size: 0.88rem; color: #4a5568;\"><strong>📍 Location:</strong> {t.location} | <strong>🧭 Duration:</strong> {t.duration} Days</p>\n<p style=\"margin: 3px 0; font-size: 0.88rem; color: #4a5568;\"><strong>📅 Starts:</strong> {start_date_str} | <strong>Difficulty:</strong> {t.difficulty}</p>\n<div style=\"margin-top: 10px; display: flex; justify-content: space-between; align-items: center;\"><span style=\"font-weight: 700; color: #c8922a; font-size: 1.05rem;\">{price_str}</span>\n<a href=\"/trek/{t.id}\" style=\"background-color: #1e3f20; color: #ffffff; text-decoration: none; padding: 5px 12px; border-radius: 4px; font-size: 0.82rem; font-weight: 600;\">View Details</a>\n</div></div>\n"""
-        body_html = f"<!DOCTYPE html><html><head><style>/* omitted */</style></head><body>{trek_cards_html}</body></html>"
+        body_html = f"""<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {{ font-family: 'Outfit', 'DM Sans', Arial, sans-serif; line-height: 1.6; color: #2d3748; background-color: #f4f7f4; padding: 20px 10px; margin: 0; }}
+        .email-container {{ max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; }}
+        .header {{ background: linear-gradient(135deg, #1e3f20, #0f2411); padding: 35px 20px; text-align: center; color: #ffffff; }}
+        .header h1 {{ margin: 0; font-size: 2.2rem; font-weight: 700; letter-spacing: -0.5px; color: #f3e5ab; }}
+        .content {{ padding: 30px 25px; }}
+        .welcome-msg {{ font-size: 1.15rem; font-weight: 600; color: #1e3f20; margin-top: 0; }}
+        .trek-list {{ margin-top: 20px; }}
+        .footer {{ background-color: #f7faf7; padding: 20px; text-align: center; font-size: 0.8rem; color: #718096; border-top: 1px solid #edf2f7; }}
+        .footer p {{ margin: 5px 0; }}
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <h1>Welcome to TrailSync!</h1>
+        </div>
+        <div class="content">
+            <p class="welcome-msg">Hi {user.name},</p>
+            <p>Welcome to TrailSync! Your mountain adventure awaits 🏔️</p>
+            <p>Ready to start your journey? Log in to your dashboard to complete your medical profile, explore more destinations, and book your next adventure.</p>
+            
+            <h3 style="color: #1e3f20; border-bottom: 2px solid #edf2f7; padding-bottom: 8px; margin-top: 25px;">🏔️ Recommended Treks for You</h3>
+            <div class="trek-list">
+                {trek_cards_html}
+            </div>
+            
+            <p style="margin-top: 25px;">See you on the trail,<br><strong>The TrailSync Team</strong></p>
+        </div>
+        <div class="footer">
+            <p>You received this email because you registered an account on TrailSync.</p>
+            <p>&copy; 2026 TrailSync Trekking. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>"""
         send_email_helper(
             subject="Welcome to TrailSync! Your mountain adventure awaits 🏔️",
             recipient=user.email,
@@ -751,19 +789,78 @@ def send_marketing_campaign(is_manual=False):
                     Trek.id.notin_([t.id for t in upcoming_treks])
                 ).limit(3 - len(upcoming_treks)).all()
                 upcoming_treks.extend(more)
+            
             trek_items_html = ""
             for t in upcoming_treks:
                 price_str = f"₹{t.price:,}"
                 start_date_str = t.start_date.strftime('%b %d, %Y') if t.start_date else 'N/A'
                 trek_items_html += f"""
-                <div style=\"background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; margin-bottom: 15px;\">\n<h4 style=\"margin: 0 0 5px 0; color: #1e3f20; font-size: 1.1rem;\">{t.name}</h4>\n<p style=\"margin: 3px 0; font-size: 0.88rem; color: #4a5568;\"><strong>📍 Location:</strong> {t.location} | <strong>🧭 Difficulty:</strong> {t.difficulty}</p>\n<p style=\"margin: 3px 0; font-size: 0.88rem; color: #4a5568;\"><strong>📅 Start Date:</strong> {start_date_str} | <strong>Price:</strong> {price_str}</p>\n</div>\n"""
-            newsletter_html = f"<!DOCTYPE html><html><head><style>/* omitted */</style></head><body>{trek_items_html}</body></html>"
+                <div class="trek-item" style="border: 1px solid #edf2f7; border-radius: 8px; padding: 15px; margin-bottom: 15px; background-color: #ffffff;">
+                    <h4 style="margin: 0 0 5px 0; color: #1e3f20; font-size: 1.1rem;">{t.name}</h4>
+                    <p style="margin: 3px 0; font-size: 0.88rem; color: #4a5568;"><strong>📍 Location:</strong> {t.location} | <strong>🧭 Duration:</strong> {t.duration} Days</p>
+                    <p style="margin: 3px 0; font-size: 0.88rem; color: #4a5568;"><strong>📅 Starts:</strong> {start_date_str} | <strong>Difficulty:</strong> {t.difficulty}</p>
+                    <div style="margin-top: 10px; display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-weight: 700; color: #c8922a; font-size: 1.05rem;">{price_str}</span>
+                        <a href="/trek/{t.id}" style="background-color: #1e3f20; color: #ffffff; text-decoration: none; padding: 5px 12px; border-radius: 4px; font-size: 0.82rem; font-weight: 600;">View Details</a>
+                    </div>
+                </div>
+                """
+                
+            newsletter_template = f"""<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {{ font-family: 'Outfit', 'DM Sans', Arial, sans-serif; line-height: 1.6; color: #2d3748; background-color: #f4f7f4; padding: 20px 10px; margin: 0; }}
+        .email-container {{ max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; }}
+        .header {{ background: linear-gradient(135deg, #1e3f20, #0f2411); padding: 35px 20px; text-align: center; color: #ffffff; }}
+        .header h1 {{ margin: 0; font-size: 2.2rem; font-weight: 700; letter-spacing: -0.5px; color: #f3e5ab; }}
+        .content {{ padding: 30px 25px; }}
+        .welcome-msg {{ font-size: 1.15rem; font-weight: 600; color: #1e3f20; margin-top: 0; }}
+        .promo-box {{ background-color: #fcf8e3; border: 2px dashed #c8922a; padding: 15px; border-radius: 8px; text-align: center; margin: 20px 0; }}
+        .promo-title {{ font-size: 0.9rem; color: #8a6d3b; text-transform: uppercase; letter-spacing: 1px; font-weight: bold; margin-bottom: 5px; }}
+        .promo-code {{ font-size: 1.6rem; font-weight: 800; color: #c8922a; letter-spacing: 2px; }}
+        .section-header {{ font-size: 1.25rem; font-weight: 700; color: #1e3f20; border-bottom: 2px solid #edf2f7; padding-bottom: 8px; margin-top: 30px; margin-bottom: 20px; }}
+        .footer {{ background-color: #f7faf7; padding: 20px; text-align: center; font-size: 0.8rem; color: #718096; border-top: 1px solid #edf2f7; }}
+        .footer p {{ margin: 5px 0; }}
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <h1>TrailSync Explorer</h1>
+        </div>
+        <div class="content">
+            <p class="welcome-msg">Hi {{name}},</p>
+            <p>Adventure awaits! Discover our handpicked list of upcoming wilderness treks. Use our exclusive launch promo code below for a special discount on your next booking.</p>
+            
+            <div class="promo-box">
+                <div class="promo-title">Use Promo Code For 10% Off:</div>
+                <div class="promo-code">FIRSTTRAIL10</div>
+            </div>
+            
+            <div class="section-header">🏔&nbsp;&nbsp;Recommended Treks for You</div>
+            <div class="trek-list">
+                {trek_items_html}
+            </div>
+            
+            <p style="margin-top: 25px;">Ready to start your journey? Log in to your dashboard to complete your medical profile, explore more destinations, and book your next adventure.</p>
+            
+            <p>See you on the trail,<br><strong>The TrailSync Team</strong></p>
+        </div>
+        <div class="footer">
+            <p>You received this email because you registered an account on TrailSync.</p>
+            <p>&copy; 2026 TrailSync Trekking. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>"""
             count = 0
             for u in users:
+                user_html = newsletter_template.replace("{name}", u.name)
                 send_email_helper(
                     subject="TrailSync Explorer: Discover Upcoming Wilderness Treks! 🥾",
                     recipient=u.email,
-                    body=newsletter_html,
+                    body=user_html,
                     is_html=True
                 )
                 count += 1
@@ -790,7 +887,45 @@ def send_test_user_welcome(recipient_email):
             start_date_str = t.start_date.strftime('%b %d, %Y') if t.start_date else 'N/A'
             trek_cards_html += f"""
             <div class=\"trek-item\" style=\"border: 1px solid #edf2f7; border-radius: 8px; padding: 15px; margin-bottom: 15px; background-color: #ffffff;\">\n<h4 style=\"margin: 0 0 5px 0; color: #1e3f20; font-size: 1.1rem;\">{t.name}</h4>\n<p style=\"margin: 3px 0; font-size: 0.88rem; color: #4a5568;\"><strong>📍 Location:</strong> {t.location} | <strong>🧭 Duration:</strong> {t.duration} Days</p>\n<p style=\"margin: 3px 0; font-size: 0.88rem; color: #4a5568;\"><strong>📅 Starts:</strong> {start_date_str} | <strong>Difficulty:</strong> {t.difficulty}</p>\n<div style=\"margin-top: 10px; display: flex; justify-content: space-between; align-items: center;\"><span style=\"font-weight: 700; color: #c8922a; font-size: 1.05rem;\">{price_str}</span>\n<a href=\"http://localhost:8000\" style=\"background-color: #1e3f20; color: #ffffff; text-decoration: none; padding: 5px 12px; border-radius: 4px; font-size: 0.82rem; font-weight: 600;\">View Details</a>\n</div></div>\n"""
-        body_html = f"<!DOCTYPE html><html><head><style>/* omitted */</style></head><body>{trek_cards_html}</body></html>"
+        body_html = f"""<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {{ font-family: 'Outfit', 'DM Sans', Arial, sans-serif; line-height: 1.6; color: #2d3748; background-color: #f4f7f4; padding: 20px 10px; margin: 0; }}
+        .email-container {{ max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; }}
+        .header {{ background: linear-gradient(135deg, #1e3f20, #0f2411); padding: 35px 20px; text-align: center; color: #ffffff; }}
+        .header h1 {{ margin: 0; font-size: 2.2rem; font-weight: 700; letter-spacing: -0.5px; color: #f3e5ab; }}
+        .content {{ padding: 30px 25px; }}
+        .welcome-msg {{ font-size: 1.15rem; font-weight: 600; color: #1e3f20; margin-top: 0; }}
+        .trek-list {{ margin-top: 20px; }}
+        .footer {{ background-color: #f7faf7; padding: 20px; text-align: center; font-size: 0.8rem; color: #718096; border-top: 1px solid #edf2f7; }}
+        .footer p {{ margin: 5px 0; }}
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <h1>Welcome to TrailSync!</h1>
+        </div>
+        <div class="content">
+            <p class="welcome-msg">Hi Explorer,</p>
+            <p>Welcome to TrailSync! Your mountain adventure awaits 🏔️</p>
+            <p>Ready to start your journey? Log in to your dashboard to complete your medical profile, explore more destinations, and book your next adventure.</p>
+            
+            <h3 style="color: #1e3f20; border-bottom: 2px solid #edf2f7; padding-bottom: 8px; margin-top: 25px;">🏔️ Recommended Treks for You</h3>
+            <div class="trek-list">
+                {trek_cards_html}
+            </div>
+            
+            <p style="margin-top: 25px;">See you on the trail,<br><strong>The TrailSync Team</strong></p>
+        </div>
+        <div class="footer">
+            <p>You received this email because you registered an account on TrailSync.</p>
+            <p>&copy; 2026 TrailSync Trekking. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>"""
         send_email_helper(
             subject="Welcome to TrailSync! Your mountain adventure awaits 🏔️",
             recipient=recipient_email,
@@ -802,7 +937,63 @@ def send_test_user_welcome(recipient_email):
 @celery_app.task
 def send_test_staff_welcome(recipient_email):
     """Send a test welcome email to a staff (guide) account."""
-    body_html = f"<!DOCTYPE html><html><head><style>/* omitted */</style></head><body>Staff welcome content</body></html>"
+    body_html = f"""<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {{ font-family: 'Outfit', 'DM Sans', Arial, sans-serif; line-height: 1.6; color: #2d3748; background-color: #f4f7f4; padding: 20px 10px; margin: 0; }}
+        .email-container {{ max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; }}
+        .header {{ background: linear-gradient(135deg, #1e3f20, #0f2411); padding: 35px 20px; text-align: center; color: #ffffff; }}
+        .header h1 {{ margin: 0; font-size: 2.2rem; font-weight: 700; letter-spacing: -0.5px; color: #f3e5ab; }}
+        .content {{ padding: 30px 25px; }}
+        .welcome-msg {{ font-size: 1.15rem; font-weight: 600; color: #1e3f20; margin-top: 0; }}
+        .credentials-box {{ background-color: #f7faf7; border: 1px solid #e2e8f0; border-left: 4px solid #1e3f20; padding: 20px; border-radius: 8px; margin: 20px 0; }}
+        .cred-label {{ font-size: 0.9rem; color: #4a5568; font-weight: bold; margin-bottom: 2px; }}
+        .cred-value {{ font-family: monospace; font-size: 1.1rem; color: #1e3f20; font-weight: bold; margin-bottom: 12px; word-break: break-all; }}
+        .cred-value:last-child {{ margin-bottom: 0; }}
+        .warning-box {{ background-color: #fffaf0; border: 1px solid #feebc8; border-left: 4px solid #dd6b20; padding: 15px; border-radius: 8px; margin: 20px 0; color: #c05621; font-size: 0.95rem; }}
+        .instruction-box {{ background-color: #f7faf7; border: 1px solid #e2e8f0; border-left: 4px solid #c8922a; padding: 20px; border-radius: 8px; margin: 20px 0; }}
+        .instruction-title {{ font-weight: bold; color: #1e3f20; margin-bottom: 8px; }}
+        .footer {{ background-color: #f7faf7; padding: 20px; text-align: center; font-size: 0.8rem; color: #718096; border-top: 1px solid #edf2f7; }}
+        .footer p {{ margin: 5px 0; }}
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <h1>Welcome to TrailSync!</h1>
+        </div>
+        <div class="content">
+            <p class="welcome-msg">Hi test,</p>
+            <p>Welcome to the TrailSync Trek Staff Team! We are thrilled to have you join our community of professional guides and outdoor leaders. Your expertise is what keeps our trekkers safe and inspired in the mountains.</p>
+            <p>A staff account has been set up for you. Below are your temporary login details:</p>
+            
+            <div class="credentials-box">
+                <div class="cred-label">Login Email:</div>
+                <div class="cred-value">{recipient_email}</div>
+                <div class="cred-label">Temporary Password:</div>
+                <div class="cred-value" style="letter-spacing: 1px;">Trailsync@123</div>
+            </div>
+            
+            <div class="warning-box">
+                <strong>⚠️ IMPORTANT:</strong> This is a temporary password. Please log in and change your password immediately in your profile settings for account security.
+            </div>
+            
+            <div class="instruction-box">
+                <div class="instruction-title">📋 Mandatory: Complete Your Guide Profile</div>
+                <p style="margin: 0; font-size: 0.95rem; color: #4a5568;">To become eligible for scheduling and getting assigned to upcoming trek batches, you must log in to your dashboard and complete your profile details (e.g. wilderness medical certifications, languages, guiding experience years, and core outdoor skills).</p>
+            </div>
+            
+            <p style="margin-top: 25px;">If you have any questions, feel free to reply directly to this mail.</p>
+            
+            <p>Best regards,<br><strong>TrailSync Operations Desk</strong></p>
+        </div>
+        <div class="footer">
+            <p>&copy; 2026 TrailSync Trekking. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>"""
     send_email_helper(
         subject="Welcome to the TrailSync Staff Team! 🏔️",
         recipient=recipient_email,
@@ -850,7 +1041,63 @@ def send_staff_creation_email(staff_id, password):
         staff = User.query.get(staff_id)
         if not staff:
             return f"Staff {staff_id} not found."
-        body_html = f"<!DOCTYPE html><html><head><style>/* omitted */</style></head><body>Credentials for {staff.email}</body></html>"
+        body_html = f"""<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {{ font-family: 'Outfit', 'DM Sans', Arial, sans-serif; line-height: 1.6; color: #2d3748; background-color: #f4f7f4; padding: 20px 10px; margin: 0; }}
+        .email-container {{ max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; }}
+        .header {{ background: linear-gradient(135deg, #1e3f20, #0f2411); padding: 35px 20px; text-align: center; color: #ffffff; }}
+        .header h1 {{ margin: 0; font-size: 2.2rem; font-weight: 700; letter-spacing: -0.5px; color: #f3e5ab; }}
+        .content {{ padding: 30px 25px; }}
+        .welcome-msg {{ font-size: 1.15rem; font-weight: 600; color: #1e3f20; margin-top: 0; }}
+        .credentials-box {{ background-color: #f7faf7; border: 1px solid #e2e8f0; border-left: 4px solid #1e3f20; padding: 20px; border-radius: 8px; margin: 20px 0; }}
+        .cred-label {{ font-size: 0.9rem; color: #4a5568; font-weight: bold; margin-bottom: 2px; }}
+        .cred-value {{ font-family: monospace; font-size: 1.1rem; color: #1e3f20; font-weight: bold; margin-bottom: 12px; word-break: break-all; }}
+        .cred-value:last-child {{ margin-bottom: 0; }}
+        .warning-box {{ background-color: #fffaf0; border: 1px solid #feebc8; border-left: 4px solid #dd6b20; padding: 15px; border-radius: 8px; margin: 20px 0; color: #c05621; font-size: 0.95rem; }}
+        .instruction-box {{ background-color: #f7faf7; border: 1px solid #e2e8f0; border-left: 4px solid #c8922a; padding: 20px; border-radius: 8px; margin: 20px 0; }}
+        .instruction-title {{ font-weight: bold; color: #1e3f20; margin-bottom: 8px; }}
+        .footer {{ background-color: #f7faf7; padding: 20px; text-align: center; font-size: 0.8rem; color: #718096; border-top: 1px solid #edf2f7; }}
+        .footer p {{ margin: 5px 0; }}
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <h1>Welcome to TrailSync!</h1>
+        </div>
+        <div class="content">
+            <p class="welcome-msg">Hi {staff.name},</p>
+            <p>Welcome to the TrailSync Trek Staff Team! We are thrilled to have you join our community of professional guides and outdoor leaders. Your expertise is what keeps our trekkers safe and inspired in the mountains.</p>
+            <p>A staff account has been set up for you. Below are your temporary login details:</p>
+            
+            <div class="credentials-box">
+                <div class="cred-label">Login Email:</div>
+                <div class="cred-value">{staff.email}</div>
+                <div class="cred-label">Temporary Password:</div>
+                <div class="cred-value" style="letter-spacing: 1px;">{password}</div>
+            </div>
+            
+            <div class="warning-box">
+                <strong>⚠️ IMPORTANT:</strong> This is a temporary password. Please log in and change your password immediately in your profile settings for account security.
+            </div>
+            
+            <div class="instruction-box">
+                <div class="instruction-title">📋 Mandatory: Complete Your Guide Profile</div>
+                <p style="margin: 0; font-size: 0.95rem; color: #4a5568;">To become eligible for scheduling and getting assigned to upcoming trek batches, you must log in to your dashboard and complete your profile details (e.g. wilderness medical certifications, languages, guiding experience years, and core outdoor skills).</p>
+            </div>
+            
+            <p style="margin-top: 25px;">If you have any questions, feel free to reply directly to this mail.</p>
+            
+            <p>Best regards,<br><strong>TrailSync Operations Desk</strong></p>
+        </div>
+        <div class="footer">
+            <p>&copy; 2026 TrailSync Trekking. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>"""
         send_email_helper(
             subject="Welcome to TrailSync!",
             recipient=staff.email,

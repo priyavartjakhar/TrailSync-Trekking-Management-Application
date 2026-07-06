@@ -33,10 +33,16 @@ def api_login():
     data = request.get_json() or {}
     email = data.get('email')
     password = data.get('password')
+    expected_role = data.get('role')
     
     user = User.query.filter_by(email=email).first()
     if not user or not check_password_hash(user.password_hash, password):
         return jsonify({'error': 'Invalid email or password.'}), 400
+        
+    if expected_role:
+        normalized_expected = 'user' if expected_role == 'trekker' else expected_role
+        if user.role != normalized_expected:
+            return jsonify({'error': 'Invalid email or password.'}), 400
         
     if user.blacklisted:
         return jsonify({'error': 'This account is blacklisted.'}), 403

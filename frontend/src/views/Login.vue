@@ -231,6 +231,7 @@ export default {
             email:    form.value.email.trim().toLowerCase(),
             password: form.value.password,
             remember: form.value.remember,
+            role:     role.value,
           }),
           credentials: 'include',
         });

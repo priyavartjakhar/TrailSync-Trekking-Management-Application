@@ -110,6 +110,15 @@
 </template>
 
 <script>
+/**
+ * =========================================================================
+ * TabBookings.vue
+ * =========================================================================
+ * Reservations management view displaying trek vouchers, pending/paid transactions, checklist progress, and cancellation forms.
+ * Standard Vue component using custom props parameters input and events emitters
+ * to communicate with parent 'UserDashboard'.
+ */
+
 export default {
   name: 'TabBookings',
   props: {

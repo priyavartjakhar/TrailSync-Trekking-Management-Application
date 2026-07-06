@@ -1,5 +1,8 @@
 <template>
+  <!-- ── PAGE WRAPPER ──────────────────────────────── -->
   <section class="tab-section-content">
+
+    <!-- ── PAGE HEADER ───────────────────────────────── -->
     <div class="page-header">
       <div class="page-header-left">
         <div class="page-eyebrow">Open Adventures</div>
@@ -11,7 +14,8 @@
       </button>
     </div>
 
-    <!-- Search & Filters -->
+    <!-- ── SEARCH & FILTER BAR ────────────────────────── -->
+    <!-- Search input, desktop filter dropdowns, quick-filter chips, and the bookable-slots toggle -->
     <div class="ts-card" style="margin-bottom:1.5rem; padding:1.25rem 1.5rem; overflow:visible;">
       <div class="explore-toolbar-row">
         <div class="explore-search-column">
@@ -21,11 +25,13 @@
             <input v-model="searchQuery" type="text" placeholder="Trek name, location…" />
           </div>
         </div>
+        <!-- On mobile, filters are collapsed behind a toggle button -->
         <button v-if="isMobileView" class="btn-outline explore-filters-toggle" @click="toggleMobileFilters">
           {{ showMobileFilters ? 'Hide Filters' : 'Filters' }}
         </button>
       </div>
 
+      <!-- Advanced filter dropdowns (Difficulty, Location, Duration) — hidden on mobile until toggled -->
       <div v-if="!isMobileView || showMobileFilters" class="explore-filter-panel">
         <div class="explore-filter-grid">
           <div style="min-width:160px">
@@ -79,7 +85,7 @@
         </div>
       </div>
 
-      <!-- Quick filter chips -->
+      <!-- Quick filter chips for difficulty and bookable-slot toggle -->
       <div class="treks-filter-bar" style="margin-top:1rem; margin-bottom:0">
         <button v-for="f in ['All','Easy','Moderate','Hard']" :key="f"
           class="filter-chip" :class="{ active: quickFilter === f, ['chip-'+f.toLowerCase()]: f !== 'All' }"
@@ -101,10 +107,12 @@
       </div>
     </div>
 
-    <!-- Trek cards grid -->
+    <!-- ── TREK CARDS GRID ─────────────────────────────── -->
+    <!-- Each card is clickable and opens the booking modal for the selected trek -->
     <div class="treks-grid-user">
       <div v-for="t in filteredTreks" :key="t.id" class="trek-card-user" @click="openBookingModal(t)" style="cursor:pointer;">
         <div class="trek-img-user">
+          <!-- Display uploaded image if available; otherwise render a gradient placeholder with a mountain icon -->
           <img v-if="t.imageUrl" :src="t.imageUrl" :alt="t.name" style="width: 100%; height: 100%; object-fit: cover;" />
           <div v-else class="trek-img-placeholder" :style="{ background: getGradient(t) }">
             <svg viewBox="0 0 24 24"><path d="M3 17l4-8 4 4 4-6 4 10"/></svg>
@@ -136,6 +144,8 @@
       </div>
     </div>
 
+    <!-- ── EMPTY STATE ────────────────────────────────── -->
+    <!-- Shown when no treks match the active combination of filters -->
     <div v-if="filteredTreks.length === 0" class="empty-state" style="margin-top:1rem">
       <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       <p>No treks match your filters.</p>
@@ -145,28 +155,72 @@
 </template>
 
 <script>
+/**
+ * TabExplore Component (Trekker Dashboard)
+ * Renders the search catalog of open treks for registration.
+ *
+ * Displays all available (open) treks as browsable cards with rich filtering
+ * capabilities: full-text search, difficulty, location, duration dropdowns,
+ * quick-filter chips, and a bookable-slot toggle. Clicking a card or its
+ * "Book Now" button emits `book-trek` so the parent can open PaymentModal.
+ *
+ * Communication Structure:
+ * - Inputs (Props): Receives 'availableTreks' from the parent UserDashboard coordinate state.
+ * - Outputs (Events): Emits 'book-trek' (triggers booking modal) and 'change-tab' (navigation).
+ */
 export default {
   name: 'TabExplore',
   props: {
-    availableTreks: { type: Array, default: () => [] }
+    availableTreks: { type: Array, default: () => [] },
+    initialSearchQuery: { type: String, default: '' }
   },
   emits: ['book-trek', 'change-tab'],
+  watch: {
+    initialSearchQuery(newVal) {
+      this.searchQuery = newVal;
+    }
+  },
   data() {
     return {
+      // ── SEARCH & TEXT FILTER ────────────────────────────
+      /** Full-text search string matched against trek name and location. */
       searchQuery: '',
+
+      // ── DROPDOWN FILTERS ────────────────────────────────
+      /** Active difficulty filter value — one of 'Easy', 'Moderate', 'Hard', or '' (all). */
       difficultyFilter: '',
+      /** Active state/location filter derived from trek location strings. */
       locationFilter: '',
+      /** Active duration bucket: '1-5', '6-9', '10+', or '' (any). */
       durationFilter: '',
+
+      // ── QUICK CHIP FILTER ───────────────────────────────
+      /** Selected difficulty chip — 'All', 'Easy', 'Moderate', or 'Hard'. */
       quickFilter: 'All',
+      /** When true, only treks with at least one batch having open slots are shown. */
       showBookableOnly: false,
+
+      // ── DROPDOWN OPEN/CLOSE STATE ───────────────────────
+      /** Controls visibility of the Difficulty custom dropdown. */
       showDiffFilterDropdown: false,
+      /** Controls visibility of the Location custom dropdown. */
       showLocFilterDropdown: false,
+      /** Controls visibility of the Duration custom dropdown. */
       showDurFilterDropdown: false,
+
+      // ── MOBILE RESPONSIVE STATE ─────────────────────────
+      /** True when viewport width is ≤ 900px; collapses filter panel on mobile. */
       showMobileFilters: false,
+      /** Tracks whether the current viewport qualifies as mobile. */
       isMobileView: false
     };
   },
   computed: {
+    /**
+     * Returns a deduplicated, sorted list of state/region names extracted from
+     * trek location strings (e.g., "Manali, Himachal Pradesh" → "Himachal Pradesh").
+     * Used to populate the Location filter dropdown.
+     */
     uniqueLocations() {
       const states = this.availableTreks.map(t => {
         if (!t.location) return '';
@@ -175,6 +229,12 @@ export default {
       }).filter(s => s);
       return [...new Set(states)].sort();
     },
+
+    /**
+     * Returns the subset of `availableTreks` that satisfy all active filters simultaneously:
+     * full-text search, difficulty dropdown, location dropdown, duration range, quick chip,
+     * and the bookable-slots toggle.
+     */
     filteredTreks() {
       return this.availableTreks.filter(t => {
         const q = this.searchQuery.toLowerCase();
@@ -196,29 +256,54 @@ export default {
         return matchSearch && matchDiff && matchLoc && matchDur && matchQuick && matchBookable;
       });
     },
+
+    /**
+     * Returns the total count of treks in `availableTreks` that have at least one
+     * batch with remaining open slots. Used for the informational label beside the toggle.
+     */
     bookableTreksCount() {
       return this.availableTreks.filter(t => this.hasBookableSlots(t)).length;
     }
   },
   mounted() {
+    this.searchQuery = this.initialSearchQuery;
+    // Determine initial viewport size and listen for window resizes to keep isMobileView in sync.
     this.handleViewport();
     window.addEventListener('resize', this.handleViewport);
+    // Close any open filter dropdowns when the user clicks outside a select wrapper.
     document.addEventListener('click', this.clickListener);
   },
   beforeUnmount() {
+    // Clean up event listeners to prevent memory leaks after the component is destroyed.
     window.removeEventListener('resize', this.handleViewport);
     document.removeEventListener('click', this.clickListener);
   },
   methods: {
+    /**
+     * Updates `isMobileView` based on current window width (breakpoint: 900px).
+     * Also hides the mobile filter panel when switching back to desktop.
+     */
     handleViewport() {
       this.isMobileView = window.innerWidth <= 900;
       if (!this.isMobileView) {
         this.showMobileFilters = false;
       }
     },
+
+    /**
+     * Emits 'change-tab' to navigate the user to a different dashboard tab.
+     * @param {string} tab - The tab identifier to navigate to (e.g., 'dashboard').
+     */
     goTab(tab) {
       this.$emit('change-tab', tab);
     },
+
+    /**
+     * Toggles the specified filter dropdown open/closed while closing all others.
+     * Ensures only one custom dropdown is open at a time.
+     * @param {string} type - Data property name of the dropdown to toggle
+     *   ('showDiffFilterDropdown' | 'showLocFilterDropdown' | 'showDurFilterDropdown').
+     */
     toggleFilterDropdown(type) {
       const current = this[type];
       this.showDiffFilterDropdown = false;
@@ -226,9 +311,19 @@ export default {
       this.showDurFilterDropdown = false;
       this[type] = !current;
     },
+
+    /**
+     * Toggles the visibility of the advanced filter panel on mobile viewports.
+     */
     toggleMobileFilters() {
       this.showMobileFilters = !this.showMobileFilters;
     },
+
+    /**
+     * Global document click handler that closes all open filter dropdowns when
+     * the user clicks anywhere outside a `.custom-select-wrapper` element.
+     * @param {MouseEvent} e - The DOM click event.
+     */
     clickListener(e) {
       if (!e.target.closest('.custom-select-wrapper')) {
         this.showDiffFilterDropdown = false;
@@ -236,6 +331,11 @@ export default {
         this.showDurFilterDropdown = false;
       }
     },
+
+    /**
+     * Resets all filter and search state back to their default (show-all) values.
+     * Side effect: re-renders filteredTreks to show the full catalog.
+     */
     resetFilters() {
       this.searchQuery = '';
       this.difficultyFilter = '';
@@ -244,23 +344,58 @@ export default {
       this.quickFilter = 'All';
       this.showBookableOnly = false;
     },
+
+    /**
+     * Emits the 'book-trek' event with the selected trek object to trigger
+     * the booking/payment modal in the parent component.
+     * @param {Object} t - The trek object the user clicked.
+     */
     openBookingModal(t) {
       this.$emit('book-trek', t);
     },
+
+    /**
+     * Determines whether a trek has at least one batch with remaining bookable seats.
+     * Checks nested batches if present, otherwise treats the trek itself as the batch.
+     * @param {Object} t - A trek object, optionally containing a `batches` array.
+     * @returns {boolean} True if any batch has remaining slots.
+     */
     hasBookableSlots(t) {
       if (Array.isArray(t.batches) && t.batches.length) {
         return t.batches.some(b => this.slotsLeft(b) > 0);
       }
       return this.slotsLeft(t) > 0;
     },
+
+    /**
+     * Calculates the number of remaining open slots for a batch or trek record.
+     * Guards against missing or null slot/booked values.
+     * @param {Object} t - A trek or batch object with optional `slots` and `booked` fields.
+     * @returns {number} Available slots (minimum 0).
+     */
     slotsLeft(t) { 
       return Math.max(0, Number(t?.slots || 0) - Number(t?.booked || 0)); 
     },
+
+    /**
+     * Generates a deterministic CSS linear-gradient string for trek image placeholders.
+     * The gradient is picked from a fixed palette using the trek's ID as an index,
+     * ensuring a consistent color for each trek across renders.
+     * @param {Object} t - A trek object with an optional numeric `id`.
+     * @returns {string} A CSS `linear-gradient(...)` string.
+     */
     getGradient(t) {
       const grads = ['#1a4a3a','#2d6b3d','#2a3a1a','#3d5b2d','#1a3a2a','#2d5b4a','#3a1a1a','#5b2d2d','#1a2a3a','#2d3b5b'];
       const id = t.id || 0;
       return `linear-gradient(135deg, ${grads[id % grads.length]}, rgba(0,0,0,0.5))`;
     },
+
+    /**
+     * Truncates a trek's description to a maximum of 120 characters for card display.
+     * Appends an ellipsis if the text exceeds the limit.
+     * @param {Object} t - A trek object with an optional `description` string.
+     * @returns {string} The original or truncated description text.
+     */
     cleanDescription(t) {
       if (!t.description) return '';
       if (t.description.length > 120) return t.description.slice(0, 117) + '...';

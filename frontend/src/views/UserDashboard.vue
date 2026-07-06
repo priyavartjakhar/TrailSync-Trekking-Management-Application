@@ -1,21 +1,8 @@
 <template>
   <div class="ts-user-layout">
-    <!-- Toast Notification -->
-    <transition name="toast">
-      <div v-if="toast.show" :class="['toast-notification', toast.type]">
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" fill="none" stroke-width="2">
-            <path v-if="toast.type === 'success'" d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-            <polyline v-if="toast.type === 'success'" points="22 4 12 14.01 9 11.01" />
-            <circle v-else cx="12" cy="12" r="10" />
-            <line v-if="toast.type !== 'success'" x1="12" y1="8" x2="12" y2="12" />
-            <line v-if="toast.type !== 'success'" x1="12" y1="16" x2="12.01" y2="16" />
-          </svg>
-          {{ toast.msg }}
-        </div>
-      </div>
-    </transition>
 
+    <!-- ── LAYOUT BRANCH: WITH SIDEBAR ──────────────────────────────── -->
+    <!-- Rendered when `showSidebar` is true (desktop / normal view). -->
     <!-- Sidebar component -->
     <template v-if="showSidebar">
       <UserSidebar
@@ -30,12 +17,13 @@
         @logout="handleLogout"
       />
 
-      <!-- Main Content wrapper -->
+      <!-- ── MAIN CONTENT WRAPPER (SIDEBAR-AWARE) ──────────────────── -->
+      <!-- Applies `.expanded` class when sidebar is collapsed to reclaim horizontal space. -->
       <div class="ts-main-content" :class="{ expanded: sidebarCollapsed }">
         <!-- Overlay for mobile drawer -->
         <div class="sidebar-overlay" :class="{ visible: sidebarOpen }" @click="closeSidebar"></div>
 
-      <!-- Topbar component -->
+      <!-- ── TOPBAR ───────────────────────────────────────────────── -->
       <UserTopbar
         :active-tab="activeTab"
         :sidebar-collapsed="sidebarCollapsed"
@@ -47,7 +35,8 @@
         @logout="handleLogout"
       />
 
-      <!-- Page Content -->
+      <!-- ── PAGE CONTENT / TAB ROUTER ─────────────────────────────── -->
+      <!-- Each tab is conditionally rendered via v-if; only one is mounted at a time. -->
       <div class="page-content">
         <!-- Dashboard Tab -->
         <TabDashboard
@@ -71,6 +60,7 @@
         <TabExplore
           v-if="activeTab === 'explore'"
           :available-treks="availableTreks"
+          :initial-search-query="searchQuery"
           @book-trek="openBookingModal"
           @change-tab="goTab"
         />
@@ -91,21 +81,18 @@
         <TabHistory
           v-if="activeTab === 'history'"
           :trek-history="trekHistory"
-          :export-pending="exportPending"
           @change-tab="goTab"
-          @request-export="requestExport"
+          @show-toast="showToast"
         />
 
         <!-- Profile Tab -->
         <TabProfile
           v-if="activeTab === 'profile'"
           :profile="profile"
-          :export-pending="exportPending"
-          @update-profile="saveProfile"
-          @update-password="changePassword"
+          @profile-updated="fetchUserData"
+          @logout="handleLogout"
           @change-tab="goTab"
-          @request-export="requestExport"
-          @delete-account="deleteAccount"
+          @show-toast="showToast"
         />
 
 
@@ -113,11 +100,8 @@
         <TabSupport
           v-if="activeTab === 'support'"
           :profile="profile"
-          :support-tickets="supportTickets"
-          :loading-support="loadingSupport"
-          :submitting-support="submittingSupport"
-          @submit-ticket="submitSupportTicket"
           @change-tab="goTab"
+          @show-toast="showToast"
         />
 
         <!-- Social Tab -->
@@ -125,21 +109,18 @@
           v-if="activeTab === 'social'"
           :profile="profile"
           :social-groups="socialGroups"
-          :selected-social-trek-id="selectedSocialTrekId"
-          :social-group-members-list="socialGroupMembersList"
-          :current-group-messages="currentGroupMessages"
-          :current-group-announcements="currentGroupAnnouncements"
-          :selected-social-group-trek="selectedSocialGroupTrek"
           @change-tab="goTab"
-          @select-group="selectSocialGroup"
-          @close-chat="closeSocialChat"
-          @send-message="sendSocialMessage"
           @view-fellow-profile="openSocialProfileModal"
+          @refresh-groups="fetchSocialGroupsSilent"
+          @show-toast="showToast"
         />
       </div>
       </div>
     </template>
 
+    <!-- ── LAYOUT BRANCH: WITHOUT SIDEBAR ──────────────────────────── -->
+    <!-- Shown when `showSidebar` is false (e.g., embedded mode or very small screens). -->
+    <!-- Sidebar is omitted; content always uses the fully-expanded layout. -->
     <template v-else>
       <div class="ts-main-content" :class="{ expanded: true }">
         <UserTopbar
@@ -173,6 +154,7 @@
           <TabExplore
             v-if="activeTab === 'explore'"
             :available-treks="availableTreks"
+            :initial-search-query="searchQuery"
             @book-trek="openBookingModal"
             @change-tab="goTab"
           />
@@ -191,46 +173,34 @@
           <TabHistory
             v-if="activeTab === 'history'"
             :trek-history="trekHistory"
-            :export-pending="exportPending"
             @change-tab="goTab"
-            @request-export="requestExport"
+            @show-toast="showToast"
           />
 
           <TabProfile
             v-if="activeTab === 'profile'"
             :profile="profile"
-            :export-pending="exportPending"
-            @update-profile="saveProfile"
-            @update-password="changePassword"
+            @profile-updated="fetchUserData"
+            @logout="handleLogout"
             @change-tab="goTab"
-            @request-export="requestExport"
-            @delete-account="deleteAccount"
+            @show-toast="showToast"
           />
 
           <TabSupport
             v-if="activeTab === 'support'"
             :profile="profile"
-            :support-tickets="supportTickets"
-            :loading-support="loadingSupport"
-            :submitting-support="submittingSupport"
-            @submit-ticket="submitSupportTicket"
             @change-tab="goTab"
+            @show-toast="showToast"
           />
 
           <TabSocial
             v-if="activeTab === 'social'"
             :profile="profile"
             :social-groups="socialGroups"
-            :selected-social-trek-id="selectedSocialTrekId"
-            :social-group-members-list="socialGroupMembersList"
-            :current-group-messages="currentGroupMessages"
-            :current-group-announcements="currentGroupAnnouncements"
-            :selected-social-group-trek="selectedSocialGroupTrek"
             @change-tab="goTab"
-            @select-group="selectSocialGroup"
-            @close-chat="closeSocialChat"
-            @send-message="sendSocialMessage"
             @view-fellow-profile="openSocialProfileModal"
+            @refresh-groups="fetchSocialGroupsSilent"
+            @show-toast="showToast"
           />
         </div>
       </div>
@@ -350,373 +320,21 @@
     </transition>
 
     <!-- ── GUIDE PROFILE MODAL ────────────────────── -->
-    <transition name="toast">
-      <div v-if="showGuideModal" class="ts-modal-overlay" @click.self="showGuideModal = false">
-        <div class="ts-modal ts-modal-sm">
-          <div class="ts-modal-header">
-            <span class="ts-modal-title">Guide Profile</span>
-            <button class="modal-close" @click="showGuideModal = false">✕</button>
-          </div>
-          <div class="ts-modal-body" style="text-align:center" v-if="guideTarget">
-            <img :src="guideTarget.photoUrl" :alt="guideTarget.name" style="width:100px; height:100px; border-radius:50%; object-fit:cover; margin-bottom:1rem; border:3px solid var(--gold)" />
-            <h3 style="font-family:'Playfair Display',serif; font-size:1.3rem; margin-bottom:0.25rem">{{ guideTarget.name }}</h3>
-            <div style="font-size:0.8rem; color:var(--stone); margin-bottom:1rem; font-weight:600; text-transform:uppercase; letter-spacing:0.05em">{{ guideTarget.designation }}</div>
-
-            <div style="text-align:left; background:var(--cream); padding:1rem; border-radius:var(--radius); margin-bottom:1rem; font-size:0.85rem">
-              <div style="margin-bottom:0.5rem"><strong>Experience:</strong> {{ guideTarget.experienceYears }} years ({{ guideTarget.completedTreksCount }} treks completed)</div>
-              <div style="margin-bottom:0.5rem"><strong>Certifications:</strong> {{ guideTarget.certifications }}</div>
-              <div style="margin-bottom:0.5rem"><strong>Languages:</strong> {{ guideTarget.languages }}</div>
-              <div style="margin-bottom:0.5rem"><strong>Staff ID:</strong> {{ guideTarget.memberId }}</div>
-            </div>
-
-            <div style="display:flex; flex-direction:column; gap:0.25rem; font-size:0.8rem; color:var(--bark)">
-              <div>📞 {{ guideTarget.phone }}</div>
-              <div>✉️ {{ guideTarget.email }}</div>
-            </div>
-          </div>
-          <div class="ts-modal-footer">
-            <button class="btn-modal-cancel" @click="showGuideModal = false">Close</button>
-          </div>
-        </div>
-      </div>
-    </transition>
+    <GuideModal :show="showGuideModal" :guide="guideTarget" @close="showGuideModal = false" />
 
     <!-- ── CHECKLIST MODAL ────────────────────────── -->
-    <transition name="toast">
-      <div v-if="showChecklistModal" class="ts-modal-overlay" @click.self="showChecklistModal = false">
-        <div class="ts-modal" style="max-width:550px">
-          <div class="ts-modal-header">
-            <span class="ts-modal-title">Trek Checklist</span>
-            <button class="modal-close" @click="showChecklistModal = false">✕</button>
-          </div>
-          <div class="ts-modal-body" v-if="checklistTargetBooking">
-            <h3 style="font-family:'Playfair Display',serif; font-size:1.2rem; margin-bottom:0.5rem">{{ checklistTargetBooking.trekName }}</h3>
-            <p style="font-size:0.8rem; color:var(--stone); margin-bottom:1.5rem">
-              Carry these items to ensure a safe and comfortable trek. Your checked items will persist automatically.
-            </p>
-
-            <!-- Section 1: Standard Packing List -->
-            <div style="margin-bottom:1.5rem">
-              <h4 style="font-size:0.85rem; text-transform:uppercase; color:var(--forest); letter-spacing:0.05em; margin-bottom:0.75rem; border-bottom:1px solid rgba(0,0,0,0.06); padding-bottom:4px">🎒 Standard Packing List</h4>
-              <div style="display:flex; flex-direction:column; gap:0.5rem">
-                <div v-if="!checklistItems.filter(i => i.category === 'default').length" style="font-size:0.8rem; color:var(--stone)">No standard items.</div>
-                <label v-for="item in checklistItems.filter(i => i.category === 'default')" :key="item.id" style="display:flex; align-items:flex-start; gap:8px; font-size:0.85rem; cursor:pointer">
-                  <input type="checkbox" :checked="item.isCompleted" @change="toggleChecklistItem(item)" style="margin-top:3px" />
-                  <span :style="{ textDecoration: item.isCompleted ? 'line-through' : 'none', color: item.isCompleted ? 'var(--stone)' : 'inherit' }">{{ item.itemName }}</span>
-                </label>
-              </div>
-            </div>
-
-            <!-- Section 2: Guide Recommended Gear -->
-            <div>
-              <h4 style="font-size:0.85rem; text-transform:uppercase; color:var(--gold); letter-spacing:0.05em; margin-bottom:0.75rem; border-bottom:1px solid rgba(0,0,0,0.06); padding-bottom:4px">👤 Guide Recommended Gear</h4>
-              <div style="display:flex; flex-direction:column; gap:0.5rem">
-                <div v-if="!checklistItems.filter(i => i.category === 'guide').length" style="font-size:0.8rem; color:var(--stone); font-style:italic">No additional recommendations from the guide yet.</div>
-                <label v-for="item in checklistItems.filter(i => i.category === 'guide')" :key="item.id" style="display:flex; align-items:flex-start; gap:8px; font-size:0.85rem; cursor:pointer">
-                  <input type="checkbox" :checked="item.isCompleted" @change="toggleChecklistItem(item)" style="margin-top:3px" />
-                  <span :style="{ textDecoration: item.isCompleted ? 'line-through' : 'none', color: item.isCompleted ? 'var(--stone)' : 'inherit' }">{{ item.itemName }}</span>
-                </label>
-              </div>
-            </div>
-          </div>
-          <div class="ts-modal-footer">
-            <button class="btn-modal-cancel" @click="showChecklistModal = false">Close</button>
-          </div>
-        </div>
-      </div>
-    </transition>
+    <ChecklistModal :show="showChecklistModal" :booking="checklistTargetBooking" @close="showChecklistModal = false" @show-toast="showToast" />
 
     <!-- ── SIMULATED PAYMENT MODAL ────────────────── -->
-    <transition name="toast">
-      <div v-if="showPaymentModal" class="ts-modal-overlay" @click.self="dismissPaymentModal(false)">
-        <div class="ts-modal" style="max-width: 520px; border: none; box-shadow: 0 20px 50px rgba(0,0,0,0.3);">
-          
-          <!-- Header -->
-          <div class="pay-sim-modal-header d-flex justify-content-between align-items-center">
-            <div>
-              <div class="ts-modal-title pay-sim-title">Select Payment Method</div>
-              <div class="pay-sim-subtitle">Choose how you want to confirm this trek booking.</div>
-            </div>
-            <button class="modal-close" @click="dismissPaymentModal(false)"><i class="bi bi-x-lg"></i></button>
-          </div>
-
-          <!-- Body -->
-          <div class="ts-modal-body" style="padding: 1.5rem;" v-if="paymentTrekBatch">
-            
-            <!-- STATE 1: Interactive form -->
-            <template v-if="!paymentProcessing && !paymentResultState">
-              <!-- Itemized Receipt -->
-              <div class="pay-sim-receipt">
-                <div class="pay-sim-receipt-title">{{ paymentTrekBatch.name }}</div>
-                <div class="pay-sim-row">
-                  <span>Location</span>
-                  <strong><i class="bi bi-geo-alt-fill"></i> {{ paymentTrekBatch.place ? paymentTrekBatch.place + ', ' : '' }}{{ paymentTrekBatch.location }}</strong>
-                </div>
-                <div class="pay-sim-row" v-if="paymentTrekBatch.batchCode">
-                  <span>Batch ID</span>
-                  <strong class="mono" style="color: var(--gold-dark);">{{ paymentTrekBatch.batchCode }}</strong>
-                </div>
-                <div class="pay-sim-row">
-                  <span>Booking ID</span>
-                  <span class="mono" style="font-size: 0.75rem;">{{ isPendingRetry ? paymentTrekBatch.bookingId : 'Pending Generation' }}</span>
-                </div>
-                <div class="pay-sim-row total">
-                  <span>Total Amount</span>
-                  <span>₹{{ paymentTrekBatch.price.toLocaleString() }}</span>
-                </div>
-              </div>
-
-              <!-- Payment Methods -->
-              <div v-if="!selectedPaymentMethod" class="pay-sim-method-section">
-                <label class="pay-sim-section-label">Select Payment Method</label>
-                <div class="pay-sim-methods">
-                  <button type="button" class="pay-sim-method-card" @click="selectedPaymentMethod = 'UPI'">
-                    <span class="pay-sim-method-icon"><i class="bi bi-lightning-charge-fill"></i></span>
-                    <span class="pay-sim-method-copy">
-                      <strong>UPI</strong>
-                      <small>Pay using any UPI ID</small>
-                    </span>
-                    <i class="bi bi-chevron-right"></i>
-                  </button>
-                  <button type="button" class="pay-sim-method-card" @click="selectedPaymentMethod = 'Netbanking'">
-                    <span class="pay-sim-method-icon"><i class="bi bi-bank"></i></span>
-                    <span class="pay-sim-method-copy">
-                      <strong>Netbanking</strong>
-                      <small>Select your bank account</small>
-                    </span>
-                    <i class="bi bi-chevron-right"></i>
-                  </button>
-                  <button type="button" class="pay-sim-method-card" @click="selectedPaymentMethod = 'EMI'">
-                    <span class="pay-sim-method-icon"><i class="bi bi-calendar2-check"></i></span>
-                    <span class="pay-sim-method-copy">
-                      <strong>EMI Options</strong>
-                      <small>Split the trek fee</small>
-                    </span>
-                    <i class="bi bi-chevron-right"></i>
-                  </button>
-                  <button type="button" class="pay-sim-method-card" @click="selectedPaymentMethod = 'Card'">
-                    <span class="pay-sim-method-icon"><i class="bi bi-credit-card-2-front-fill"></i></span>
-                    <span class="pay-sim-method-copy">
-                      <strong>Card (Debit/Credit)</strong>
-                      <small>Use card details</small>
-                    </span>
-                    <i class="bi bi-chevron-right"></i>
-                  </button>
-                  <button type="button" class="pay-sim-method-card" @click="selectedPaymentMethod = 'PayLater'">
-                    <span class="pay-sim-method-icon"><i class="bi bi-cash-coin"></i></span>
-                    <span class="pay-sim-method-copy">
-                      <strong>Pay Later / Pay at Base Camp</strong>
-                      <small>Reserve now, pay before trek</small>
-                    </span>
-                    <i class="bi bi-chevron-right"></i>
-                  </button>
-                </div>
-              </div>
-
-              <template v-else>
-                <div class="pay-sim-selected-head">
-                  <div>
-                    <span class="pay-sim-selected-label">Selected Method</span>
-                    <strong>{{ paymentMethodLabel(selectedPaymentMethod) }}</strong>
-                  </div>
-                  <button type="button" class="pay-sim-change-btn" @click="selectedPaymentMethod = ''">
-                    <i class="bi bi-arrow-left"></i> Change Payment Method
-                  </button>
-                </div>
-
-                <!-- Interactive Fields: UPI -->
-                <div v-if="selectedPaymentMethod === 'UPI'" class="pay-sim-card-view">
-                  <label class="pay-sim-field-label">UPI Virtual Payment Address (VPA)</label>
-                  <div class="position-relative">
-                    <input type="text" class="pay-sim-input has-action" placeholder="e.g. trekker@upi" v-model="paymentDetails.upiId" />
-                    <div class="pay-sim-input-action">
-                      <button type="button" class="pay-sim-mini-btn" @click="paymentDetails.upiId = 'trek@okaxis'">Use demo</button>
-                    </div>
-                  </div>
-                  <div class="pay-sim-help">Enter any UPI ID to continue.</div>
-                </div>
-
-                <!-- Interactive Fields: Card -->
-                <div v-if="selectedPaymentMethod === 'Card'" class="pay-sim-card-view">
-                  <div class="pay-sim-field">
-                    <label class="pay-sim-field-label">Cardholder Name</label>
-                    <input type="text" class="pay-sim-input" placeholder="e.g. Priyavart Jakhar" v-model="paymentDetails.cardName" />
-                  </div>
-                  <div class="pay-sim-field">
-                    <label class="pay-sim-field-label">Card Number</label>
-                    <input type="text" class="pay-sim-input" placeholder="4111 2222 3333 4444" :value="paymentDetails.cardNumber" @input="onCardNumberInput" />
-                  </div>
-                  <div class="pay-sim-two-col">
-                    <div>
-                      <label class="pay-sim-field-label">Expiry Date</label>
-                      <input type="text" class="pay-sim-input" placeholder="MM/YY" :value="paymentDetails.cardExpiry" @input="onCardExpiryInput" />
-                    </div>
-                    <div>
-                      <label class="pay-sim-field-label">CVV Code</label>
-                      <input type="password" class="pay-sim-input" placeholder="•••" :value="paymentDetails.cardCvv" @input="onCardCvvInput" />
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Interactive Fields: Netbanking -->
-                <div v-if="selectedPaymentMethod === 'Netbanking'" class="pay-sim-card-view">
-                  <div class="pay-sim-field">
-                    <label class="pay-sim-field-label">Select Bank</label>
-                    <select class="pay-sim-input" v-model="paymentDetails.bank">
-                      <option>State Bank of India</option>
-                      <option>HDFC Bank</option>
-                      <option>ICICI Bank</option>
-                      <option>Axis Bank</option>
-                      <option>Kotak Mahindra Bank</option>
-                    </select>
-                  </div>
-                  <div class="pay-sim-field">
-                    <label class="pay-sim-field-label">Customer ID / User ID</label>
-                    <input type="text" class="pay-sim-input" placeholder="Enter bank user ID" v-model="paymentDetails.bankUserId" />
-                  </div>
-                  <div class="pay-sim-help">Your bank selection will be used for this payment.</div>
-                </div>
-
-                <!-- Interactive Fields: EMI -->
-                <div v-if="selectedPaymentMethod === 'EMI'" class="pay-sim-card-view">
-                  <div class="pay-sim-field">
-                    <label class="pay-sim-field-label">EMI Provider</label>
-                    <select class="pay-sim-input" v-model="paymentDetails.emiProvider">
-                      <option>HDFC Bank</option>
-                      <option>ICICI Bank</option>
-                      <option>Axis Bank</option>
-                      <option>Bajaj Finance</option>
-                    </select>
-                  </div>
-                  <div class="pay-sim-field">
-                    <label class="pay-sim-field-label">Tenure</label>
-                    <select class="pay-sim-input" v-model="paymentDetails.emiTenure">
-                      <option>3 months</option>
-                      <option>6 months</option>
-                      <option>9 months</option>
-                      <option>12 months</option>
-                    </select>
-                  </div>
-                  <div class="pay-sim-help">EMI approval is prepared for this booking flow.</div>
-                </div>
-
-                <!-- Interactive Fields: Pay Later -->
-                <div v-if="selectedPaymentMethod === 'PayLater'" class="pay-sim-card-view pay-sim-offline-note">
-                  <div class="pay-sim-offline-icon"><i class="bi bi-geo-alt-fill"></i></div>
-                  <div>
-                    <strong>Pay at Base Camp</strong>
-                    <p>Your seat will be reserved now and the booking will stay pending until payment is collected at base camp.</p>
-                  </div>
-                </div>
-
-                <!-- Action Buttons -->
-                <div class="pay-sim-actions">
-                  <button type="button" @click="processSelectedPayment" class="pay-sim-btn success">
-                    <span><i class="bi bi-shield-check"></i></span>
-                    {{ selectedPaymentMethod === 'PayLater' ? 'Pay Later' : 'Pay' }} (₹{{ paymentTrekBatch.price.toLocaleString() }})
-                  </button>
-                  <button type="button" class="pay-sim-btn cancel" @click="dismissPaymentModal(false)">
-                    Cancel Payment
-                  </button>
-                </div>
-              </template>
-            </template>
-
-            <!-- STATE 2: Processing Loader Screen -->
-            <template v-if="paymentProcessing">
-              <div class="pay-sim-loader-wrap">
-                <div class="pay-sim-spinner"></div>
-                <div style="font-weight: 700; color: var(--forest); font-size: 1.05rem; margin-bottom: 6px;">Processing Transaction</div>
-                <div style="font-size: 0.82rem; color: var(--stone); height: 24px;">{{ paymentProcessingMsg }}</div>
-                <div class="pay-sim-progress-track">
-                  <div class="pay-sim-progress-fill" :style="{ width: paymentProcessingProgress + '%' }"></div>
-                </div>
-              </div>
-            </template>
-
-            <!-- STATE 3: Success Screen -->
-            <template v-if="paymentResultState === 'Paid'">
-              <div class="pay-sim-result-wrap">
-                <div class="pay-sim-icon-circle success"><i class="bi bi-check-lg"></i></div>
-                <div class="pay-sim-result-title">Payment Successful!</div>
-                <div class="pay-sim-result-text">Your transaction has been processed securely. Your trek booking is confirmed, and your permit is being initialized.</div>
-                
-                <div class="pay-sim-receipt-summary">
-                  <div class="pay-sim-row" style="margin-bottom: 4px;">
-                    <span>Trek Booking</span>
-                    <strong>{{ paymentTrekBatch.name }}</strong>
-                  </div>
-                  <div class="pay-sim-row" style="margin-bottom: 4px;">
-                    <span>Booking ID</span>
-                    <strong class="mono">{{ paymentResultBookingId }}</strong>
-                  </div>
-                  <div class="pay-sim-row" style="margin-bottom: 4px;">
-                    <span>Method</span>
-                    <strong style="text-transform: uppercase;">{{ selectedPaymentMethod }}</strong>
-                  </div>
-                  <div class="pay-sim-row" style="margin-bottom: 4px; border-top: 1px dashed rgba(0,0,0,0.1); padding-top: 4px; margin-top: 4px;">
-                    <span>Amount Charged</span>
-                    <strong style="color: #10b981;">₹{{ paymentTrekBatch.price.toLocaleString() }}</strong>
-                  </div>
-                </div>
-
-                <button class="pay-sim-bookings-btn" @click="dismissPaymentModal(true)">
-                  Go to My Bookings <i class="bi bi-arrow-right"></i>
-                </button>
-              </div>
-            </template>
-
-            <!-- STATE 4: Pending Screen -->
-            <template v-if="paymentResultState === 'Pending'">
-              <div class="pay-sim-result-wrap">
-                <div class="pay-sim-icon-circle pending"><i class="bi bi-hourglass-split"></i></div>
-                <div class="pay-sim-result-title">Offline / Pending Booking</div>
-                <div class="pay-sim-result-text">Your booking has been reserved. The payment is marked pending and can be completed at base camp.</div>
-                
-                <div class="pay-sim-receipt-summary">
-                  <div class="pay-sim-row" style="margin-bottom: 4px;">
-                    <span>Trek Booking</span>
-                    <strong>{{ paymentTrekBatch.name }}</strong>
-                  </div>
-                  <div class="pay-sim-row" style="margin-bottom: 4px;">
-                    <span>Booking ID</span>
-                    <strong class="mono">{{ paymentResultBookingId }}</strong>
-                  </div>
-                  <div class="pay-sim-row" style="margin-bottom: 4px;">
-                    <span>Booking Status</span>
-                    <strong style="color: #f59e0b;">Pending Payment</strong>
-                  </div>
-                  <div class="pay-sim-row" style="margin-bottom: 4px; border-top: 1px dashed rgba(0,0,0,0.1); padding-top: 4px; margin-top: 4px;">
-                    <span>Amount Due</span>
-                    <strong>₹{{ paymentTrekBatch.price.toLocaleString() }}</strong>
-                  </div>
-                </div>
-
-                <button class="pay-sim-bookings-btn" @click="dismissPaymentModal(true)">
-                  Go to My Bookings <i class="bi bi-arrow-right"></i>
-                </button>
-              </div>
-            </template>
-
-            <!-- STATE 5: Failure Screen -->
-            <template v-if="paymentResultState === 'Failed'">
-              <div class="pay-sim-result-wrap">
-                <div class="pay-sim-icon-circle failure"><i class="bi bi-x-lg"></i></div>
-                <div class="pay-sim-result-title">Transaction Declined</div>
-                <div class="pay-sim-result-text">The card network or issuing bank declined the transaction. Check credit limits, card details, or try a different payment method.</div>
-                
-                <div class="w-100 d-flex gap-2" style="margin-top: 1rem;">
-                  <button class="btn btn-outline flex-grow-1" @click="dismissPaymentModal(true)" style="padding: 10px; border-radius: 8px;">Cancel</button>
-                  <button class="btn-primary-ts flex-grow-1" @click="resetPaymentForm" style="padding: 10px; border-radius: 8px; font-weight: 700;">Try Again</button>
-                </div>
-              </div>
-            </template>
-
-          </div>
-
-        </div>
-      </div>
-    </transition>
+    <PaymentModal
+      :show="showPaymentModal"
+      :payment-trek-batch="paymentTrekBatch"
+      :is-pending-retry="isPendingRetry"
+      :retry-booking-id="retryBookingId"
+      @close="dismissPaymentModal"
+      @payment-success="fetchUserData"
+      @show-toast="showToast"
+    />
 
     <!-- ── CANCEL BOOKING CONFIRMATION MODAL ─────────── -->
     <transition name="modal">
@@ -756,13 +374,19 @@
       </transition>
     </div>
   </div>
-
 </template>
 
 <script>
+/**
+ * =========================================================================
+ * User (Trekker) Dashboard View Component
+ * =========================================================================
+ * This is the root wrapper for the Trekker dashboard. It handles all state
+ * management, UI drawers, modals, countdown timers, API integration, and
+ * passes down data to individual tab view components.
+ */
 
 import {
-  USER_INITIAL_NAME,
   USER_AVAILABLE_TREKS,
   USER_MY_BOOKINGS,
   USER_TREK_HISTORY,
@@ -780,6 +404,10 @@ import TabProfile from '../components/trekker_dash_components/TabProfile.vue';
 import TabSupport from '../components/trekker_dash_components/TabSupport.vue';
 import TabSocial from '../components/trekker_dash_components/TabSocial.vue';
 
+import GuideModal from '../components/trekker_dash_components/GuideModal.vue';
+import ChecklistModal from '../components/trekker_dash_components/ChecklistModal.vue';
+import PaymentModal from '../components/trekker_dash_components/PaymentModal.vue';
+
 export default {
   components: {
     UserSidebar,
@@ -790,7 +418,10 @@ export default {
     TabHistory,
     TabProfile,
     TabSupport,
-    TabSocial
+    TabSocial,
+    GuideModal,
+    ChecklistModal,
+    PaymentModal
   },
 
   name: 'TsUserLayout',
@@ -798,88 +429,94 @@ export default {
 
   data() {
     return {
-      // ── UI STATE ──────────────────────────────────
+      // ── UI STATE ──────────────────────────────────────────────────────
+      // Controls which dashboard tab is currently visible.
       activeTab: 'dashboard',
+      // Whether the mobile drawer sidebar is slid open.
       sidebarOpen: false,
+      // Whether the desktop sidebar is collapsed to icon-only mode.
       sidebarCollapsed: true,
+      // Master flag: hides the entire sidebar (e.g., for embedded / no-nav mode).
       showSidebar: true,
+      // Toast notification state: show flag, message text, and type ('success'|'error'|'info').
       toast: { show: false, msg: '', type: 'success' },
+      // Controls visibility of the profile quick-access dropdown in the topbar.
       showProfileDropdown: false,
 
-      // ── DATA ──────────────────────────────────────
-      userName: USER_INITIAL_NAME,
-      isEditingProfile: false,
-      editProfile: { ...USER_INITIAL_PROFILE },
-      profileImageFile: null,
+      // ── USER DATA ────────────────────────────────────────────────────
+      // Logged-in trekker's profile (name, email, photo, fitness level, etc.).
       profile: { ...USER_INITIAL_PROFILE },
-      pwForm: { current: '', new: '', confirm: '' },
+      // Full list of treks available for booking; deep-cloned to prevent mutation of the source.
       availableTreks: JSON.parse(JSON.stringify(USER_AVAILABLE_TREKS)),
+      // Active and past (non-history) bookings made by this trekker.
       myBookings: JSON.parse(JSON.stringify(USER_MY_BOOKINGS)),
+      // Completed trek records used for the History tab and analytics.
       trekHistory: JSON.parse(JSON.stringify(USER_TREK_HISTORY)),
+      // Earned achievement/badge objects shown on the Dashboard.
       achievements: JSON.parse(JSON.stringify(USER_ACHIEVEMENTS)),
 
-      // ── BOOKING MODAL ─────────────────────────────
+      // ── BOOKING MODAL STATE ──────────────────────────────────────────
+      // Whether the trek-detail / batch-selection booking modal is open.
       showBookingModal: false,
+      // The trek object currently being viewed inside the booking modal.
       bookingTarget: null,
+      // User must accept terms before completing a booking (controlled inside modal).
       termsAccepted: false,
+
+      // ── PAYMENT MODAL STATE ──────────────────────────────────────────
+      // Whether the simulated payment flow modal is open.
       showPaymentModal: false,
+      // Batch/trek metadata passed to PaymentModal to display order summary.
       paymentTrekBatch: null,
-      selectedPaymentMethod: '',
+      // True when re-opening the payment modal for a previously pending booking.
       isPendingRetry: false,
+      // The booking ID being retried so PaymentModal can PATCH the correct record.
       retryBookingId: null,
 
-      // ── CANCEL CONFIRMATION MODAL ──────────────────
+      // ── CANCEL BOOKING CONFIRM STATE ─────────────────────────────────
+      // Whether the "Are you sure?" cancel-booking confirmation dialog is visible.
       showCancelConfirm: false,
+      // The booking object staged for cancellation; cleared after confirmation or dismiss.
       cancelTarget: null,
 
-      // ── SIMULATED PAYMENT GATEWAY STATE ───────────
-      paymentProcessing: false,
-      paymentProcessingMsg: '',
-      paymentProcessingProgress: 0,
-      paymentResultState: null,
-      paymentResultBookingId: '',
-      paymentDetails: {
-        cardNumber: '',
-        cardName: '',
-        cardExpiry: '',
-        cardCvv: '',
-        upiId: '',
-        bank: 'State Bank of India',
-        bankUserId: '',
-        emiProvider: 'HDFC Bank',
-        emiTenure: '3 months'
-      },
-
-      // ── SEARCH / FILTERS ─────────────────────────
+      // ── FILTER STATE (Explore tab) ────────────────────────────────────
+      // Live text typed into the global search bar.
       searchQuery: '',
+      // Difficulty filter value: 'Easy' | 'Moderate' | 'Hard' | ''.
       difficultyFilter: '',
+      // Free-text location filter string.
       locationFilter: '',
+      // Duration-range filter string.
       durationFilter: '',
+      // Quick-filter chip value: 'All' | 'Easy' | 'Moderate' | 'Hard' | 'Bookable'.
       quickFilter: 'All',
+      // When true, only treks with at least one available slot are shown.
       showBookableOnly: false,
+      // Dropdown open-states for each filter panel.
       showDiffFilterDropdown: false,
       showLocFilterDropdown: false,
       showDurFilterDropdown: false,
 
-      // ── CALENDAR ─────────────────────────────────
-      calYear: new Date().getFullYear(),
-      calMonth: new Date().getMonth(),
-
-      // ── COUNTDOWN ─────────────────────────────────
+      // ── COUNTDOWN TIMER ──────────────────────────────────────────────
+      // Reference to the setInterval handle for the next-trek countdown (cleared on unmount).
       countdownTimer: null,
+      // Current decomposed time remaining until the next upcoming trek starts.
       countdownVals: { days: 0, hours: 0, minutes: 0, seconds: 0 },
 
-      // ── EXPORT ────────────────────────────────────
-      exportPending: false,
-
-      // ── CUSTOM MODALS ─────────────────────────────
+      // ── GUIDE MODAL STATE ────────────────────────────────────────────
+      // Whether the guide profile modal is open.
       showGuideModal: false,
+      // The guide object to render inside GuideModal.
       guideTarget: null,
-      showChecklistModal: false,
-      checklistTargetBooking: null,
-      checklistItems: [],
 
-      // ── WEATHER ───────────────────────────────────
+      // ── CHECKLIST MODAL STATE ────────────────────────────────────────
+      // Whether the pre-trek packing checklist modal is open.
+      showChecklistModal: false,
+      // The booking associated with the checklist being viewed.
+      checklistTargetBooking: null,
+
+      // ── WEATHER WIDGET STATE ─────────────────────────────────────────
+      // Real-time weather data fetched from Open-Meteo for the next trek's coordinates.
       weather: {
         loading: false,
         error: false,
@@ -891,21 +528,9 @@ export default {
         locationName: '',
       },
 
-      // ── SUPPORT STATE ─────────────────────────────
-      supportTickets: [],
-      supportForm: { subject: '', message: '', category: 'General' },
-      submittingSupport: false,
-      loadingSupport: false,
-      expandedFaq: null,
-      showCategoryDropdown: false,
-
-      // ── INTERACTIVE WIDGETS STATE ──────────────────
-      showPrepDrawer: false,
-      guideMessage: '',
-      guideChatHistory: [
-        { sender: 'guide', text: 'Hello! I am your guide for the upcoming Tada Falls Trek. Feel free to ask me any questions about prep, gear, or conditions!' }
-      ],
-      guideIsTyping: false,
+      // ── COMMUNITY FEED ───────────────────────────────────────────────
+      // Static community story posts displayed on the Dashboard tab.
+      // Each entry: { id, author, avatar (initials), title, trekName, text, likes, comments, img }.
       communityPosts: [
         { id: 1, author: 'Aarav Mehta', avatar: 'AM', title: 'Tada Falls Wonder', trekName: 'Tada Falls Trek', text: 'Navigating the rocky stream beds and slippery boulders of Tada Falls was challenging but incredibly rewarding. The final pool of crystal-clear water cascading down the red cliffs was the perfect reward. We spent hours swimming and enjoying the absolute tranquility of the deep forest.', likes: 24, comments: 5, img: 'https://images.unsplash.com/photo-1544644181-1484b3fdfc62?w=600&fit=crop' },
         { id: 2, author: 'Nisha Sharma', avatar: 'NS', title: 'Kedarkantha Summit!', trekName: 'Kedarkantha Trek', text: 'The summit climb started at 3 AM under a canopy of brilliant stars. The temperature dropped to -6°C, freezing our water bottles, but the final push to the top was magical. Watching the golden sun rise over the snow-capped Himalayan peaks was a deeply spiritual experience I will cherish forever.', likes: 142, comments: 18, img: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=600&fit=crop' },
@@ -914,44 +539,27 @@ export default {
         { id: 5, author: 'Rohan Sen', avatar: 'RS', title: 'Nagalapuram Ridge Climb', trekName: 'Nagalapuram Falls Trek', text: 'The trail started with dry deciduous scrubs but soon transitioned into a lush gorge filled with deep water pools. Climbing the steep ridges gave us panoramic views of the Andhra plains below. Jumping into the cool, deep freshwater pools at the end of the day made all the sweat worthwhile.', likes: 53, comments: 7, img: 'https://images.unsplash.com/photo-1501555088652-021faa106b9b?w=600&fit=crop' },
         { id: 6, author: 'Meera Joshi', avatar: 'MJ', title: 'Mystical Talle Valley', trekName: 'Talle Valley Trek', text: "Arunachal's dense bamboo and pine forests are unlike anything else in India. The trail was covered in rich moss and giant ferns, with occasional rains adding to the mystical atmosphere. Spotting a rare cloud leopard track in the soft mud made us realize how wild and untouched this sanctuary is.", likes: 110, comments: 14, img: 'https://images.unsplash.com/photo-1447752875215-b2761acb3c5d?w=600&fit=crop' }
       ],
-      // ── SOCIAL STATE ──────────────────────────────
+
+      // ── SOCIAL / GROUPS STATE ─────────────────────────────────────────
+      // List of TrailSync Social groups the trekker belongs to; refreshed every 15 s.
       socialGroups: [],
-      socialMessages: [],
-      selectedSocialTrekId: null,
-      newSocialMessageText: '',
-      loadingSocial: false,
-      socialGroupMembersList: [],
+      // True when any joined group has an unread announcement; drives the notification dot.
+      hasUnreadAnnouncements: false,
+
+      // ── SOCIAL PROFILE MODAL STATE ───────────────────────────────────
+      // Whether the fellow-trekker / guide quick-profile modal is open.
       showSocialProfileModal: false,
-      socialProfileTarget: null,
-      hasUnreadAnnouncements: false
+      // The user or guide object being previewed in the social profile modal.
+      socialProfileTarget: null
     };
   },
 
   computed: {
-    // Current user initial
-    userInitial() {
-      return this.profile.name ? this.profile.name[0].toUpperCase() : '?';
-    },
-
-    // Stats for dashboard
-    userStats() {
-      const active = this.myBookings.filter(b => b.status === 'Booked').length;
-      const completed = this.trekHistory.filter(h => h.status === 'Completed').length;
-      const totalSpent = this.trekHistory
-        .filter(h => h.status === 'Completed')
-        .reduce((a, h) => a + (h.amountPaid || h.bookingPrice || h.price || 0), 0)
-        + this.myBookings
-          .filter(b => b.status === 'Booked')
-          .reduce((a, b) => a + (b.amountPaid || b.bookingPrice || b.price || 0), 0);
-      return [
-        { label: 'Active Bookings', value: active, icon: 'calendar', color: 'si-gold', trend: '' },
-        { label: 'Treks Completed', value: completed, icon: 'check', color: 'si-forest', trend: '' },
-        { label: 'Available Treks', value: this.availableTreks.length, icon: 'map', color: 'si-green', trend: '' },
-        { label: 'Total Invested', value: '₹' + totalSpent.toLocaleString(), icon: 'rupee', color: 'si-blue', trend: '' },
-      ];
-    },
-
-    // Next upcoming booked trek
+    /**
+     * Returns the earliest upcoming confirmed booking whose end date has not yet passed.
+     * Used to drive the countdown timer and the Dashboard hero card.
+     * @returns {Object|null} The next booking object, or null if none are upcoming.
+     */
     nextTrek() {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -966,192 +574,23 @@ export default {
       if (!booked.length) return null;
       return booked.sort((a, b) => new Date(a.startDate) - new Date(b.startDate))[0];
     },
-
-    // Unique locations for filter dropdown
-    uniqueLocations() {
-      const states = this.availableTreks.map(t => {
-        if (!t.location) return '';
-        const parts = t.location.split(',');
-        return parts.length > 1 ? parts[parts.length - 1].trim() : t.location.trim();
-      }).filter(s => s);
-      return [...new Set(states)].sort();
-    },
-
-    // Filtered treks list
-    filteredTreks() {
-      return this.availableTreks.filter(t => {
-        const q = this.searchQuery.toLowerCase();
-        const matchSearch = !q || t.name.toLowerCase().includes(q) || t.location.toLowerCase().includes(q);
-        const matchDiff = !this.difficultyFilter || t.difficulty === this.difficultyFilter;
-        const matchLoc = !this.locationFilter || (
-          t.location && (
-            t.location.trim() === this.locationFilter ||
-            t.location.split(',').map(s => s.trim()).includes(this.locationFilter)
-          )
-        );
-        const matchDur = !this.durationFilter || (
-          this.durationFilter === '1-5' ? t.duration <= 5 :
-          this.durationFilter === '6-9' ? t.duration >= 6 && t.duration <= 9 :
-          t.duration >= 10
-        );
-        const matchQuick = this.quickFilter === 'All' || t.difficulty === this.quickFilter;
-        const matchBookable = !this.showBookableOnly || this.hasBookableSlots(t);
-        return matchSearch && matchDiff && matchLoc && matchDur && matchQuick && matchBookable;
-      });
-    },
-
-    bookableTreksCount() {
-      return this.availableTreks.filter(t => this.hasBookableSlots(t)).length;
-    },
-
-    // Calendar days for current month view
-    calendarDays() {
-      const year = this.calYear, month = this.calMonth;
-      const firstDay = new Date(year, month, 1).getDay();
-      const daysInMonth = new Date(year, month + 1, 0).getDate();
-      const daysInPrev = new Date(year, month, 0).getDate();
-      const days = [];
-
-      // Previous month padding
-      for (let i = firstDay - 1; i >= 0; i--) {
-        days.push({ day: daysInPrev - i, month: 'prev', date: null });
-      }
-      // Current month
-      for (let d = 1; d <= daysInMonth; d++) {
-        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-        const today = new Date();
-        const isToday = today.getFullYear() === year && today.getMonth() === month && today.getDate() === d;
-        const hasTrek = this.allTrekDates.some(range => dateStr >= range.start && dateStr <= range.end);
-        days.push({ day: d, month: 'current', date: dateStr, isToday, hasTrek });
-      }
-      // Next month padding
-      const remaining = 42 - days.length;
-      for (let d = 1; d <= remaining; d++) {
-        days.push({ day: d, month: 'next', date: null });
-      }
-      return days;
-    },
-
-    calMonthLabel() {
-      return new Date(this.calYear, this.calMonth, 1).toLocaleString('default', { month: 'long', year: 'numeric' });
-    },
-
-    // All trek dates for calendar highlight
-    allTrekDates() {
-      const ranges = [];
-      this.myBookings.filter(b => b.status === 'Booked').forEach(b => {
-        ranges.push({ start: b.startDate, end: b.endDate, name: b.trekName });
-      });
-      return ranges;
-    },
-
-    // This month's calendar events
-    calendarEvents() {
-      const monthStr = `${this.calYear}-${String(this.calMonth + 1).padStart(2, '0')}`;
-      const events = [];
-      this.myBookings.filter(b => b.status === 'Booked').forEach(b => {
-        if (b.startDate.startsWith(monthStr) || b.endDate.startsWith(monthStr)) {
-          events.push({ name: b.trekName, date: b.startDate });
-        }
-      });
-      return events;
-    },
-
-    // Booked trek IDs set
+    /**
+     * Returns a Set of trek IDs that the trekker currently has an active 'Booked' booking for.
+     * Used by `isBooked()` to quickly check batch/trek booking status in O(1).
+     * @returns {Set<string|number>}
+     */
     bookedTrekIds() {
       return new Set(this.myBookings.filter(b => b.status === 'Booked').map(b => b.trekId));
-    },
-
-    // Trek completion %
-    completionPct() {
-      const total = this.trekHistory.length + this.myBookings.filter(b => b.status === 'Booked').length;
-      if (!total) return 0;
-      const done = this.trekHistory.filter(h => h.status === 'Completed').length;
-      return Math.round((done / Math.max(total, 1)) * 100);
-    },
-
-    // Available treks with open batches sorted by start date
-    upcomingAvailableTreks() {
-      if (!this.availableTreks) return [];
-      const list = [];
-      this.availableTreks.forEach(route => {
-        if (route.batches && route.batches.length > 0) {
-          const sorted = [...route.batches].sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
-          const primaryBatch = sorted[0];
-          list.push({
-            id: route.id,
-            name: route.name,
-            difficulty: route.difficulty,
-            startDate: primaryBatch.startDate,
-            slotsLeft: primaryBatch.slots - primaryBatch.booked,
-            batch: primaryBatch,
-            route: route
-          });
-        }
-      });
-      return list.sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
-    },
-    dashboardEasyTreks() {
-      const list = this.availableTreks.filter(t => t.difficulty.toLowerCase() === 'easy');
-      if (list.length >= 3) return list.slice(0, 3);
-      const fallbacks = [
-        { name: 'Triund Trek', location: 'Dharamshala, HP', duration: 2, distance: 9, difficulty: 'Easy', price: 2500, imageUrl: 'https://images.unsplash.com/photo-1596831167051-11c67bd1fc73?w=500&q=80' },
-        { name: 'Kheerganga Trek', location: 'Kasol, HP', duration: 2, distance: 12, difficulty: 'Easy', price: 1800, imageUrl: 'https://images.unsplash.com/photo-1626621422471-eb1fa6fc1816?w=500&q=80' },
-        { name: 'Nag Tibba', location: 'Mussoorie, UK', duration: 2, distance: 10, difficulty: 'Easy', price: 2200, imageUrl: 'https://images.unsplash.com/photo-1544644181-1484b3fdfc62?w=500&q=80' }
-      ];
-      return [...list, ...fallbacks].slice(0, 3);
-    },
-    dashboardModerateTreks() {
-      const list = this.availableTreks.filter(t => t.difficulty.toLowerCase() === 'moderate');
-      if (list.length >= 3) return list.slice(0, 3);
-      const fallbacks = [
-        { name: 'Valley of Flowers', location: 'Chamoli, UK', duration: 6, distance: 38, difficulty: 'Moderate', price: 8200, imageUrl: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=500&q=80' },
-        { name: 'Hampta Pass', location: 'Manali, HP', duration: 5, distance: 35, difficulty: 'Moderate', price: 8200, imageUrl: 'https://images.unsplash.com/photo-1544644181-1484b3fdfc62?w=500&q=80' },
-        { name: 'Kuari Pass', location: 'Joshimath, UK', duration: 6, distance: 33, difficulty: 'Moderate', price: 7800, imageUrl: 'https://images.unsplash.com/photo-1454496522488-7a8e488e8606?w=500&q=80' }
-      ];
-      return [...list, ...fallbacks].slice(0, 3);
-    },
-    dashboardHardTreks() {
-      const list = this.availableTreks.filter(t => t.difficulty.toLowerCase() === 'hard' || t.difficulty.toLowerCase() === 'difficult');
-      if (list.length >= 3) return list.slice(0, 3);
-      const fallbacks = [
-        { name: 'Roopkund Trek', location: 'Chamoli, UK', duration: 8, distance: 53, difficulty: 'Hard', price: 11000, imageUrl: 'https://images.unsplash.com/photo-1585409677983-0f6c41ca9c3b?w=500&q=80' },
-        { name: 'Pin Parvati Pass', location: 'Kullu, HP', duration: 11, distance: 110, difficulty: 'Hard', price: 24000, imageUrl: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=500&q=80' },
-        { name: 'Rupin Pass', location: 'Sangla, HP', duration: 8, distance: 52, difficulty: 'Hard', price: 13500, imageUrl: 'https://images.unsplash.com/photo-1454496522488-7a8e488e8606?w=500&q=80' }
-      ];
-      return [...list, ...fallbacks].slice(0, 3);
-    },
-    selectedSocialGroupTrek() {
-      return this.socialGroups.find(t => t.id === this.selectedSocialTrekId) || null;
-    },
-    currentGroupMessages() {
-      return this.socialMessages.filter(m => m.trekId === this.selectedSocialTrekId).map(m => {
-        return {
-          id: m.id,
-          trekId: m.trekId,
-          sender: m.senderRole === 'staff' || m.senderRole === 'admin' ? 'guide' : 'trekker',
-          senderRole: m.senderRole,
-          name: m.senderName,
-          text: m.messageText,
-          isAnnouncement: m.isAnnouncement,
-          timestamp: m.createdAt ? new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''
-        };
-      });
-    },
-    currentGroupAnnouncements() {
-      return this.socialMessages
-        .filter(m => m.isAnnouncement && m.trekId === this.selectedSocialTrekId)
-        .map(m => ({
-          id: m.id,
-          trekId: m.trekId,
-          title: m.announcementTitle || 'Announcement',
-          content: m.messageText,
-          date: m.createdAt ? new Date(m.createdAt).toLocaleDateString([], { day: '2-digit', month: 'short' }) : ''
-        }));
-    },
+    }
   },
 
   methods: {
+    /**
+     * Adjusts sidebar visibility when the browser window is resized.
+     * On desktop (>900 px) the mobile drawer is force-closed;
+     * on mobile, the collapsed state mirrors whether the drawer is open.
+     * Bound to the window `resize` event in `mounted()`.
+     */
     handleViewportResize() {
       const isMobile = window.innerWidth <= 900;
       if (!isMobile) {
@@ -1162,444 +601,151 @@ export default {
         this.sidebarCollapsed = true;
       }
     },
-    // ── NAV ────────────────────────────────────────
-    goTab(tab, options = {}) {
-      const validTabs = ['dashboard', 'explore', 'bookings', 'history', 'profile', 'support', 'social'];
-      if (!validTabs.includes(tab)) return;
-
-      this.selectedSocialTrekId = null;
-      let targetHash = tab;
-
-      if (window.location.hash.slice(1) === targetHash) {
-        this.activateTab(tab);
-        return;
-      }
-
-      window.location.hash = targetHash;
-    },
-    getCategoryClass(category) {
-      const map = {
-        'General Inquiry': 'cat-general',
-        'Booking & Reservation': 'cat-booking',
-        'Payments & Refunds': 'cat-payment',
-        'Profile & Account Settings': 'cat-profile',
-        'Technical Issue / Bug': 'cat-bug',
-        'Feedback & Suggestions': 'cat-feedback'
-      };
-      return map[category] || 'cat-general';
-    },
-    activateTab(tab) {
-      const validTabs = ['dashboard', 'explore', 'bookings', 'history', 'profile', 'support', 'social'];
-      if (!tab || !validTabs.includes(tab)) return;
-
-      this.activeTab = tab;
-      if (tab === 'support') {
-        this.fetchUserTickets();
-      } else if (tab === 'social') {
-        this.selectedSocialTrekId = null;
-        this.fetchSocialGroups();
-      }
-      if (window.innerWidth <= 900) {
-        this.sidebarOpen = false;
-        this.sidebarCollapsed = true;
-      }
-      localStorage.setItem('userActiveTab', tab);
-
-      this.resetPageScroll();
-    },
-    handleHashChange() {
-      const hash = window.location.hash.slice(1);
-      if (hash.startsWith('social/group/')) {
-        const trekId = parseInt(hash.replace('social/group/', ''), 10);
-        this.activeTab = 'social';
-        this.selectedSocialTrekId = isNaN(trekId) ? null : trekId;
-        if (this.selectedSocialTrekId) {
-          this.fetchSocialGroupMessages(this.selectedSocialTrekId);
-          this.fetchSocialGroupMembers(this.selectedSocialTrekId);
-        }
-      } else {
-        this.activateTab(hash);
-      }
-    },
-    resetPageScroll() {
-      this.$nextTick(() => {
-        window.scrollTo(0, 0);
-        const el = this.$el ? this.$el.querySelector('.page-content') : document.querySelector('.page-content');
-        if (el) {
-          el.scrollTop = 0;
-          requestAnimationFrame(() => { el.scrollTop = 0; });
-        }
-      });
-    },
+    /**
+     * Opens the sidebar drawer (on mobile) or expands it (on desktop).
+     */
     openSidebar() {
       if (window.innerWidth <= 900) {
         this.sidebarOpen = true;
         this.sidebarCollapsed = false;
       } else {
-        this.sidebarOpen = false;
         this.sidebarCollapsed = false;
       }
     },
+    /**
+     * Closes the sidebar drawer (on mobile) or collapses it (on desktop).
+     */
     closeSidebar() {
       this.sidebarOpen = false;
       this.sidebarCollapsed = true;
     },
-    toggleMobileSidebar() {
+    /**
+     * Public navigation handler — updates the URL hash to trigger a tab change.
+     * If the requested tab is already active (same hash), calls `activateTab` directly
+     * to avoid a no-op hash-change event being swallowed by the browser.
+     * @param {string} tab - One of the valid tab identifiers.
+     */
+    goTab(tab) {
+      const validTabs = ['dashboard', 'explore', 'bookings', 'history', 'profile', 'support', 'social'];
+      if (!validTabs.includes(tab)) return;
+      let targetHash = tab;
+      if (window.location.hash.slice(1) === targetHash) {
+        this.activateTab(tab);
+        return;
+      }
+      window.location.hash = targetHash;
+    },
+    /**
+     * Internal method that actually switches the active tab, persists the choice to
+     * localStorage, closes the mobile sidebar drawer, and resets scroll position.
+     * Also triggers a fresh social groups fetch when switching to the Social tab.
+     * @param {string} tab - Validated tab identifier.
+     */
+    activateTab(tab) {
+      const validTabs = ['dashboard', 'explore', 'bookings', 'history', 'profile', 'support', 'social'];
+      if (!tab || !validTabs.includes(tab)) return;
+      if (tab !== 'explore') {
+        this.searchQuery = '';
+      }
+      this.activeTab = tab;
+      if (tab === 'social') this.fetchSocialGroups();
       if (window.innerWidth <= 900) {
-        this.sidebarOpen = !this.sidebarOpen;
-        this.sidebarCollapsed = !this.sidebarOpen;
-      } else {
         this.sidebarOpen = false;
-        this.sidebarCollapsed = !this.sidebarCollapsed;
+        this.sidebarCollapsed = true;
       }
+      localStorage.setItem('userActiveTab', tab);
+      this.resetPageScroll();
     },
-    goProfileTab() {
-      this.showProfileDropdown = false;
-      this.goTab('profile');
+    /**
+     * Responds to browser `hashchange` events (back/forward navigation or direct URL entry).
+     * Handles the special `social/group/<id>` deep-link format by routing to the Social tab.
+     */
+    handleHashChange() {
+      const hash = window.location.hash.slice(1);
+      if (hash.startsWith('social/group/')) this.activeTab = 'social';
+      else this.activateTab(hash);
     },
-    toggleFilterDropdown(type) {
-      const current = this[type];
-      this.showDiffFilterDropdown = false;
-      this.showLocFilterDropdown = false;
-      this.showDurFilterDropdown = false;
-      this.showCategoryDropdown = false;
-      this[type] = !current;
+    /**
+     * Scrolls both the window and the `.page-content` scroll container back to the top
+     * after a tab switch. Uses `$nextTick` so the new tab's DOM is rendered first.
+     */
+    resetPageScroll() {
+      this.$nextTick(() => {
+        window.scrollTo(0, 0);
+        const el = this.$el ? this.$el.querySelector('.page-content') : document.querySelector('.page-content');
+        if (el) { el.scrollTop = 0; }
+      });
     },
-    closeDropdowns() {
-      this.showProfileDropdown = false;
-      this.showDiffFilterDropdown = false;
-      this.showLocFilterDropdown = false;
-      this.showDurFilterDropdown = false;
-      this.showCategoryDropdown = false;
-    },
-    sendGuideMessage() {
-      if (!this.guideMessage.trim()) return;
-      const userTxt = this.guideMessage.trim();
-      this.guideChatHistory.push({ sender: 'user', text: userTxt });
-      this.guideMessage = '';
-      this.guideIsTyping = true;
-      setTimeout(() => {
-        this.guideIsTyping = false;
-        let reply = '';
-        const txtLower = userTxt.toLowerCase();
-        if (txtLower.includes('woolen') || txtLower.includes('cold') || txtLower.includes('jacket') || txtLower.includes('sweater')) {
-          reply = "Yes, temperatures can drop down to 10°C or lower near the waterfalls at night, especially if it rains. I highly recommend packing at least one warm fleece or a light jacket and a waterproof outer layer!";
-        } else if (txtLower.includes('shoes') || txtLower.includes('boot') || txtLower.includes('gear')) {
-          reply = "For Tada Falls, the trail involves walking over wet, slippery boulders and river crossings. Good trekking shoes with excellent grip (like Vibram soles) are a must. Avoid normal trainers if possible!";
-        } else if (txtLower.includes('weather') || txtLower.includes('rain') || txtLower.includes('storm')) {
-          reply = "There is a live thunderstorm warning for the district. The water levels in the pools can rise quickly. We will monitor the conditions closely on the morning of departure and take safety precautions.";
-        } else {
-          reply = "I've noted your query! Make sure you carry a 20-30L daypack, a raincoat, and energy bars. Let me know if you need help with anything else for your Tada Falls trip.";
-        }
-        this.guideChatHistory.push({ sender: 'guide', text: reply });
-      }, 1500);
-    },
-    navigateToTrek(trekName) {
-      this.goTab('explore');
-      this.searchQuery = trekName;
-      setTimeout(() => {
-        const trek = this.availableTreks.find(t => t.name.toLowerCase() === trekName.toLowerCase());
-        if (trek) {
-          this.openBookingModal(trek);
-        }
-      }, 100);
-    },
-
-    // ── TREK HELPERS ──────────────────────────────
-    bookFeaturedTrek(trekName) {
-      if (!this.availableTreks) return;
-      const trek = this.availableTreks.find(t => t.name.toLowerCase() === trekName.toLowerCase());
-      if (trek) {
-        this.openBookingModal(trek);
-      } else {
-        this.goTab('explore');
-        this.showToast(`Looking for "${trekName}" in the catalog...`, 'info');
-      }
-    },
+    /**
+     * Returns true if the trekker already has an active 'Booked' booking for the given trek/batch ID.
+     * @param {string|number} trekId - The trek or batch ID to check.
+     * @returns {boolean}
+     */
     isBooked(trekId) { return this.bookedTrekIds.has(trekId); },
-    isFull(t) { return t.booked >= t.slots; },
-    hasBookableSlots(t) {
-      if (Array.isArray(t.batches) && t.batches.length) {
-        return t.batches.some(b => this.slotsLeft(b) > 0);
-      }
-      return this.slotsLeft(t) > 0;
-    },
-    slotsLeft(t) { return Math.max(0, Number(t?.slots || 0) - Number(t?.booked || 0)); },
-    slotsPct(t) { return Math.min(100, Math.round((Number(t.booked || 0) / Number(t.slots || 1)) * 100)); },
-    slotsClass(t) {
-      const p = Number(t.booked || 0) / Number(t.slots || 1);
-      return p >= 0.9 ? 'slots-red-fill' : p >= 0.6 ? 'slots-amber-fill' : 'slots-green-fill';
-    },
-    diffColor(d) {
-      return d === 'Easy' ? '#22c55e' : d === 'Moderate' ? '#f59e0b' : '#ef4444';
-    },
-    getGradient(t) {
-      const grads = ['#1a4a3a','#2d6b3d','#2a3a1a','#3d5b2d','#1a3a2a','#2d5b4a','#3a1a1a','#5b2d2d','#1a2a3a','#2d3b5b'];
-      const id = t.id || 0;
-      return `linear-gradient(135deg, ${grads[id % grads.length]}, rgba(0,0,0,0.5))`;
-    },
+    /**
+     * Converts a raw date string (YYYY-MM-DD or YYYY-MM-DD HH:MM) into a human-readable
+     * format like "14 Jun 2025" with optional time suffix.
+     * @param {string} dateStr - ISO-style date string from the API or data file.
+     * @returns {string} Formatted date, or '—' if input is falsy.
+     */
     formatDate(dateStr) {
       if (!dateStr) return '—';
       const parts = dateStr.split(' ');
-      const datePart = parts[0];
-      const timePart = parts[1] ? ' ' + parts[1] : '';
-      const dParts = datePart.split('-');
+      const dParts = parts[0].split('-');
       if (dParts.length !== 3) return dateStr;
-      const year = dParts[0];
-      const monthNum = parseInt(dParts[1], 10);
-      const day = parseInt(dParts[2], 10);
-      const monthNames = [
-        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-      ];
-      if (monthNum >= 1 && monthNum <= 12) {
-        return `${day} ${monthNames[monthNum - 1]} ${year}${timePart}`;
-      }
-      return dateStr;
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return `${parseInt(dParts[2])} ${monthNames[parseInt(dParts[1]) - 1]} ${dParts[0]}${parts[1] ? ' ' + parts[1] : ''}`;
     },
+    /**
+     * Initiates a fresh booking for a selected batch by opening the payment modal.
+     * Clears any pending-retry state to ensure a new booking flow.
+     * @param {Object} batch - The batch object selected from the booking modal's batch list.
+     */
     bookBatch(batch) {
       this.paymentTrekBatch = batch;
       this.isPendingRetry = false;
       this.retryBookingId = null;
-      this.resetPaymentForm();
       this.showPaymentModal = true;
     },
+    /**
+     * Re-opens the payment modal for an existing booking whose payment is Pending or Failed.
+     * Flags the flow as a retry so PaymentModal knows to PATCH rather than create a new booking.
+     * @param {Object} b - The booking object with pending/failed payment.
+     */
     payPendingBooking(b) {
-      this.paymentTrekBatch = {
-        id: b.trekId,
-        name: b.trekName,
-        location: b.location,
-        price: b.price || b.bookingPrice || 5000,
-        batchCode: b.batchCode || 'N/A',
-        bookingId: b.bookingId
-      };
+      this.paymentTrekBatch = { id: b.trekId, name: b.trekName, location: b.location, price: b.price || b.bookingPrice || 5000, batchCode: b.batchCode || 'N/A', bookingId: b.bookingId };
       this.isPendingRetry = true;
       this.retryBookingId = b.id;
-      this.resetPaymentForm();
       this.showPaymentModal = true;
     },
-    resetPaymentForm() {
-      this.paymentResultState = null;
-      this.paymentProcessing = false;
-      this.paymentProcessingProgress = 0;
-      this.paymentProcessingMsg = '';
-      this.selectedPaymentMethod = '';
-      this.paymentDetails = {
-        cardNumber: '',
-        cardName: '',
-        cardExpiry: '',
-        cardCvv: '',
-        upiId: '',
-        bank: 'State Bank of India',
-        bankUserId: '',
-        emiProvider: 'HDFC Bank',
-        emiTenure: '3 months'
-      };
-    },
+    /**
+     * Closes both the payment and booking modals. If `shouldFetch` is true (default),
+     * re-fetches all user data from the API and redirects to the Bookings tab to show
+     * the newly confirmed booking.
+     * @param {boolean} [shouldFetch=true] - Whether to refresh dashboard data after closing.
+     */
     async dismissPaymentModal(shouldFetch = true) {
       this.showPaymentModal = false;
       this.showBookingModal = false;
-      this.paymentResultState = null;
-      if (shouldFetch) {
-        await this.fetchUserData();
-        this.goTab('bookings');
-      }
+      if (shouldFetch) { await this.fetchUserData(); this.goTab('bookings'); }
     },
-    onCardNumberInput(e) {
-      let val = e.target.value.replace(/\D/g, '');
-      if (val.length > 16) val = val.slice(0, 16);
-      let formatted = '';
-      for (let i = 0; i < val.length; i++) {
-        if (i > 0 && i % 4 === 0) formatted += ' ';
-        formatted += val[i];
-      }
-      this.paymentDetails.cardNumber = formatted;
-    },
-    onCardExpiryInput(e) {
-      let val = e.target.value.replace(/\D/g, '');
-      if (val.length > 4) val = val.slice(0, 4);
-      if (val.length > 2) {
-        this.paymentDetails.cardExpiry = val.slice(0, 2) + '/' + val.slice(2);
-      } else {
-        this.paymentDetails.cardExpiry = val;
-      }
-    },
-    onCardCvvInput(e) {
-      let val = e.target.value.replace(/\D/g, '');
-      if (val.length > 3) val = val.slice(0, 3);
-      this.paymentDetails.cardCvv = val;
-    },
-    paymentMethodLabel(method) {
-      const labels = {
-        UPI: 'UPI',
-        Netbanking: 'Netbanking',
-        EMI: 'EMI Options',
-        Card: 'Card (Debit/Credit)',
-        PayLater: 'Pay Later / Pay at Base Camp'
-      };
-      return labels[method] || 'Payment Method';
-    },
-    processSelectedPayment() {
-      if (!this.selectedPaymentMethod) {
-        this.showToast('Select a payment method first.', 'warning');
-        return;
-      }
-      if (this.selectedPaymentMethod === 'PayLater') {
-        this.processOfflinePayment();
-        return;
-      }
-      this.processSimulatedPayment('Paid');
-    },
-    async submitPaymentStatus(status) {
-      let res, data;
-      const payment_method = this.selectedPaymentMethod || 'Direct Booking (Auto-Paid)';
-      let details = {};
-      if (this.selectedPaymentMethod === 'Card') {
-        details = { cardName: this.paymentDetails.cardName, cardNumber: this.paymentDetails.cardNumber };
-      } else if (this.selectedPaymentMethod === 'UPI') {
-        details = { upiId: this.paymentDetails.upiId };
-      } else if (this.selectedPaymentMethod === 'Netbanking') {
-        details = { bank: this.paymentDetails.bank, bankUserId: this.paymentDetails.bankUserId };
-      } else if (this.selectedPaymentMethod === 'EMI') {
-        details = { emiProvider: this.paymentDetails.emiProvider, emiTenure: this.paymentDetails.emiTenure };
-      }
-      if (this.isPendingRetry) {
-        res = await fetch(`/api/bookings/pay/${this.retryBookingId}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            payment_status: status,
-            payment_method: payment_method,
-            payment_details: details
-          })
-        });
-        data = await res.json();
-      } else {
-        res = await fetch('/api/bookings/book', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            trek_id: this.paymentTrekBatch.id,
-            payment_status: status,
-            payment_method: payment_method,
-            payment_details: details
-          })
-        });
-        data = await res.json();
-      }
-      return { res, data };
-    },
-    async processOfflinePayment() {
-      if (!this.paymentTrekBatch) return;
-      try {
-        const { res, data } = await this.submitPaymentStatus('Pending');
-        if (res.ok) {
-          this.paymentResultBookingId = data.unique_booking_id || ('#' + data.booking_id) || '—';
-          this.paymentResultState = 'Pending';
-          this.showToast(data.message || 'Booking saved as pending. Pay at base camp.', 'warning');
-        } else {
-          this.paymentResultState = 'Failed';
-          this.showToast(data.error || 'Could not save pending booking', 'error');
-        }
-      } catch (e) {
-        console.error('Payment error:', e);
-        this.paymentResultState = 'Failed';
-        this.showToast('Failed to contact server. Booking could not be saved.', 'error');
-      }
-    },
-    async processSimulatedPayment(status) {
-      if (!this.paymentTrekBatch) return;
-
-      // Start simulated loading screen
-      this.paymentProcessing = true;
-      this.paymentProcessingProgress = 15;
-      this.paymentProcessingMsg = 'Establishing secure handshake with payment gateway...';
-
-      const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-
-      await sleep(600);
-      this.paymentProcessingProgress = 45;
-      this.paymentProcessingMsg = 'Encrypting payment credentials (256-bit AES)...';
-
-      await sleep(600);
-      this.paymentProcessingProgress = 75;
-      this.paymentProcessingMsg = 'Authorizing transaction with bank servers...';
-
-      await sleep(600);
-      this.paymentProcessingProgress = 90;
-      this.paymentProcessingMsg = 'Finalizing reservation details...';
-
-      try {
-        const { res, data } = await this.submitPaymentStatus(status);
-
-        this.paymentProcessingProgress = 100;
-        await sleep(350);
-
-        if (res.ok) {
-          this.paymentResultBookingId = data.unique_booking_id || ('#' + data.booking_id) || '—';
-          this.paymentProcessing = false;
-          this.paymentResultState = status;
-
-          if (status === 'Paid') {
-            this.showToast(data.message || 'Payment successful! Trek booked.', 'success');
-          } else if (status === 'Pending') {
-            this.showToast(data.message || 'Payment is pending. You can complete it later.', 'warning');
-          } else {
-            this.showToast(data.message || 'Payment failed status simulated.', 'error');
-          }
-        } else {
-          this.paymentProcessing = false;
-          this.paymentResultState = 'Failed';
-          this.showToast(data.error || 'Transaction failed', 'error');
-        }
-      } catch (e) {
-        console.error('Payment error:', e);
-        this.paymentProcessing = false;
-        this.paymentResultState = 'Failed';
-        this.showToast('Failed to contact server. Payment could not be processed.', 'error');
-      }
-    },
-
-
-    // ── BOOKING ───────────────────────────────────
-    openBookingModal(t) {
-      this.bookingTarget = t;
-      this.termsAccepted = false;
-      this.showBookingModal = true;
-    },
-
-    async confirmBooking() {
-      if (!this.termsAccepted || !this.bookingTarget) return;
-      const t = this.bookingTarget;
-      try {
-        const res = await fetch('/api/bookings/book', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            trek_id: t.id,
-            payment_status: 'Paid',
-            payment_method: 'Direct Booking (Auto-Paid)',
-            payment_details: {}
-          })
-        });
-        const data = await res.json();
-        if (res.ok) {
-          this.showToast(data.message || `${t.name} booked!`, 'success');
-          await this.fetchUserData();
-        } else {
-          this.showToast(data.error || 'Booking failed', 'error');
-        }
-      } catch (e) {
-        console.error('Booking error:', e);
-        this.showToast('Failed to contact server. Booking could not be completed.', 'error');
-      }
-      this.showBookingModal = false;
-    },
-
-    cancelBooking(b) {
-      this.cancelTarget = b;
-      this.showCancelConfirm = true;
-    },
+    /**
+     * Opens the trek detail & batch-selection modal for the given trek.
+     * Resets `termsAccepted` so the user must re-check terms for each new booking.
+     * @param {Object} t - The trek object to display.
+     */
+    openBookingModal(t) { this.bookingTarget = t; this.termsAccepted = false; this.showBookingModal = true; },
+    /**
+     * Stages a booking for cancellation and shows the confirmation dialog.
+     * The actual API call is deferred to `confirmCancelBooking()`.
+     * @param {Object} b - The booking object the trekker wishes to cancel.
+     */
+    cancelBooking(b) { this.cancelTarget = b; this.showCancelConfirm = true; },
+    /**
+     * Sends a POST request to cancel the booking stored in `cancelTarget`.
+     * Closes the confirmation dialog immediately, then shows a toast on success or failure.
+     * Side effect: calls `fetchUserData()` on success to refresh the bookings list.
+     */
     async confirmCancelBooking() {
       const b = this.cancelTarget;
       this.showCancelConfirm = false;
@@ -1608,150 +754,16 @@ export default {
       try {
         const res = await fetch(`/api/bookings/cancel/${b.id}`, { method: 'POST' });
         const data = await res.json();
-        if (res.ok) {
-          this.showToast(data.message || 'Booking cancelled', 'info');
-          await this.fetchUserData();
-        } else {
-          this.showToast(data.error || 'Cancel failed', 'error');
-        }
-      } catch (e) {
-        console.error('Cancellation error:', e);
-        this.showToast('Failed to contact server. Booking could not be cancelled.', 'error');
-      }
+        if (res.ok) { this.showToast(data.message || 'Booking cancelled', 'info'); await this.fetchUserData(); }
+        else { this.showToast(data.error || 'Cancel failed', 'error'); }
+      } catch (e) { this.showToast('Failed to contact server.', 'error'); }
     },
-
-    // ── EXPORT ───────────────────────────────────
-    async requestExport() {
-      this.exportPending = true;
-      try {
-        const res = await fetch('/api/user/export', { method: 'POST' });
-        const data = await res.json();
-        if (res.ok) {
-          this.showToast(data.message || 'CSV export triggered.', 'success');
-        } else {
-          this.showToast(data.error || 'Export failed.', 'error');
-          this.exportPending = false;
-        }
-      } catch (e) {
-        console.error('Export error:', e);
-        this.showToast('Failed to contact server. Export could not be completed.', 'error');
-        this.exportPending = false;
-      }
-      setTimeout(() => { this.exportPending = false; }, 8000);
-    },
-
-    // ── PROFILE ──────────────────────────────────
-    handleProfileImageChange(e) {
-      if (e.target.files && e.target.files.length > 0) {
-        this.profileImageFile = e.target.files[0];
-      } else {
-        this.profileImageFile = null;
-      }
-    },
-    async saveProfile(payload) {
-      if (payload) {
-        const fields = payload.updatedFields || payload;
-        this.editProfile = { ...this.editProfile, ...fields };
-        if (payload.profileImageFile) {
-          this.profileImageFile = payload.profileImageFile;
-        }
-      }
-      try {
-        const formData = new FormData();
-        Object.keys(this.editProfile).forEach(key => {
-          if (this.editProfile[key] !== null && this.editProfile[key] !== undefined) {
-            formData.append(key, this.editProfile[key]);
-          }
-        });
-        if (this.profileImageFile) {
-          formData.append('profile_image', this.profileImageFile);
-        }
-
-        const res = await fetch('/api/user/profile', {
-          method: 'POST',
-          body: formData
-        });
-        const data = await res.json();
-        if (res.ok) {
-          this.profile = { ...this.editProfile };
-          if (data.profile_image_url) {
-            this.profile.profile_image_url = data.profile_image_url;
-          }
-          this.userName = this.profile.name;
-          this.isEditingProfile = false;
-          if (payload && typeof payload.successCallback === 'function') {
-            payload.successCallback();
-          }
-          this.showToast(data.message || 'Profile saved.', 'success');
-          await this.fetchUserData();
-        } else {
-          this.showToast(data.error || 'Save failed.', 'error');
-        }
-      } catch (e) {
-        console.error('Profile save error:', e);
-        this.showToast('Failed to contact server. Profile changes not saved.', 'error');
-      }
-    },
-
-    async changePassword(payload) {
-      if (payload && payload.pwForm) {
-        this.pwForm = payload.pwForm;
-      }
-      if (!this.pwForm.current || !this.pwForm.new) {
-        this.showToast('Please fill all password fields', 'error');
-        if (payload && payload.errorCallback) payload.errorCallback();
-        return;
-      }
-      if (this.pwForm.new !== this.pwForm.confirm) {
-        this.showToast("New passwords don't match", 'error');
-        if (payload && payload.errorCallback) payload.errorCallback();
-        return;
-      }
-      if (this.pwForm.new.length < 6) {
-        this.showToast('Password must be at least 6 characters', 'error');
-        if (payload && payload.errorCallback) payload.errorCallback();
-        return;
-      }
-      try {
-        const res = await fetch('/api/user/password', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ current: this.pwForm.current, new: this.pwForm.new })
-        });
-        const data = await res.json();
-        if (res.ok) {
-          this.pwForm = { current: '', new: '', confirm: '' };
-          this.showToast(data.message || 'Password updated.', 'success');
-          if (payload && payload.successCallback) payload.successCallback();
-        } else {
-          this.showToast(data.error || 'Update failed.', 'error');
-          if (payload && payload.errorCallback) payload.errorCallback();
-        }
-      } catch (e) {
-        console.error('Password change error:', e);
-        this.showToast('Failed to contact server. Password not updated.', 'error');
-      }
-    },
-
-    async deleteAccount() {
-      try {
-        const res = await fetch('/api/user/delete', {
-          method: 'DELETE'
-        });
-        const data = await res.json();
-        if (res.ok) {
-          this.showToast(data.message || 'Account successfully deleted.', 'success');
-          this.$emit('logout');
-        } else {
-          this.showToast(data.error || 'Failed to delete account.', 'error');
-        }
-      } catch (e) {
-        console.error('Delete account error:', e);
-        this.showToast('Failed to contact server. Account deletion failed.', 'error');
-      }
-    },
-
-    // ── DATA FETCH ────────────────────────────────
+    /**
+     * Primary data-loader: fetches all personalised dashboard data from the server
+     * in a single API call and hydrates `availableTreks`, `myBookings`, `trekHistory`,
+     * and `profile`. Also triggers a weather refresh for the next trek's location.
+     * Falls back to the existing local data if the request fails.
+     */
     async fetchUserData() {
       try {
         const res = await fetch('/api/user/dashboard_data');
@@ -1761,384 +773,114 @@ export default {
           this.myBookings = data.my_bookings || this.myBookings;
           this.trekHistory = data.trek_history || this.trekHistory;
           this.profile = data.profile || this.profile;
-          this.editProfile = { ...this.profile };
-          this.userName = this.profile.name;
           this.fetchWeather();
-        } else {
-          console.error('Fetch user data returned status:', res.status);
         }
-      } catch (e) {
-        console.error('Fetch user data error:', e);
-      }
+      } catch (e) { console.error(e); }
     },
-    async fetchUserTickets() {
-      this.loadingSupport = true;
-      try {
-        const res = await fetch('/api/user/tickets');
-        if (res.ok) {
-          this.supportTickets = await res.json();
-        } else {
-          console.error('Fetch tickets status:', res.status);
-        }
-      } catch (e) {
-        console.error('Fetch tickets error:', e);
-      } finally {
-        this.loadingSupport = false;
-      }
-    },
-    async submitSupportTicket(payload) {
-      if (payload && payload.form) {
-        this.supportForm = payload.form;
-      }
-      if (!this.supportForm.subject.trim() || !this.supportForm.message.trim()) {
-        this.showToast('Please fill in both Subject and Message.', 'error');
-        return;
-      }
-      this.submittingSupport = true;
-      try {
-        const res = await fetch('/api/user/tickets', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(this.supportForm)
-        });
-        if (res.ok) {
-          const data = await res.json();
-          this.showToast(data.message || 'Ticket submitted successfully!', 'success');
-          this.supportForm = { subject: '', message: '', category: 'General' };
-          if (payload && payload.successCallback) payload.successCallback();
-          await this.fetchUserTickets();
-        } else {
-          const data = await res.json();
-          this.showToast(data.error || 'Failed to submit ticket.', 'error');
-          if (payload && payload.errorCallback) payload.errorCallback();
-        }
-      } catch (e) {
-        console.error('Submit ticket error:', e);
-        this.showToast('Server connection failed.', 'error');
-      } finally {
-        this.submittingSupport = false;
-      }
-    },
+    /**
+     * Fetches the trekker's joined social groups from the API and updates the
+     * `hasUnreadAnnouncements` flag used to show the notification dot on the Social nav item.
+     * Errors are logged to the console.
+     */
     async fetchSocialGroups() {
       try {
         const res = await fetch('/api/social/groups');
-        if (res.ok) {
-          this.socialGroups = await res.json();
-          this.hasUnreadAnnouncements = this.socialGroups.some(g => g.hasUnreadAnnouncement);
-        }
-      } catch (e) {
-        console.error("Error fetching social groups:", e);
-      }
+        if (res.ok) { this.socialGroups = await res.json(); this.hasUnreadAnnouncements = this.socialGroups.some(g => g.hasUnreadAnnouncement); }
+      } catch (e) { console.error(e); }
     },
-    async fetchSocialGroupMessages(trekId, options = {}) {
-      if (!options.silent) this.loadingSocial = true;
-      try {
-        const res = await fetch(`/api/social/group/${trekId}/messages`);
-        if (res.ok) {
-          const msgs = await res.json();
-          this.socialMessages = msgs;
-          if (!options.silent) {
-            this.$nextTick(() => {
-              const feed = this.$el ? this.$el.querySelector('.social-chat-feed') : document.querySelector('.social-chat-feed');
-              if (feed) feed.scrollTop = feed.scrollHeight;
-            });
-          }
-          this.fetchSocialGroupsSilent();
-        }
-      } catch (e) {
-        console.error("Error fetching social messages:", e);
-      } finally {
-        if (!options.silent) this.loadingSocial = false;
-      }
-    },
+    /**
+     * Silent background refresh of social groups — identical to `fetchSocialGroups` but
+     * swallows errors without logging. Called every 15 seconds by `socialPollInterval`
+     * to keep the unread-announcement badge current without disrupting the UI.
+     */
     async fetchSocialGroupsSilent() {
       try {
         const res = await fetch('/api/social/groups');
-        if (res.ok) {
-          this.socialGroups = await res.json();
-          this.hasUnreadAnnouncements = this.socialGroups.some(g => g.hasUnreadAnnouncement);
-        }
+        if (res.ok) { this.socialGroups = await res.json(); this.hasUnreadAnnouncements = this.socialGroups.some(g => g.hasUnreadAnnouncement); }
       } catch (_) {}
     },
-    async sendSocialMessage(messageText) {
-      const text = messageText || this.newSocialMessageText;
-      if (!text || !text.trim()) return;
-      if (!messageText) {
-        this.newSocialMessageText = '';
-      }
-      try {
-        const cleanedText = text.trim();
-        const res = await fetch(`/api/social/group/${this.selectedSocialTrekId}/messages`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messageText: cleanedText })
-        });
-        if (res.ok) {
-          await this.fetchSocialGroupMessages(this.selectedSocialTrekId);
-        } else {
-          const errData = await res.json();
-          this.showToast(errData.error || 'Failed to send message.', 'error');
-        }
-      } catch (e) {
-        console.error("Error sending message:", e);
-      }
-    },
-    async fetchSocialGroupMembers(trekId) {
-      try {
-        const res = await fetch(`/api/social/group/${trekId}/members`);
-        if (res.ok) {
-          const data = await res.json();
-          const members = [];
-          if (data.guide) {
-            members.push(data.guide);
-          }
-          if (data.trekkers) {
-            members.push(...data.trekkers);
-          }
-          this.socialGroupMembersList = members;
-        }
-      } catch (e) {
-        console.error("Error fetching group members:", e);
-      }
-    },
-    selectSocialGroup(trekId) {
-      this.selectedSocialTrekId = trekId;
-      window.location.hash = `social/group/${trekId}`;
-      this.fetchSocialGroupMessages(trekId);
-      this.fetchSocialGroupMembers(trekId);
-    },
-    closeSocialChat() {
-      this.selectedSocialTrekId = null;
-      this.newSocialMessageText = '';
-      this.socialGroupMembersList = [];
-      window.location.hash = 'social';
-    },
-    openSocialProfileModal(p) {
-      this.socialProfileTarget = p;
-      this.showSocialProfileModal = true;
-    },
-    getChatBubbleStyle(m) {
-      if (m.isAnnouncement) {
-        return {
-          background: '#fef2f2',
-          border: '1px solid #fca5a5',
-          color: '#991b1b',
-          borderTopRightRadius: m.sender === 'guide' ? '0px' : '8px',
-          borderTopLeftRadius: m.sender === 'guide' ? '8px' : '0px'
-        };
-      }
-      if (m.sender === 'guide') {
-        return {
-          background: 'var(--cream)',
-          border: '1px solid rgba(200, 146, 42, 0.25)',
-          color: 'var(--bark)',
-          borderTopRightRadius: '0px'
-        };
-      }
-      return {
-        background: '#ffffff',
-        border: '1px solid rgba(26, 46, 26, 0.08)',
-        color: 'var(--bark)',
-        borderTopLeftRadius: '0px'
-      };
-    },
-
-    cleanDescription(t) {
-      if (!t || !t.description) return '';
-      let desc = t.description;
-      if (desc.startsWith("An exciting ")) {
-        desc = desc.replace(/^An exciting (?:easy|moderate|hard) \d+-day trek exploring /i, "Explore ");
-        desc = desc.charAt(0).toUpperCase() + desc.slice(1);
-      }
-      return desc;
-    },
-
-    openGuideModal(guide) {
-      if (!guide) return;
-      this.guideTarget = guide;
-      this.showGuideModal = true;
-    },
-
-    async openChecklistModal(booking) {
-      this.checklistTargetBooking = booking;
-      this.showChecklistModal = true;
-      this.checklistItems = [];
-      try {
-        const res = await fetch(`/api/bookings/${booking.id}/checklist`);
-        if (res.ok) {
-          this.checklistItems = await res.json();
-        } else {
-          this.showToast('Failed to load checklist', 'error');
-        }
-      } catch (e) {
-        console.error('Checklist load error:', e);
-        this.showToast('Failed to contact server for checklist.', 'error');
-      }
-    },
-
-    async toggleChecklistItem(item) {
-      try {
-        const res = await fetch('/api/bookings/checklist/toggle', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ item_id: item.id })
-        });
-        if (res.ok) {
-          const data = await res.json();
-          item.isCompleted = data.item.isCompleted;
-        } else {
-          this.showToast('Failed to update checklist item', 'error');
-        }
-      } catch (e) {
-        console.error('Checklist toggle error:', e);
-        this.showToast('Failed to contact server to update item.', 'error');
-      }
-    },
-
+    /**
+     * Opens the guide profile modal for the given guide object.
+     * Guards against null/undefined so accidental clicks on bookings without a guide are safe.
+     * @param {Object} guide - Guide profile object (name, phone, photo, etc.).
+     */
+    openGuideModal(guide) { if (guide) { this.guideTarget = guide; this.showGuideModal = true; } },
+    /**
+     * Opens the packing checklist modal pre-loaded with the specified booking context.
+     * @param {Object} booking - The booking whose checklist should be displayed.
+     */
+    async openChecklistModal(booking) { this.checklistTargetBooking = booking; this.showChecklistModal = true; },
+    /**
+     * Fetches current weather conditions from the Open-Meteo API for the coordinates
+     * of the trekker's next upcoming trek. Populates `weather.temp`, `humidity`, and
+     * `windSpeed`. Sets `weather.error` on network failure.
+     * Skips the call if there is no upcoming trek or coordinates are missing.
+     */
     async fetchWeather() {
       const trek = this.nextTrek;
-      if (!trek || trek.latitude === undefined || trek.longitude === undefined) {
-        return;
-      }
+      if (!trek || trek.latitude === undefined) return;
       this.weather.loading = true;
-      this.weather.error = false;
       try {
-        const url = `https://api.open-meteo.com/v1/forecast?latitude=${trek.latitude}&longitude=${trek.longitude}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code`;
-        const res = await fetch(url);
+        const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${trek.latitude}&longitude=${trek.longitude}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code`);
         if (res.ok) {
           const data = await res.json();
-          const current = data.current;
-          this.weather.temp = Math.round(current.temperature_2m);
-          this.weather.humidity = current.relative_humidity_2m;
-          this.weather.windSpeed = current.wind_speed_10m;
-
-          const code = current.weather_code;
-          let desc = 'Clear sky';
-          let icon = '☀️';
-          if (code === 0) { desc = 'Clear Sky'; icon = '☀️'; }
-          else if (code === 1) { desc = 'Mainly Clear'; icon = '🌤️'; }
-          else if (code === 2) { desc = 'Partly Cloudy'; icon = '⛅'; }
-          else if (code === 3) { desc = 'Overcast'; icon = '☁️'; }
-          else if ([45, 48].includes(code)) { desc = 'Foggy'; icon = '🌫️'; }
-          else if ([51, 53, 55].includes(code)) { desc = 'Drizzle'; icon = '🌧️'; }
-          else if ([61, 63, 65].includes(code)) { desc = 'Rainy'; icon = '🌧️'; }
-          else if ([71, 73, 75, 77].includes(code)) { desc = 'Snowy'; icon = '❄️'; }
-          else if ([80, 81, 82].includes(code)) { desc = 'Rain Showers'; icon = '🌦️'; }
-          else if ([85, 86].includes(code)) { desc = 'Snow Showers'; icon = '❄️'; }
-          else if (code >= 95) { desc = 'Thunderstorm'; icon = '⛈️'; }
-
-          this.weather.desc = desc;
-          this.weather.icon = icon;
-          this.weather.locationName = trek.location;
-        } else {
-          this.weather.error = true;
+          this.weather.temp = Math.round(data.current.temperature_2m);
+          this.weather.humidity = data.current.relative_humidity_2m;
+          this.weather.windSpeed = data.current.wind_speed_10m;
         }
-      } catch (e) {
-        console.error('Weather fetch error:', e);
-        this.weather.error = true;
-      } finally {
-        this.weather.loading = false;
-      }
+      } catch (e) { this.weather.error = true; } finally { this.weather.loading = false; }
     },
-
-    updateAchievements() {
-      const completedTreks = this.trekHistory.filter(h => h.status === 'Completed');
-      const completedCount = completedTreks.length;
-
-      const firstSummit = completedCount >= 1;
-      const trailBlazer = completedCount >= 5;
-
-      const hasWinterTrek = completedTreks.some(t => {
-        if (!t.startDate) return false;
-        const month = new Date(t.startDate).getMonth(); // 0 = Jan, 11 = Dec
-        return month === 11 || month === 0 || month === 1 || month === 10; // Nov, Dec, Jan, Feb
-      });
-
-      const locations = completedTreks.map(t => t.location);
-      const uniqueLocations = [...new Set(locations)];
-      const explorer = uniqueLocations.length >= 3;
-
-      const hasHardTrek = completedTreks.some(t => t.difficulty === 'Hard');
-
-      let totalNights = 0;
-      completedTreks.forEach(t => {
-        if (t.startDate && t.endDate) {
-          const start = new Date(t.startDate);
-          const end = new Date(t.endDate);
-          const diffDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
-          if (diffDays > 0) totalNights += diffDays;
-        }
-      });
-      const campExpert = totalNights >= 10;
-      const legend = completedCount >= 15;
-
-      this.achievements = this.achievements.map(a => {
-        let earned = false;
-        if (a.name === 'First Summit') earned = firstSummit;
-        else if (a.name === 'Trail Blazer') earned = trailBlazer;
-        else if (a.name === 'Snow Walker') earned = hasWinterTrek;
-        else if (a.name === 'Explorer') earned = explorer;
-        else if (a.name === 'Hard Core') earned = hasHardTrek;
-        else if (a.name === 'Camp Expert') earned = campExpert;
-        else if (a.name === 'Legend') earned = legend;
-        return { ...a, earned };
-      });
-    },
-
-    // ── CALENDAR ─────────────────────────────────
-    prevMonth() {
-      if (this.calMonth === 0) { this.calMonth = 11; this.calYear--; }
-      else this.calMonth--;
-    },
-    nextMonth() {
-      if (this.calMonth === 11) { this.calMonth = 0; this.calYear++; }
-      else this.calMonth++;
-    },
-
-    // ── COUNTDOWN ─────────────────────────────────
+    /**
+     * Starts (or restarts) a 1-second interval that decomposes the remaining time until
+     * the next trek's start date into days, hours, minutes, and seconds, updating
+     * `countdownVals` each tick. Stops updating once the diff reaches zero.
+     * Side effect: clears any previously running timer before creating a new one.
+     */
     startCountdown() {
       if (this.countdownTimer) clearInterval(this.countdownTimer);
       this.countdownTimer = setInterval(() => {
         const trek = this.nextTrek;
         if (!trek) return;
         const diff = new Date(trek.startDate).getTime() - Date.now();
-        if (diff <= 0) {
-          this.countdownVals = { days: 0, hours: 0, minutes: 0, seconds: 0 };
-          return;
-        }
-        this.countdownVals = {
-          days: Math.floor(diff / 86400000),
-          hours: Math.floor((diff % 86400000) / 3600000),
-          minutes: Math.floor((diff % 3600000) / 60000),
-          seconds: Math.floor((diff % 60000) / 1000),
-        };
+        if (diff <= 0) return;
+        this.countdownVals = { days: Math.floor(diff / 86400000), hours: Math.floor((diff % 86400000) / 3600000), minutes: Math.floor((diff % 3600000) / 60000), seconds: Math.floor((diff % 60000) / 1000) };
       }, 1000);
     },
-
-    // ── TOAST ─────────────────────────────────────
-    showToast(msg, type = 'success') {
-      this.toast = { show: true, msg, type };
-      setTimeout(() => { this.toast.show = false; }, 4000);
-    },
-
-    // ── LOGOUT ────────────────────────────────────
+    /**
+     * Displays a transient toast notification for 4 seconds.
+     * @param {string} msg - The message text to show.
+     * @param {'success'|'error'|'info'} [type='success'] - Visual variant of the toast.
+     */
+    showToast(msg, type = 'success') { this.toast = { show: true, msg, type }; setTimeout(() => { this.toast.show = false; }, 4000); },
+    /**
+     * Handles user logout: stops the social polling interval, removes the persisted
+     * active-tab key from localStorage, then emits 'logout' to the parent (App.vue)
+     * which tears down the session and redirects to the login screen.
+     */
     handleLogout() {
-      if (this.socialPollInterval) {
-        clearInterval(this.socialPollInterval);
-        this.socialPollInterval = null;
-      }
+      if (this.socialPollInterval) clearInterval(this.socialPollInterval);
       localStorage.removeItem('userActiveTab');
       this.$emit('logout');
     },
+    /**
+     * Closes all open filter/profile dropdowns. Bound to `document` click events so that
+     * clicking anywhere outside a dropdown dismisses it gracefully.
+     */
+    closeDropdowns() { this.showProfileDropdown = false; this.showDiffFilterDropdown = false; this.showLocFilterDropdown = false; this.showDurFilterDropdown = false; }
   },
 
+  /**
+   * Lifecycle hook — runs after the component is inserted into the DOM.
+   * Registers viewport resize, hash-change, and global click listeners;
+   * loads initial dashboard data; starts the countdown timer; resolves the
+   * active tab from the URL hash or localStorage; and boots the 15-second
+   * social-group polling interval.
+   */
   mounted() {
     window.addEventListener('resize', this.handleViewportResize);
     this.handleViewportResize();
     this.fetchUserData();
     this.startCountdown();
-
-    // Cache bound event handler references to avoid Vue 3 method proxy reference mismatches
     this.hashListener = this.handleHashChange.bind(this);
     this.clickListener = this.closeDropdowns.bind(this);
 
@@ -2161,21 +903,22 @@ export default {
         window.location.hash = 'dashboard';
       }
     }
-    if (this.activeTab === 'support') {
-      this.fetchUserTickets();
-    } else if (this.activeTab === 'social') {
+
+    if (this.activeTab === 'social') {
       this.fetchSocialGroups();
     }
 
-    // SILENT POLLING for social chat updates
+    // SILENT POLLING for social notification updates (checks for unread announcements)
     this.socialPollInterval = setInterval(() => {
       this.fetchSocialGroupsSilent();
-      if (this.activeTab === 'social' && this.selectedSocialTrekId) {
-        this.fetchSocialGroupMessages(this.selectedSocialTrekId, { silent: true });
-      }
     }, 15000);
   },
 
+  /**
+   * Lifecycle hook — runs just before the component is destroyed.
+   * Removes all registered event listeners and clears both the countdown timer
+   * and the social polling interval to prevent memory leaks.
+   */
   beforeUnmount() {
     window.removeEventListener('resize', this.handleViewportResize);
     if (this.countdownTimer) clearInterval(this.countdownTimer);

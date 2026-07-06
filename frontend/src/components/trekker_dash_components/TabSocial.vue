@@ -279,31 +279,90 @@
 </template>
 
 <script>
+/**
+ * =========================================================================
+ * TabSocial.vue
+ * =========================================================================
+ * Coordinated chat view enabling hikers to text their assigned guide and view group announcements.
+ * Refactored to handle chat messaging state and API requests locally.
+ */
+
 export default {
   name: 'TabSocial',
   props: {
     profile: { type: Object, required: true },
-    socialGroups: { type: Array, default: () => [] },
-    selectedSocialTrekId: { type: [Number, String], default: null },
-    socialGroupMembersList: { type: Array, default: () => [] },
-    currentGroupMessages: { type: Array, default: () => [] },
-    currentGroupAnnouncements: { type: Array, default: () => [] },
-    selectedSocialGroupTrek: { type: Object, default: null }
+    socialGroups: { type: Array, default: () => [] }
   },
-  emits: ['select-group', 'close-chat', 'send-message', 'view-fellow-profile', 'change-tab'],
+  emits: ['view-fellow-profile', 'change-tab', 'show-toast', 'refresh-groups'],
   data() {
     return {
       newMessage: '',
       isMobileView: false,
-      showMobileMembers: false
+      showMobileMembers: false,
+      selectedSocialTrekId: null,
+      socialMessages: [],
+      socialGroupMembersList: [],
+      loadingSocial: false,
+      socialPollInterval: null
     };
+  },
+  computed: {
+    selectedSocialGroupTrek() {
+      return this.socialGroups.find(t => t.id === this.selectedSocialTrekId) || null;
+    },
+    currentGroupMessages() {
+      return this.socialMessages.filter(m => m.trekId === this.selectedSocialTrekId).map(m => {
+        return {
+          id: m.id,
+          trekId: m.trekId,
+          sender: m.senderRole === 'staff' || m.senderRole === 'admin' ? 'guide' : 'trekker',
+          senderRole: m.senderRole,
+          name: m.senderName,
+          text: m.messageText,
+          isAnnouncement: m.isAnnouncement,
+          timestamp: m.createdAt ? new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''
+        };
+      });
+    },
+    currentGroupAnnouncements() {
+      return this.socialMessages
+        .filter(m => m.isAnnouncement && m.trekId === this.selectedSocialTrekId)
+        .map(m => ({
+          id: m.id,
+          trekId: m.trekId,
+          title: m.announcementTitle || 'Announcement',
+          content: m.messageText,
+          date: m.createdAt ? new Date(m.createdAt).toLocaleDateString([], { day: '2-digit', month: 'short' }) : ''
+        }));
+    }
+  },
+  watch: {
+    selectedSocialTrekId(newTrekId) {
+      if (newTrekId) {
+        this.fetchSocialGroupMessages(newTrekId);
+        this.fetchSocialGroupMembers(newTrekId);
+      } else {
+        this.socialMessages = [];
+        this.socialGroupMembersList = [];
+      }
+    }
   },
   mounted() {
     this.handleViewport();
     window.addEventListener('resize', this.handleViewport);
+    this.hashListener = this.handleHashChange.bind(this);
+    window.addEventListener('hashchange', this.hashListener);
+
+    // Initial check for hash
+    this.handleHashChange();
+
+    // Start silent polling
+    this.startPolling();
   },
   beforeUnmount() {
     window.removeEventListener('resize', this.handleViewport);
+    window.removeEventListener('hashchange', this.hashListener);
+    this.stopPolling();
   },
   methods: {
     handleViewport() {
@@ -312,36 +371,110 @@ export default {
         this.showMobileMembers = false;
       }
     },
+    handleHashChange() {
+      const hash = window.location.hash.slice(1);
+      if (hash.startsWith('social/group/')) {
+        const trekId = parseInt(hash.replace('social/group/', ''), 10);
+        this.selectedSocialTrekId = isNaN(trekId) ? null : trekId;
+      } else if (hash === 'social') {
+        this.selectedSocialTrekId = null;
+      }
+    },
     goTab(tab) {
       this.$emit('change-tab', tab);
     },
     selectGroup(groupId) {
       this.showMobileMembers = false;
-      this.$emit('select-group', groupId);
+      this.selectedSocialTrekId = groupId;
+      window.location.hash = `social/group/${groupId}`;
     },
     closeChat() {
       this.showMobileMembers = false;
-      this.$emit('close-chat');
+      this.selectedSocialTrekId = null;
+      window.location.hash = 'social';
     },
     backToGroups() {
       this.showMobileMembers = false;
-      this.$emit('close-chat');
+      this.selectedSocialTrekId = null;
+      window.location.hash = 'social';
     },
     toggleMembers() {
       this.showMobileMembers = !this.showMobileMembers;
     },
-    sendMessage() {
-      if (!this.newMessage.trim()) return;
-      this.$emit('send-message', this.newMessage);
+    async sendMessage() {
+      if (!this.newMessage.trim() || !this.selectedSocialTrekId) return;
+      const text = this.newMessage.trim();
       this.newMessage = '';
+      try {
+        const res = await fetch(`/api/social/group/${this.selectedSocialTrekId}/messages`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messageText: text })
+        });
+        if (res.ok) {
+          await this.fetchSocialGroupMessages(this.selectedSocialTrekId);
+        } else {
+          const errData = await res.json();
+          this.$emit('show-toast', errData.error || 'Failed to send message.', 'error');
+        }
+      } catch (e) {
+        console.error("Error sending message:", e);
+      }
     },
     viewFellowProfile(member) {
       this.$emit('view-fellow-profile', member);
     },
-    formatMessageTime(timeStr) {
-      if (!timeStr) return '';
-      const d = new Date(timeStr);
-      return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    async fetchSocialGroupMessages(trekId, options = {}) {
+      if (!options.silent) this.loadingSocial = true;
+      try {
+        const res = await fetch(`/api/social/group/${trekId}/messages`);
+        if (res.ok) {
+          this.socialMessages = await res.json();
+          if (!options.silent) {
+            this.$nextTick(() => {
+              const feed = this.$el.querySelector('.social-chat-feed');
+              if (feed) feed.scrollTop = feed.scrollHeight;
+            });
+          }
+          this.$emit('refresh-groups');
+        }
+      } catch (e) {
+        console.error("Error fetching messages:", e);
+      } finally {
+        if (!options.silent) this.loadingSocial = false;
+      }
+    },
+    async fetchSocialGroupMembers(trekId) {
+      try {
+        const res = await fetch(`/api/social/group/${trekId}/members`);
+        if (res.ok) {
+          const data = await res.json();
+          const members = [];
+          if (data.guide) {
+            members.push(data.guide);
+          }
+          if (data.trekkers) {
+            members.push(...data.trekkers);
+          }
+          this.socialGroupMembersList = members;
+        }
+      } catch (e) {
+        console.error("Error fetching group members:", e);
+      }
+    },
+    startPolling() {
+      this.stopPolling();
+      this.socialPollInterval = setInterval(() => {
+        if (this.selectedSocialTrekId) {
+          this.fetchSocialGroupMessages(this.selectedSocialTrekId, { silent: true });
+        }
+      }, 15000);
+    },
+    stopPolling() {
+      if (this.socialPollInterval) {
+        clearInterval(this.socialPollInterval);
+        this.socialPollInterval = null;
+      }
     },
     getChatBubbleStyle(m) {
       if (m.isAnnouncement) {

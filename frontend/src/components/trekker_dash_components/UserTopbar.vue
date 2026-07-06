@@ -51,6 +51,15 @@
 </template>
 
 <script>
+/**
+ * =========================================================================
+ * UserTopbar.vue
+ * =========================================================================
+ * Top header bar supplying the dynamic page title, catalog search field, and profile avatar access.
+ * Standard Vue component using custom props parameters input and events emitters
+ * to communicate with parent 'UserDashboard'.
+ */
+
 export default {
   name: 'UserTopbar',
   props: {

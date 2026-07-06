@@ -192,19 +192,27 @@
 </template>
 
 <script>
+/**
+ * =========================================================================
+ * TabSupport.vue
+ * =========================================================================
+ * Support portal where trekkers submit questions regarding payments or bookings and check responses.
+ * Refactored to handle API calls locally.
+ */
+
 export default {
   name: 'TabSupport',
   props: {
-    profile: { type: Object, required: true },
-    supportTickets: { type: Array, default: () => [] },
-    loadingSupport: { type: Boolean, default: false },
-    submittingSupport: { type: Boolean, default: false }
+    profile: { type: Object, required: true }
   },
-  emits: ['submit-ticket', 'change-tab'],
+  emits: ['change-tab', 'show-toast'],
   data() {
     return {
       expandedFaq: null,
       showCategoryDropdown: false,
+      supportTickets: [],
+      loadingSupport: false,
+      submittingSupport: false,
       supportForm: {
         subject: '',
         message: '',
@@ -214,6 +222,7 @@ export default {
   },
   mounted() {
     document.addEventListener('click', this.clickListener);
+    this.fetchUserTickets();
   },
   beforeUnmount() {
     document.removeEventListener('click', this.clickListener);
@@ -222,13 +231,48 @@ export default {
     goTab(tab) {
       this.$emit('change-tab', tab);
     },
-    submitSupportTicket() {
-      this.$emit('submit-ticket', {
-        form: this.supportForm,
-        successCallback: () => {
-          this.supportForm = { subject: '', message: '', category: 'General' };
+    async fetchUserTickets() {
+      this.loadingSupport = true;
+      try {
+        const res = await fetch('/api/user/tickets');
+        if (res.ok) {
+          this.supportTickets = await res.json();
+        } else {
+          console.error('Fetch tickets status:', res.status);
         }
-      });
+      } catch (e) {
+        console.error('Fetch tickets error:', e);
+      } finally {
+        this.loadingSupport = false;
+      }
+    },
+    async submitSupportTicket() {
+      if (!this.supportForm.subject.trim() || !this.supportForm.message.trim()) {
+        this.$emit('show-toast', 'Please fill in both Subject and Message.', 'error');
+        return;
+      }
+      this.submittingSupport = true;
+      try {
+        const res = await fetch('/api/user/tickets', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(this.supportForm)
+        });
+        if (res.ok) {
+          const data = await res.json();
+          this.$emit('show-toast', data.message || 'Ticket submitted successfully!', 'success');
+          this.supportForm = { subject: '', message: '', category: 'General' };
+          await this.fetchUserTickets();
+        } else {
+          const data = await res.json();
+          this.$emit('show-toast', data.error || 'Failed to submit ticket.', 'error');
+        }
+      } catch (e) {
+        console.error('Submit ticket error:', e);
+        this.$emit('show-toast', 'Server connection failed.', 'error');
+      } finally {
+        this.submittingSupport = false;
+      }
     },
     clickListener(e) {
       if (!e.target.closest('.custom-select-wrapper')) {
@@ -249,3 +293,4 @@ export default {
   }
 };
 </script>
+

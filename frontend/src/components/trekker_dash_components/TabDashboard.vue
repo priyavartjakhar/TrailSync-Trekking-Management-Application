@@ -316,6 +316,15 @@
 </template>
 
 <script>
+/**
+ * =========================================================================
+ * TabDashboard.vue
+ * =========================================================================
+ * Standard hiker dashboard showing stats (total treks completed, investment, active bookings), weather widgets, and next trek countdown.
+ * Standard Vue component using custom props parameters input and events emitters
+ * to communicate with parent 'UserDashboard'.
+ */
+
 export default {
   name: 'TabDashboard',
   props: {

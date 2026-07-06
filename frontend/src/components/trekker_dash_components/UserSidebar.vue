@@ -73,6 +73,15 @@
 </template>
 
 <script>
+/**
+ * =========================================================================
+ * UserSidebar.vue
+ * =========================================================================
+ * Drawer navigation panel for the trekker interface, housing profile shortcuts, active tab buttons, and logout actions.
+ * Standard Vue component using custom props parameters input and events emitters
+ * to communicate with parent 'UserDashboard'.
+ */
+
 export default {
   name: 'UserSidebar',
   props: {

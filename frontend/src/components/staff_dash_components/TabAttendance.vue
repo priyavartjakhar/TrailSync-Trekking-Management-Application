@@ -85,6 +85,15 @@
 </template>
 
 <script>
+/**
+ * =========================================================================
+ * TabAttendance.vue
+ * =========================================================================
+ * Checklist management tab enabling guides to check off checklist items for individual participants in their assigned treks.
+ * Uses 'staffDashComponent' options proxying to automatically route methods/state
+ * read/writes directly to the parent 'StaffDashboard' instance.
+ */
+
 import { staffDashComponent } from './staffDashProxy';
 
 export default staffDashComponent('TabAttendance');

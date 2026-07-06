@@ -53,6 +53,15 @@
 </template>
 
 <script>
+/**
+ * =========================================================================
+ * StaffTopbar.vue
+ * =========================================================================
+ * Top bar component displaying current guide credentials, navigation indicators, support tickets trigger, and user logout.
+ * Uses 'staffDashComponent' options proxying to automatically route methods/state
+ * read/writes directly to the parent 'StaffDashboard' instance.
+ */
+
 import { staffDashComponent } from './staffDashProxy';
 
 export default staffDashComponent('StaffTopbar', { emits: ['logout'] });

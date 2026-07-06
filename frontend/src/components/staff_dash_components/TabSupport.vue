@@ -131,7 +131,126 @@
 </template>
 
 <script>
+/**
+ * =========================================================================
+ * TabSupport.vue
+ * =========================================================================
+ * Inquiries panel where guides raise leave requests or log issues with the administrative office.
+ * Uses 'staffDashComponent' options proxying to automatically route methods/state
+ * read/writes directly to the parent 'StaffDashboard' instance.
+ */
+
 import { staffDashComponent } from './staffDashProxy';
 
-export default staffDashComponent('TabSupport');
+export default staffDashComponent('TabSupport', {
+  data() {
+    return {
+      supportTickets: [],
+      submittingSupport: false,
+      newTicket: { subject: '', category: 'General', message: '' },
+      leaveRequest: { startDate: '', endDate: '', reason: '' },
+      submittingLeave: false
+    };
+  },
+  methods: {
+    getCategoryClass(category) {
+      const normalized = String(category || 'General').toLowerCase();
+      if (normalized.includes('leave')) return 'cat-leave';
+      if (normalized.includes('bug') || normalized.includes('technical')) return 'cat-bug';
+      if (normalized.includes('feedback')) return 'cat-feedback';
+      if (normalized.includes('payment')) return 'cat-payment';
+      if (normalized.includes('profile')) return 'cat-profile';
+      if (normalized.includes('booking')) return 'cat-booking';
+      return 'cat-general';
+    },
+
+    async fetchStaffTickets() {
+      try {
+        const res = await fetch('/api/staff/tickets');
+        if (res.ok) {
+          this.supportTickets = await res.json();
+        }
+      } catch (e) {
+        console.error("Error fetching staff tickets:", e);
+      }
+    },
+
+    async submitStaffTicket() {
+      if (!this.newTicket.subject.trim() || !this.newTicket.message.trim()) {
+        this.staffDash.showToast('Please fill in both subject and description.', 'error');
+        return;
+      }
+      this.submittingSupport = true;
+      try {
+        const res = await fetch('/api/staff/tickets', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            subject: this.newTicket.subject.trim(),
+            category: this.newTicket.category,
+            message: this.newTicket.message.trim()
+          })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          this.staffDash.showToast(data.message || 'Support ticket submitted successfully!');
+          this.newTicket = { subject: '', category: 'General', message: '' };
+          await this.fetchStaffTickets();
+        } else {
+          this.staffDash.showToast(data.error || 'Failed to submit support ticket.', 'error');
+        }
+      } catch (e) {
+        console.error("Error submitting support ticket:", e);
+        this.staffDash.showToast('Server error while submitting support ticket.', 'error');
+      } finally {
+        this.submittingSupport = false;
+      }
+    },
+
+    async submitLeaveRequest() {
+      if (!this.leaveRequest.startDate || !this.leaveRequest.endDate || !this.leaveRequest.reason.trim()) {
+        this.staffDash.showToast('Please fill in start date, end date, and reason.', 'error');
+        return;
+      }
+      const start = new Date(this.leaveRequest.startDate);
+      const end = new Date(this.leaveRequest.endDate);
+      if (start > end) {
+        this.staffDash.showToast('Start date must be before or equal to end date.', 'error');
+        return;
+      }
+      this.submittingLeave = true;
+      try {
+        const dateRangeStr = `${this.leaveRequest.startDate} to ${this.leaveRequest.endDate}`;
+        const subject = `Leave Request: ${dateRangeStr}`;
+        const message = `Leave Dates: ${dateRangeStr}\nReason: ${this.leaveRequest.reason.trim()}`;
+        
+        const res = await fetch('/api/staff/tickets', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            subject: subject,
+            category: 'Leave Request',
+            message: message
+          })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          this.staffDash.showToast('Leave request submitted successfully for approval!');
+          this.leaveRequest = { startDate: '', endDate: '', reason: '' };
+          await this.fetchStaffTickets();
+        } else {
+          this.staffDash.showToast(data.error || 'Failed to submit leave request.', 'error');
+        }
+      } catch (e) {
+        console.error("Error submitting leave request:", e);
+        this.staffDash.showToast('Server error while submitting leave request.', 'error');
+      } finally {
+        this.submittingLeave = false;
+      }
+    }
+  },
+  mounted() {
+    this.fetchStaffTickets();
+  }
+});
 </script>

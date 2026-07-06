@@ -153,7 +153,106 @@
 </template>
 
 <script>
+/**
+ * =========================================================================
+ * TabProfile.vue
+ * =========================================================================
+ * Guide profile workspace for editing designation, languages, Wilderness medicine certifications, and skills.
+ * Uses 'staffDashComponent' options proxying to automatically route methods/state
+ * read/writes directly to the parent 'StaffDashboard' instance.
+ */
+
 import { staffDashComponent } from './staffDashProxy';
 
-export default staffDashComponent('TabProfile');
+export default staffDashComponent('TabProfile', {
+  data() {
+    return {
+      pwForm: { current: '', new: '', confirm: '' }
+    };
+  },
+  computed: {
+    profilePhotoUrl() {
+      return this.staffProfile.photoUrl || this.staffProfile.profile_image_url || '';
+    },
+
+    staffInitial() {
+      return this.staffProfile.name ? this.staffProfile.name[0].toUpperCase() : 'S';
+    },
+
+    profileStatusLabel() {
+      if (this.staffProfile.blacklisted) return 'Restricted';
+      return this.staffProfile.status || (this.staffProfile.active === false ? 'Inactive' : 'Active');
+    },
+
+    profileSkills() {
+      return this.splitProfileList(this.staffProfile.skills);
+    },
+
+    profileCertifications() {
+      return this.splitProfileList(this.staffProfile.certifications);
+    },
+
+    profileLanguages() {
+      return this.splitProfileList(this.staffProfile.languages);
+    },
+
+    perfMetrics() {
+      const totalSlots = this.assignedTreks.reduce((a, t) => a + t.slots, 0);
+      const totalRegistered = this.assignedTreks.reduce((a, t) => a + t.registered, 0);
+      const occupancy = totalSlots > 0 ? Math.round((totalRegistered / totalSlots) * 100) : 0;
+      const completionRate = this.assignedTreks.length > 0
+        ? Math.round((this.assignedTreks.filter(t => t.status === 'Completed').length / this.assignedTreks.length) * 100)
+        : 0;
+      const completedTreks = Number(this.staffProfile.completedTreksCount || 0);
+      const experienceYears = Number(this.staffProfile.experienceYears || 0);
+      const activeTreks = this.assignedTreks.filter(t => ['Open', 'Approved', 'Started'].includes(t.status)).length;
+      return {
+        treksManaged: completedTreks + this.assignedTreks.length,
+        completedTreks,
+        assignedTreks: this.assignedTreks.length,
+        activeTreks,
+        participantsManaged: this.participants.length,
+        occupancy,
+        completionRate,
+        experienceYears
+      };
+    }
+  },
+  methods: {
+    splitProfileList(value) {
+      return (value || '')
+        .split(',')
+        .map(v => v.trim())
+        .filter(Boolean);
+    },
+
+    async changePassword() {
+      if (!this.pwForm.current || !this.pwForm.new) {
+        this.staffDash.showToast('Fill all fields', 'error');
+        return;
+      }
+      if (this.pwForm.new !== this.pwForm.confirm) {
+        this.staffDash.showToast("Passwords don't match", 'error');
+        return;
+      }
+      try {
+        const res = await fetch('/api/staff/password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ current: this.pwForm.current, new: this.pwForm.new })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          this.pwForm = { current: '', new: '', confirm: '' };
+          this.staffDash.showToast(data.message || 'Password updated');
+        } else {
+          this.staffDash.showToast(data.error || 'Update failed', 'error');
+        }
+      } catch {
+        this.pwForm = { current: '', new: '', confirm: '' };
+        this.staffDash.showToast('Password changed successfully');
+      }
+    }
+  }
+});
 </script>

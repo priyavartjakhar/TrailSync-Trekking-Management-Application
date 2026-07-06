@@ -194,11 +194,279 @@
         </div>
       </div>
 
+      <!-- Social Profile Detail Modal -->
+      <div v-if="showSocialProfileModal && socialProfileTarget" class="ts-modal-overlay" @click.self="showSocialProfileModal = false">
+        <div class="ts-modal" style="max-width: 460px; width: 90%;">
+          <div class="ts-modal-header">
+            <h3 class="ts-modal-title">Trekker Profile (Social)</h3>
+            <button class="modal-close" @click="showSocialProfileModal = false">✕</button>
+          </div>
+          <div class="ts-modal-body">
+            <div class="pmodal-hero">
+              <div class="pmodal-avatar">{{ socialProfileTarget.name[0] }}</div>
+              <div>
+                <div class="pmodal-name">{{ socialProfileTarget.name }}</div>
+                <div class="pmodal-email">{{ socialProfileTarget.email }}</div>
+                <div class="pmodal-trekker-id">Trekker ID {{ displayTrekkerId(socialProfileTarget) }}</div>
+                <div style="margin-top:4px;">
+                  <span :class="'status-pill status-' + socialProfileTarget.status.toLowerCase()">{{ socialProfileTarget.status }}</span>
+                </div>
+              </div>
+            </div>
+            <div class="pmodal-grid mt-3">
+              <div class="pmodal-field">
+                <div class="pmodal-field-label">Phone</div>
+                <div class="pmodal-field-val">{{ socialProfileTarget.phone || '—' }}</div>
+              </div>
+              <div class="pmodal-field">
+                <div class="pmodal-field-label">Blood Group</div>
+                <div class="pmodal-field-val" style="color:#dc2626;font-weight:700">{{ socialProfileTarget.bloodGroup || '—' }}</div>
+              </div>
+            </div>
+            <div class="pmodal-emergency mt-3">
+              <div class="pmodal-emergency-title fw-bold" style="font-size: 0.82rem; color: var(--forest);"><i class="bi bi-exclamation-triangle-fill text-danger"></i> Emergency Contact</div>
+              <div class="pmodal-grid mt-2">
+                <div class="pmodal-field"><div class="pmodal-field-label">Name</div><div class="pmodal-field-val">{{ socialProfileTarget.emergencyContact || '—' }}</div></div>
+                <div class="pmodal-field"><div class="pmodal-field-label">Phone</div><div class="pmodal-field-val">{{ socialProfileTarget.emergencyPhone || '—' }}</div></div>
+              </div>
+            </div>
+          </div>
+          <div class="ts-modal-footer">
+            <button class="btn-ghost" @click="showSocialProfileModal = false">Close</button>
+            <button v-if="socialProfileTarget?.status === 'Booked'" class="btn-danger" @click="cancelParticipant(socialProfileTarget); showSocialProfileModal = false">Remove</button>
+          </div>
+        </div>
+      </div>
+
       </div><!-- /social-tab-container -->
 </template>
 
 <script>
+/**
+ * =========================================================================
+ * TabSocial.vue
+ * =========================================================================
+ * Group chat window enabling guides to make announcements and text hikers registered for their assigned treks.
+ * Uses 'staffDashComponent' options proxying to automatically route methods/state
+ * read/writes directly to the parent 'StaffDashboard' instance.
+ */
+
 import { staffDashComponent } from './staffDashProxy';
 
-export default staffDashComponent('TabSocial');
+export default staffDashComponent('TabSocial', {
+  data() {
+    return {
+      showMobileMembers: false,
+      selectedSocialTrekId: null,
+      newSocialMessageText: '',
+      showSocialProfileModal: false,
+      socialProfileTarget: null,
+      socialGroups: [],
+      pendingGroups: [],
+      loadingSocial: false,
+      socialMessages: [
+        { id: 1, trekId: 1, sender: 'guide', name: 'Lead Guide', text: 'Hey trekkers! Please make sure you bring proper high-ankle trekking shoes. The weather at Kedarkantha is snowy right now.', timestamp: '10:00 AM' },
+        { id: 2, trekId: 1, sender: 'trekker', name: 'Aarav Sharma', text: 'Thanks for the update, guide! Are microspikes provided at basecamp?', timestamp: '10:15 AM' },
+        { id: 3, trekId: 1, sender: 'guide', name: 'Lead Guide', text: 'Yes, Aarav! We will distribute microspikes and gaiters at Sankri basecamp.', timestamp: '10:18 AM' },
+        { id: 4, trekId: 1, sender: 'trekker', name: 'Neha Gupta', text: 'Awesome! Can we rent warm jackets too?', timestamp: '10:20 AM' },
+        { id: 5, trekId: 1, sender: 'guide', name: 'Lead Guide', text: 'Yes, heavy down jackets are available for rent at Sankri. Make sure to pre-book.', timestamp: '10:22 AM' },
+
+        { id: 6, trekId: 2, sender: 'guide', name: 'Lead Guide', text: 'Welcome to the Hampta Pass group chat! We start in 5 days. Ensure your physical prep matches the routine.', timestamp: '09:00 AM' },
+        { id: 7, trekId: 2, sender: 'trekker', name: 'Rohan Mehta', text: 'Looking forward to it! How cold will it get at Balu ka Ghera camp?', timestamp: '09:12 AM' },
+        { id: 8, trekId: 2, sender: 'guide', name: 'Lead Guide', text: 'It will dip to around 2°C at night, Rohan. Make sure you have at least 3 warm layers.', timestamp: '09:20 AM' }
+      ],
+      socialPollInterval: null
+    };
+  },
+  computed: {
+    selectedSocialGroupTrek() {
+      return this.socialGroups.find(t => t.id === this.selectedSocialTrekId) || this.assignedTreks.find(t => t.id === this.selectedSocialTrekId) || null;
+    },
+    currentGroupMessages() {
+      return this.socialMessages.filter(m => m.trekId === this.selectedSocialTrekId).map(m => {
+        return {
+          id: m.id,
+          trekId: m.trekId,
+          sender: m.senderRole === 'staff' || m.senderRole === 'admin' ? 'guide' : 'trekker',
+          senderRole: m.senderRole,
+          name: m.senderName,
+          text: m.messageText,
+          isAnnouncement: false,
+          timestamp: m.createdAt ? new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''
+        };
+      });
+    },
+    socialGroupMembers() {
+      if (!this.selectedSocialTrekId) return [];
+      return this.participants.filter(p => p.trekId === this.selectedSocialTrekId && (p.status === 'Booked' || p.status === 'Completed'));
+    }
+  },
+  methods: {
+    async fetchSocialGroups() {
+      try {
+        const res = await fetch('/api/social/groups');
+        if (res.ok) {
+          this.socialGroups = await res.json();
+          this.fetchPendingGroups();
+        }
+      } catch (e) {
+        console.error("Error fetching social groups:", e);
+      }
+    },
+    async fetchPendingGroups() {
+      try {
+        const res = await fetch('/api/social/pending_groups');
+        if (res.ok) {
+          this.pendingGroups = await res.json();
+        }
+      } catch (e) {
+        console.error('Error fetching pending groups:', e);
+      }
+    },
+    async fetchSocialGroupMessages(trekId, options = {}) {
+      if (!options.silent) this.loadingSocial = true;
+      try {
+        const res = await fetch(`/api/social/group/${trekId}/messages`);
+        if (res.ok) {
+          const msgs = await res.json();
+          this.socialMessages = msgs;
+          if (!options.silent) {
+            this.$nextTick(() => {
+              const feed = this.$refs.socialChatFeed || (this.$el ? this.$el.querySelector('.social-chat-feed') : null);
+              if (feed) feed.scrollTop = feed.scrollHeight;
+            });
+          }
+        }
+      } catch (e) {
+        console.error("Error fetching social messages:", e);
+      } finally {
+        if (!options.silent) this.loadingSocial = false;
+      }
+    },
+    async toggleSocialGroupLock(trekId) {
+      try {
+        const res = await fetch(`/api/social/group/${trekId}/toggle_lock`, { method: 'POST' });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          this.staffDash.showToast(data.isLocked ? 'Group chat locked (view only for trekkers).' : 'Group chat unlocked successfully!');
+          await this.fetchSocialGroups();
+        } else {
+          this.staffDash.showToast(data.error || 'Failed to toggle group lock.', 'error');
+        }
+      } catch (e) {
+        console.error("Error toggling group lock:", e);
+      }
+    },
+    selectSocialGroup(trekId) {
+      this.selectedSocialTrekId = trekId;
+      window.location.hash = `social/group/${trekId}`;
+      this.fetchSocialGroupMessages(trekId);
+    },
+    closeSocialChat() {
+      this.selectedSocialTrekId = null;
+      this.newSocialMessageText = '';
+      this.showMobileMembers = false;
+      window.location.hash = 'social';
+    },
+    async sendSocialMessage() {
+      if (!this.newSocialMessageText.trim()) return;
+      try {
+        const text = this.newSocialMessageText.trim();
+        this.newSocialMessageText = '';
+        const res = await fetch(`/api/social/group/${this.selectedSocialTrekId}/messages`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messageText: text })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          await this.fetchSocialGroupMessages(this.selectedSocialTrekId);
+        } else {
+          const errData = await res.json();
+          this.staffDash.showToast(errData.error || 'Failed to send message.', 'error');
+        }
+      } catch (e) {
+        console.error("Error sending message:", e);
+      }
+    },
+    async createGroup(trekId) {
+      try {
+        const res = await fetch(`/api/social/group/${trekId}/create`, { method: 'POST' });
+        if (res.ok) {
+          const d = await res.json();
+          this.staffDash.showToast(d.message || 'Group created');
+          await this.fetchSocialGroups();
+          await this.fetchPendingGroups();
+        } else {
+          const err = await res.json();
+          this.staffDash.showToast(err.error || 'Failed to create group', 'error');
+        }
+      } catch (e) {
+        console.error('Error creating group:', e);
+      }
+    },
+    openSocialProfileModal(p) {
+      this.socialProfileTarget = p;
+      this.showSocialProfileModal = true;
+    },
+    getTrekkerCount(trekId) {
+      const trekkers = this.participants.filter(p => p.trekId === trekId && (p.status === 'Booked' || p.status === 'Completed')).length;
+      return trekkers + 1; // including guide
+    },
+    getChatBubbleStyle(m) {
+      if (m.sender === 'system' || m.name === 'System') {
+        return {
+          background: 'rgba(255, 238, 207, 0.95)',
+          color: '#513c1a',
+          alignSelf: 'center',
+          borderRadius: '6px',
+          fontSize: '0.72rem',
+          fontWeight: '600',
+          textAlign: 'center',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.06)'
+        };
+      }
+      if (m.sender === 'guide') {
+        return {
+          background: 'var(--cream)',
+          border: '1px solid rgba(200, 146, 42, 0.25)',
+          color: 'var(--bark)',
+          borderTopRightRadius: '0px'
+        };
+      }
+      return {
+        background: '#ffffff',
+        border: '1px solid rgba(26, 46, 26, 0.08)',
+        color: 'var(--bark)',
+        borderTopLeftRadius: '0px'
+      };
+    },
+    isGroupCompleted(t) {
+      if (!t) return false;
+      if (t.status === 'Completed') return true;
+      if (!t.endDate) return false;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const end = new Date(t.endDate);
+      end.setHours(23, 59, 59, 999);
+      return end < today;
+    }
+  },
+  mounted() {
+    this.fetchSocialGroups();
+    
+    // Polling interval for social groups & messages
+    this.socialPollInterval = setInterval(() => {
+      this.fetchSocialGroups();
+      if (this.selectedSocialTrekId) {
+        this.fetchSocialGroupMessages(this.selectedSocialTrekId, { silent: true });
+      }
+    }, 15000);
+  },
+  beforeUnmount() {
+    if (this.socialPollInterval) {
+      clearInterval(this.socialPollInterval);
+    }
+  }
+});
 </script>

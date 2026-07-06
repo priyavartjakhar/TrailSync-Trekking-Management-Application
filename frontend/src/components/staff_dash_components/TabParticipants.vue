@@ -212,11 +212,224 @@
             CSV export triggered — sent to your email shortly.
           </div>
         </template>
+
+        <!-- Participant Detail Modal -->
+        <div v-if="showParticipantModal && participantTarget" class="ts-modal-overlay" @click.self="showParticipantModal = false">
+          <div class="ts-modal">
+            <div class="ts-modal-header">
+              <h3 class="ts-modal-title">Trekker Profile</h3>
+              <button class="modal-close" @click="showParticipantModal = false">✕</button>
+            </div>
+            <div class="ts-modal-body">
+              <!-- Avatar + Name -->
+              <div class="pmodal-hero">
+                <div class="pmodal-avatar">{{ participantTarget.name[0] }}</div>
+                <div>
+                  <div class="pmodal-name">{{ participantTarget.name }}</div>
+                  <div class="pmodal-email">{{ participantTarget.email }}</div>
+                  <div class="pmodal-trekker-id">Trekker ID {{ displayTrekkerId(participantTarget) }}</div>
+                  <div style="margin-top:4px;display:flex;gap:6px;align-items:center">
+                    <span :class="'status-pill status-' + participantTarget.status.toLowerCase()">{{ participantTarget.status }}</span>
+                    <span :class="paymentStatusClass(participantTarget)">{{ paymentStatusLabel(participantTarget) }}</span>
+                  </div>
+                </div>
+              </div>
+              <!-- Info grid -->
+              <div class="pmodal-grid">
+                <div class="pmodal-field">
+                  <div class="pmodal-field-label">Trekker ID</div>
+                  <div class="pmodal-field-val mono">{{ displayTrekkerId(participantTarget) }}</div>
+                </div>
+                <div class="pmodal-field">
+                  <div class="pmodal-field-label">Phone</div>
+                  <div class="pmodal-field-val">{{ participantTarget.phone || '—' }}</div>
+                </div>
+                <div class="pmodal-field">
+                  <div class="pmodal-field-label">Booked On</div>
+                  <div class="pmodal-field-val">{{ participantTarget.bookedOn }}</div>
+                </div>
+                <div class="pmodal-field">
+                  <div class="pmodal-field-label">Blood Group</div>
+                  <div class="pmodal-field-val" style="color:#dc2626;font-weight:700">{{ participantTarget.bloodGroup || '—' }}</div>
+                </div>
+                <div class="pmodal-field">
+                  <div class="pmodal-field-label">Attendance</div>
+                  <div class="pmodal-field-val">{{ participantTarget.attendance ? '✓ Present' : 'Not marked' }}</div>
+                </div>
+                <div class="pmodal-field">
+                  <div class="pmodal-field-label">Payment</div>
+                  <div class="pmodal-field-val">
+                    <span :class="paymentStatusClass(participantTarget)">{{ paymentStatusLabel(participantTarget) }}</span>
+                  </div>
+                </div>
+              </div>
+              <!-- Emergency box -->
+              <div class="pmodal-emergency">
+                <div class="pmodal-emergency-title">🚑 Emergency Contact</div>
+                <div class="pmodal-grid" style="margin-top:0.5rem">
+                  <div class="pmodal-field"><div class="pmodal-field-label">Name</div><div class="pmodal-field-val">{{ participantTarget.emergencyContact || '—' }}</div></div>
+                  <div class="pmodal-field"><div class="pmodal-field-label">Phone</div><div class="pmodal-field-val">{{ participantTarget.emergencyPhone || '—' }}</div></div>
+                </div>
+              </div>
+            </div>
+            <div class="ts-modal-footer">
+              <button class="btn-ghost" @click="showParticipantModal = false">Close</button>
+              <button v-if="participantTarget.status==='Booked'" class="btn-danger" @click="cancelParticipant(participantTarget); showParticipantModal = false">Remove</button>
+              <button v-if="participantTarget.status==='Booked'" class="btn-primary-ts" @click="markParticipantComplete(participantTarget); showParticipantModal = false">Mark Completed</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Emergency Contacts Modal -->
+        <div v-if="showEmergencyModal && participantTarget" class="ts-modal-overlay" @click.self="showEmergencyModal = false">
+          <div class="ts-modal ts-modal-sm">
+            <div class="ts-modal-header">
+              <h3 class="ts-modal-title">🚑 Emergency Info</h3>
+              <button class="modal-close" @click="showEmergencyModal = false">✕</button>
+            </div>
+            <div class="ts-modal-body">
+              <div style="font-weight:600; color:var(--forest); margin-bottom:1rem">{{ participantTarget.name }}</div>
+              <div class="emergency-row">
+                <span class="emergency-icon">🏥</span>
+                <div>
+                  <div class="ec-name">{{ participantTarget.emergencyContact }}</div>
+                  <div class="ec-phone">{{ participantTarget.emergencyPhone }}</div>
+                </div>
+                <span class="ec-blood">{{ participantTarget.bloodGroup }}</span>
+              </div>
+              <div style="font-size:0.78rem; color:var(--stone); margin-top:0.75rem; padding:0.65rem; background:rgba(239,68,68,0.04); border-radius:4px">
+                In case of emergency, contact the above number. Blood type {{ participantTarget.bloodGroup }} noted.
+              </div>
+            </div>
+            <div class="ts-modal-footer">
+              <button class="btn-primary-ts" @click="showEmergencyModal = false">Close</button>
+            </div>
+          </div>
+        </div>
+
       </div>
 </template>
 
 <script>
 import { staffDashComponent } from './staffDashProxy';
 
-export default staffDashComponent('TabParticipants');
+/**
+ * TabParticipants Component
+ * Lists the registered hikers for the selected trek.
+ * 
+ * Leverages 'staffDashComponent' option factory helper to inject parent 'staffDash'
+ * instance logic, enabling direct methods access (like setting attendance or updating states).
+ */
+export default staffDashComponent('TabParticipants', {
+  data() {
+    return {
+      trekSearchQuery: '',
+      participantSearch: '',
+      showParticipantModal: false,
+      showEmergencyModal: false,
+      participantTarget: null,
+      exportPending: false,
+      exportTrekId: null
+    };
+  },
+  computed: {
+    /**
+     * Trek options filtered by local search query (name, location, batch code)
+     */
+    filteredTrekOptions() {
+      const q = this.trekSearchQuery.toLowerCase().trim();
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const filtered = this.assignedTreks.filter(t =>
+        !q ||
+        t.name.toLowerCase().includes(q) ||
+        (t.location && t.location.toLowerCase().includes(q)) ||
+        (t.batchCode && t.batchCode.toLowerCase().includes(q))
+      );
+      return filtered.filter(t => {
+        if (!t.endDate) return true;
+        const parts = t.endDate.split('-');
+        if (parts.length !== 3) return true;
+        const end = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+        end.setHours(23, 59, 59, 999);
+        return t.status !== 'Completed' && end >= today;
+      }).sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+    },
+
+    completedTrekOptions() {
+      const q = this.trekSearchQuery.toLowerCase().trim();
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const filtered = this.assignedTreks.filter(t =>
+        !q ||
+        t.name.toLowerCase().includes(q) ||
+        (t.location && t.location.toLowerCase().includes(q)) ||
+        (t.batchCode && t.batchCode.toLowerCase().includes(q))
+      );
+      return filtered.filter(t => {
+        if (!t.endDate) return false;
+        const parts = t.endDate.split('-');
+        if (parts.length !== 3) return false;
+        const end = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+        end.setHours(23, 59, 59, 999);
+        return t.status === 'Completed' || end < today;
+      }).sort((a, b) => new Date(b.endDate) - new Date(a.endDate));
+    },
+
+    /**
+     * Filtered participants list for the selected participantTrekId
+     */
+    filteredParticipants() {
+      return this.participants.filter(p => {
+        const matchTrek = p.trekId === this.participantTrekId;
+        const q = this.participantSearch.toLowerCase();
+        const trekkerId = this.displayTrekkerId(p).toLowerCase();
+        const matchSearch = !q || p.name.toLowerCase().includes(q) || p.email.toLowerCase().includes(q) || trekkerId.includes(q);
+        return matchTrek && matchSearch;
+      });
+    }
+  },
+  methods: {
+    openParticipantModal(p) {
+      this.participantTarget = p;
+      this.showParticipantModal = true;
+    },
+    openEmergencyModal(p) {
+      this.participantTarget = p;
+      this.showEmergencyModal = true;
+    },
+    async markParticipantComplete(p) {
+      try {
+        const res = await fetch(`/api/staff/participants/status/${p.id}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'Completed' })
+        });
+        if (res.ok) {
+          this.staffDash.showToast(`${p.name} marked completed`);
+          this.staffDash.fetchStaffData();
+        }
+      } catch {
+        p.status = 'Completed';
+        this.staffDash.showToast(`${p.name} marked as completed`);
+      }
+    },
+    async exportCSV(trekId) {
+      this.exportPending = true;
+      this.exportTrekId = trekId;
+      const trek = this.assignedTreks.find(t => t.id === trekId);
+      try {
+        const res = await fetch(`/api/staff/export/${trekId}`, { method: 'POST' });
+        const data = await res.json();
+        this.staffDash.showToast(data.message || 'CSV export triggered');
+      } catch {
+        this.staffDash.showToast(`Participant list for ${trek?.name || 'trek'} — CSV sent via email`);
+      }
+      setTimeout(() => {
+        this.exportPending = false;
+        this.exportTrekId = null;
+      }, 6000);
+    }
+  }
+});
 </script>

@@ -299,7 +299,76 @@
 </template>
 
 <script>
+/**
+ * =========================================================================
+ * TabDashboard.vue
+ * =========================================================================
+ * Guide dashboard summary showing stats (Active treks count, registered hikers) and upcoming timeline feeds.
+ * Uses 'staffDashComponent' options proxying to automatically route methods/state
+ * read/writes directly to the parent 'StaffDashboard' instance.
+ */
+
 import { staffDashComponent } from './staffDashProxy';
 
-export default staffDashComponent('TabDashboard');
+export default staffDashComponent('TabDashboard', {
+  data() {
+    return {
+      countdownTimer: null,
+      countdown: { days: 0, hours: 0, minutes: 0, seconds: 0 }
+    };
+  },
+  methods: {
+    /**
+     * Start the countdown timer for the next upcoming trek.
+     */
+    startCountdown() {
+      if (this.countdownTimer) clearInterval(this.countdownTimer);
+      this.countdownTimer = setInterval(() => {
+        const trek = this.nextTrek;
+        if (!trek) return;
+        const diff = new Date(trek.startDate).getTime() - Date.now();
+        if (diff <= 0) {
+          this.countdown = { days: 0, hours: 0, minutes: 0, seconds: 0 };
+          return;
+        }
+        this.countdown = {
+          days: Math.floor(diff / 86400000),
+          hours: Math.floor((diff % 86400000) / 3600000),
+          minutes: Math.floor((diff % 3600000) / 60000),
+          seconds: Math.floor((diff % 60000) / 1000)
+        };
+      }, 1000);
+    },
+    /**
+     * Returns simulated/mock weather conditions for the trek.
+     */
+    getTrekWeather(trek) {
+      if (!trek) return { temp: '—', condition: 'Clear', icon: 'bi-sun-fill', wind: '—', humidity: '—' };
+      
+      const key = trek.id || trek.name.length || 0;
+      const temperatures = ['8°C', '12°C', '4°C', '15°C', '2°C', '10°C'];
+      const conditions = ['Clear Sky', 'Partly Cloudy', 'Light Snow', 'Foggy', 'Scattered Clouds', 'Windy'];
+      const icons = ['bi-sun-fill', 'bi-cloud-sun-fill', 'bi-snow', 'bi-cloud-fog2-fill', 'bi-cloud-fill', 'bi-wind'];
+      const winds = ['6 km/h', '12 km/h', '8 km/h', '15 km/h', '4 km/h', '18 km/h'];
+      const humidities = ['45%', '60%', '85%', '90%', '50%', '55%'];
+      
+      const idx = key % conditions.length;
+      return {
+        temp: temperatures[idx],
+        condition: conditions[idx],
+        icon: icons[idx],
+        wind: winds[idx],
+        humidity: humidities[idx]
+      };
+    }
+  },
+  mounted() {
+    this.startCountdown();
+  },
+  beforeUnmount() {
+    if (this.countdownTimer) {
+      clearInterval(this.countdownTimer);
+    }
+  }
+});
 </script>

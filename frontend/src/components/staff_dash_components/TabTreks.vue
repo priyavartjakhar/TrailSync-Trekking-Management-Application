@@ -171,11 +171,160 @@
             </table>
           </div>
         </div>
+
+        <!-- Gear Checklist Modal -->
+        <div v-if="showChecklistModal" class="ts-modal-overlay" @click.self="showChecklistModal = false">
+          <div class="ts-modal ts-modal-lg">
+            <div class="ts-modal-header">
+              <h3 class="ts-modal-title"><i class="bi bi-list-check"></i> Gear Checklist — {{ checklistTrek?.name }}</h3>
+              <button class="modal-close" @click="showChecklistModal = false">✕</button>
+            </div>
+            <div class="ts-modal-body">
+              <p style="font-size:0.83rem; color:var(--stone); margin-bottom:1rem; line-height:1.5">
+                Manage the recommended gear list for participants. Changes sync to all active bookings.
+              </p>
+              <div style="display:flex; gap:0.5rem; margin-bottom:1rem">
+                <input v-model="newChecklistItem" @keyup.enter="addChecklistItem" type="text" placeholder="Add item (e.g. Thermal flask)…" style="flex:1; padding:0.55rem 0.85rem; border:1px solid rgba(26,46,26,0.14); border-radius:4px; font-family:'DM Sans',sans-serif; font-size:0.87rem; outline:none" />
+                <button class="btn-primary-ts btn-sm" @click="addChecklistItem">+ Add</button>
+              </div>
+              <div style="max-height:260px; overflow-y:auto; border:1px solid rgba(26,46,26,0.08); border-radius:4px; padding:0.5rem">
+                <div v-if="!checklistItems.length" style="text-align:center; padding:1.5rem; color:var(--stone); font-size:0.85rem">No items yet.</div>
+                <div v-for="(item, idx) in checklistItems" :key="idx"
+                  style="display:flex; justify-content:space-between; align-items:center; padding:0.45rem 0.75rem; border-bottom:1px solid rgba(26,46,26,0.05)">
+                  <span style="font-size:0.85rem">{{ idx + 1 }}. {{ item }}</span>
+                  <button @click="removeChecklistItem(idx)" style="color:#ef4444; border:none; background:none; cursor:pointer; font-size:0.82rem; padding:2px 6px">✕</button>
+                </div>
+              </div>
+            </div>
+            <div class="ts-modal-footer">
+              <button class="btn-ghost" @click="showChecklistModal = false">Cancel</button>
+              <button class="btn-primary-ts" @click="saveChecklist">Save &amp; Sync</button>
+            </div>
+          </div>
+        </div>
+
       </div>
 </template>
 
 <script>
+/**
+ * =========================================================================
+ * TabTreks.vue
+ * =========================================================================
+ * Assigned treks panel allowing guides to update availability slots capacity and toggle started/completed states.
+ * Uses 'staffDashComponent' options proxying to automatically route methods/state
+ * read/writes directly to the parent 'StaffDashboard' instance.
+ */
+
 import { staffDashComponent } from './staffDashProxy';
 
-export default staffDashComponent('TabTreks');
+export default staffDashComponent('TabTreks', {
+  data() {
+    return {
+      trekSearchQuery: '',
+      showChecklistModal: false,
+      checklistItems: [],
+      newChecklistItem: '',
+      checklistTrek: null
+    };
+  },
+  computed: {
+    /**
+     * Trek options filtered by local search query (name, location, batch code)
+     */
+    filteredTrekOptions() {
+      const q = this.trekSearchQuery.toLowerCase().trim();
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const filtered = this.assignedTreks.filter(t =>
+        !q ||
+        t.name.toLowerCase().includes(q) ||
+        (t.location && t.location.toLowerCase().includes(q)) ||
+        (t.batchCode && t.batchCode.toLowerCase().includes(q))
+      );
+      return filtered.filter(t => {
+        if (!t.endDate) return true;
+        const parts = t.endDate.split('-');
+        if (parts.length !== 3) return true;
+        const end = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+        end.setHours(23, 59, 59, 999);
+        return t.status !== 'Completed' && end >= today;
+      }).sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+    },
+
+    completedTrekOptions() {
+      const q = this.trekSearchQuery.toLowerCase().trim();
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const filtered = this.assignedTreks.filter(t =>
+        !q ||
+        t.name.toLowerCase().includes(q) ||
+        (t.location && t.location.toLowerCase().includes(q)) ||
+        (t.batchCode && t.batchCode.toLowerCase().includes(q))
+      );
+      return filtered.filter(t => {
+        if (!t.endDate) return false;
+        const parts = t.endDate.split('-');
+        if (parts.length !== 3) return false;
+        const end = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+        end.setHours(23, 59, 59, 999);
+        return t.status === 'Completed' || end < today;
+      }).sort((a, b) => new Date(b.endDate) - new Date(a.endDate));
+    }
+  },
+  methods: {
+    /**
+     * Open checklist modal and fetch items from backend
+     */
+    async openChecklistModal(trek) {
+      this.checklistTrek = trek;
+      this.newChecklistItem = '';
+      this.showChecklistModal = true;
+      this.checklistItems = [];
+      try {
+        const res = await fetch(`/api/guide/treks/${trek.id}/checklist`);
+        if (res.ok) {
+          const data = await res.json();
+          this.checklistItems = data.map(item => item.itemName);
+        } else {
+          this.staffDash.showToast('Failed to load checklist', 'error');
+        }
+      } catch (e) {
+        console.error(e);
+        this.staffDash.showToast('Error loading checklist', 'error');
+      }
+    },
+    addChecklistItem() {
+      const item = this.newChecklistItem.trim();
+      if (!item) return;
+      if (this.checklistItems.includes(item)) {
+        this.staffDash.showToast('Item already in list', 'error');
+        return;
+      }
+      this.checklistItems.push(item);
+      this.newChecklistItem = '';
+    },
+    removeChecklistItem(i) {
+      this.checklistItems.splice(i, 1);
+    },
+    async saveChecklist() {
+      try {
+        const res = await fetch(`/api/guide/treks/${this.checklistTrek.id}/checklist`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ items: this.checklistItems })
+        });
+        if (res.ok) {
+          this.staffDash.showToast('Checklist saved and synced to participants');
+          this.showChecklistModal = false;
+        } else {
+          this.staffDash.showToast('Failed to save checklist', 'error');
+        }
+      } catch (e) {
+        console.error(e);
+        this.staffDash.showToast('Error saving checklist', 'error');
+      }
+    }
+  }
+});
 </script>

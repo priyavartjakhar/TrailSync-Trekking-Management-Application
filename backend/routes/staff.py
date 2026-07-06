@@ -376,6 +376,7 @@ def create_staff_ticket():
     )
     db.session.add(ticket)
     db.session.commit()
+    invalidate_all_trek_caches()
     
     return jsonify({'success': True, 'ticket': ticket.to_json(), 'message': 'Ticket submitted successfully'})
 

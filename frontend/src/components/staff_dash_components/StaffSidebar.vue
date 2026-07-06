@@ -69,6 +69,15 @@
 </template>
 
 <script>
+/**
+ * =========================================================================
+ * StaffSidebar.vue
+ * =========================================================================
+ * Sidebar navigation panel for the Guide dashboard, providing collapsible menu tabs for assigned treks, rosters, profiling, and group chats.
+ * Uses 'staffDashComponent' options proxying to automatically route methods/state
+ * read/writes directly to the parent 'StaffDashboard' instance.
+ */
+
 import { staffDashComponent } from './staffDashProxy';
 
 export default staffDashComponent('StaffSidebar', { emits: ['logout'] });

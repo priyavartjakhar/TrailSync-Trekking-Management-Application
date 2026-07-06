@@ -149,6 +149,7 @@ body { font-family:'DM Sans',sans-serif; background:var(--snow); color:var(--bar
   color:rgba(255,255,255,.65); cursor:pointer; transition:all .2s;
   text-decoration:none; white-space:nowrap;
   border-left:3px solid transparent; position:relative;
+  font-family:'DM Sans',sans-serif; font-size:.85rem;
 }
 .nav-item svg { width:18px; height:18px; stroke:currentColor; fill:none; stroke-width:1.8; flex-shrink:0; }
 .nav-item:hover { color:#fff; background:rgba(255,255,255,.05); }
@@ -222,6 +223,51 @@ body { font-family:'DM Sans',sans-serif; background:var(--snow); color:var(--bar
 /* ── TOPBAR LAYOUT: Top section headers, profile dropdowns, notifications ── */
 .topbar-heading { font-family:'Playfair Display',serif; font-size:1.6rem; font-weight:700; color:var(--forest); }
 .topbar-actions { display:flex; align-items:center; gap:.75rem; flex-wrap:wrap; }
+
+/* ── TOPBAR BREADCRUMB: URL pill showing current tab path ── */
+.topbar-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: 'DM Mono', 'Courier New', monospace;
+  font-size: 0.72rem;
+  color: var(--stone);
+  background: var(--snow);
+  border: 1px solid rgba(26,46,26,.1);
+  border-radius: 20px;
+  padding: 3px 10px 3px 8px;
+  width: fit-content;
+  margin-bottom: 3px;
+  letter-spacing: 0.01em;
+}
+.breadcrumb-home {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--stone);
+}
+.breadcrumb-home svg { stroke: var(--stone); flex-shrink: 0; }
+.breadcrumb-sep { color: var(--stone); opacity: .5; font-size: 0.9rem; }
+.breadcrumb-current {
+  color: var(--gold);
+  font-weight: 600;
+  text-transform: lowercase;
+}
+.breadcrumb-copy-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 1px 2px;
+  color: var(--stone);
+  display: flex;
+  align-items: center;
+  border-radius: 3px;
+  transition: color .15s, background .15s;
+  margin-left: 2px;
+}
+.breadcrumb-copy-btn:hover { color: var(--gold); background: rgba(200,146,42,.08); }
+.breadcrumb-copy-btn svg { stroke: currentColor; }
+
 
 .search-box {
   display:flex; align-items:center; gap:8px;

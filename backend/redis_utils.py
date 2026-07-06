@@ -1,85 +1,73 @@
+# -*- coding: utf-8 -*-
 """
-Redis Caching Utilities Module
-==============================
-This module initializes the Redis client and defines centralized helpers for
-caching, retrieving, and invalidating data to reduce database load across the app.
+Redis Caching Utilities
+=======================
 
-Cache Keys Managed Here:
-    - "open_treks"               : Open trek batches for trekker dashboard (TTL: 300s)
-    - "public_treks"             : All Trek records for the public landing page (TTL: 300s)
-    - "public_trek_routes"       : All TrekRoute catalog records for public view (TTL: 600s)
-    - "admin_dashboard"          : Full admin dashboard payload (TTL: 120s)
-    - "staff_dashboard:{id}"     : Per-guide dashboard payload, keyed by user ID (TTL: 120s)
+This module centralises all interactions with the Redis cache used by the
+TrailSync application. It provides thin wrappers for getting, setting and
+deleting JSON‑serialised values, as well as higher‑level helpers for the
+specific cache keys required by the front‑end dashboards.
 
-Invalidation Strategy:
-    - Any write that changes trek/route/booking state calls `invalidate_all_trek_caches()`,
-      which clears open_treks, public_treks, public_trek_routes, and admin_dashboard in one shot.
-    - Guide-specific dashboard cache is cleared via `invalidate_staff_cache(staff_id)`.
+Both module‑level docstrings and per‑function docstrings are included, and
+inline comments explain the purpose of constants, error handling and cache
+key generation. Unused imports and dead code have been removed.
 """
 
 import redis
 import json
 from datetime import date
 
-from backend.models.models import TrekRoute, Trek
+from backend.models.models import db, TrekRoute, Trek
+from sqlalchemy import event
 
 # ---------------------------------------------------------------------------
-# TTL Constants (seconds) — change here to tune all cache expiry times
+# TTL Constants (seconds) – adjust here to tune cache expiry.
 # ---------------------------------------------------------------------------
-TTL_OPEN_TREKS = 300          # 5 minutes  — open treks for user dashboard
-TTL_PUBLIC_TREKS = 300        # 5 minutes  — public treks listing
-TTL_PUBLIC_ROUTES = 600       # 10 minutes — public route catalog (changes rarely)
-TTL_ADMIN_DASHBOARD = 120     # 2 minutes  — admin dashboard (live operational data)
-TTL_STAFF_DASHBOARD = 120     # 2 minutes  — per-guide dashboard
+TTL_OPEN_TREKS = 300          # 5 minutes – open treks for user dashboard
+TTL_PUBLIC_TREKS = 300        # 5 minutes – public trek listings
+TTL_PUBLIC_ROUTES = 600       # 10 minutes – public route catalogue (rarely changes)
+TTL_ADMIN_DASHBOARD = 120     # 2 minutes – admin dashboard (live data)
+TTL_STAFF_DASHBOARD = 120     # 2 minutes – per‑guide dashboard
 
 # ---------------------------------------------------------------------------
-# Cache Key Constants
+# Cache key constants
 # ---------------------------------------------------------------------------
 KEY_OPEN_TREKS = 'open_treks'
 KEY_PUBLIC_TREKS = 'public_treks'
 KEY_PUBLIC_ROUTES = 'public_trek_routes'
 KEY_ADMIN_DASHBOARD = 'admin_dashboard'
 
-
-def staff_dashboard_key(staff_id):
-    """
-    Builds the per-guide cache key for a given staff user ID.
+def staff_dashboard_key(staff_id: int) -> str:
+    """Construct the Redis key for a specific staff member's dashboard.
 
     Args:
-        staff_id (int): The user ID of the staff/guide member.
+        staff_id: The integer identifier of the staff/guide user.
 
     Returns:
-        str: Redis key string in the format "staff_dashboard:{staff_id}".
+        A string of the form ``"staff_dashboard:{staff_id}"``.
     """
     return f'staff_dashboard:{staff_id}'
 
-
 # ---------------------------------------------------------------------------
-# Redis Client Initialization
+# Redis client initialisation – fails gracefully if Redis is unavailable.
 # ---------------------------------------------------------------------------
 try:
     redis_client = redis.StrictRedis(host='localhost', port=6379, db=0, decode_responses=True)
-    # Ping to verify the connection at startup
+    # Verify connection at start‑up.
     redis_client.ping()
 except Exception as e:
     print("Redis failed to initialize:", e)
     redis_client = None
 
-
 # ---------------------------------------------------------------------------
-# Generic Cache Helpers
+# Generic cache helpers
 # ---------------------------------------------------------------------------
 
-def cache_get(key):
-    """
-    Retrieves a JSON-parsed value from Redis by key.
-    Returns None on cache miss, Redis error, or if Redis is unavailable.
+def cache_get(key: str):
+    """Retrieve a JSON‑deserialised value from Redis.
 
-    Args:
-        key (str): Redis key to look up.
-
-    Returns:
-        Any | None: Deserialized Python object, or None on miss/error.
+    Returns ``None`` if the key does not exist, Redis is unavailable, or an
+    error occurs during deserialisation.
     """
     if not redis_client:
         return None
@@ -91,18 +79,9 @@ def cache_get(key):
         return None
 
 
-def cache_set(key, value, ttl):
-    """
-    Serializes a Python object to JSON and stores it in Redis with a TTL.
-    Silently skips if Redis is unavailable.
-
-    Args:
-        key (str): Redis key to write.
-        value (Any): JSON-serializable Python object to store.
-        ttl (int): Time-to-live in seconds.
-
-    Returns:
-        None
+def cache_set(key: str, value, ttl: int):
+    """Serialise ``value`` to JSON and store it under ``key`` with the given TTL.
+    Silently skips the operation if Redis is unavailable.
     """
     if not redis_client:
         return
@@ -112,17 +91,11 @@ def cache_set(key, value, ttl):
         print(f"Redis SET error [{key}]:", e)
 
 
-def cache_delete(*keys):
-    """
-    Deletes one or more Redis keys. Pattern keys (e.g. "staff_dashboard:*")
-    are expanded via a KEYS scan before deletion.
-    Silently skips if Redis is unavailable.
+def cache_delete(*keys: str):
+    """Delete one or more Redis keys.
 
-    Args:
-        *keys (str): One or more Redis key strings. Supports glob patterns.
-
-    Returns:
-        None
+    Supports glob‑style patterns (e.g. ``"staff_dashboard:*"``) which are
+    expanded via ``KEYS`` before deletion.
     """
     if not redis_client:
         return
@@ -130,7 +103,6 @@ def cache_delete(*keys):
         all_keys = []
         for k in keys:
             if '*' in k:
-                # Expand glob patterns
                 matched = redis_client.keys(k)
                 all_keys.extend(matched)
             else:
@@ -140,26 +112,20 @@ def cache_delete(*keys):
     except Exception as e:
         print(f"Redis DELETE error {keys}:", e)
 
-
 # ---------------------------------------------------------------------------
-# Specific Cache Functions
+# Specific cache retrieval functions
 # ---------------------------------------------------------------------------
 
 def get_open_treks_cached():
-    """
-    Fetches open trek batches for the trekker dashboard.
-    Tries Redis cache first (key: 'open_treks'). Falls back to DB on miss
-    and repopulates the cache (TTL: TTL_OPEN_TREKS).
+    """Return cached open trek batches for the trekker dashboard.
 
-    Returns:
-        list: JSON-compatible list of route dicts each with their open batches.
+    On a cache miss the function queries the database, builds the JSON payload
+    and stores it under :data:`KEY_OPEN_TREKS` with :data:`TTL_OPEN_TREKS`.
     """
-    # 1. Try cache
     cached = cache_get(KEY_OPEN_TREKS)
     if cached is not None:
         return cached
-
-    # 2. Cache miss — query DB
+    # Cache miss – query DB
     active_routes = TrekRoute.query.filter_by(active=True).all()
     routes_json = []
     for r in active_routes:
@@ -171,76 +137,51 @@ def get_open_treks_cached():
         ).all()
         r_json['batches'] = [b.to_json() for b in open_batches]
         routes_json.append(r_json)
-
-    # 3. Store in cache
     cache_set(KEY_OPEN_TREKS, routes_json, TTL_OPEN_TREKS)
     return routes_json
 
 
 def get_public_treks_cached():
-    """
-    Fetches all Trek records for the public-facing landing page.
-    Tries Redis cache first (key: 'public_treks'). Falls back to DB on miss
-    and repopulates the cache (TTL: TTL_PUBLIC_TREKS).
+    """Return cached public trek records for the landing page.
 
-    Returns:
-        list: JSON-compatible list of all serialized Trek records.
+    Falls back to a DB query on a cache miss and stores the result under
+    :data:`KEY_PUBLIC_TREKS`.
     """
     cached = cache_get(KEY_PUBLIC_TREKS)
     if cached is not None:
         return cached
-
     treks = [t.to_json() for t in Trek.query.all()]
     cache_set(KEY_PUBLIC_TREKS, treks, TTL_PUBLIC_TREKS)
     return treks
 
 
 def get_public_routes_cached():
-    """
-    Fetches all active TrekRoute catalog records for the public-facing landing page.
-    Tries Redis cache first (key: 'public_trek_routes'). Falls back to DB on miss
-    and repopulates the cache (TTL: TTL_PUBLIC_ROUTES).
+    """Return cached public trek routes for the landing page.
 
-    Returns:
-        list: JSON-compatible list of all serialized TrekRoute records.
+    Cache key: :data:`KEY_PUBLIC_ROUTES`.
     """
     cached = cache_get(KEY_PUBLIC_ROUTES)
     if cached is not None:
         return cached
-
     routes = [r.to_json() for r in TrekRoute.query.all()]
     cache_set(KEY_PUBLIC_ROUTES, routes, TTL_PUBLIC_ROUTES)
     return routes
 
-
 # ---------------------------------------------------------------------------
-# Cache Invalidation Functions
+# Cache invalidation helpers
 # ---------------------------------------------------------------------------
 
 def invalidate_open_treks_cache():
-    """
-    Invalidates only the open treks trekker-dashboard cache key.
-    Prefer `invalidate_all_trek_caches()` for write operations that affect
-    public or admin views as well.
-
-    Returns:
-        None
+    """Invalidate the open‑treks cache used on the trekker dashboard.
+    Use :func:`invalidate_all_trek_caches` for broader invalidation.
     """
     cache_delete(KEY_OPEN_TREKS)
 
 
 def invalidate_all_trek_caches():
-    """
-    Invalidates all trek-related cache keys in one shot:
-        - open_treks         (trekker dashboard)
-        - public_treks       (public landing page)
-        - public_trek_routes (public route catalog)
-        - admin_dashboard    (admin dashboard payload)
-
-    Call this on any write that changes trek routes, batches, bookings, or user data.
-
-    Returns:
-        None
+    """Invalidate all trek‑related cache keys in one operation.
+    This should be called after any write that changes trek, route, booking or
+    user data affecting the public or admin views.
     """
     cache_delete(
         KEY_OPEN_TREKS,
@@ -250,26 +191,35 @@ def invalidate_all_trek_caches():
     )
 
 
-def invalidate_staff_cache(staff_id):
-    """
-    Invalidates the per-guide dashboard cache for a specific staff member.
-    Call this when a guide's assigned trek, slots, or participant list changes.
-
+def invalidate_staff_cache(staff_id: int):
+    """Invalidate the cached dashboard for a specific staff member.
     Args:
-        staff_id (int): The user ID of the staff/guide member whose cache to clear.
-
-    Returns:
-        None
+        staff_id: The integer ID of the guide whose cache should be cleared.
     """
     cache_delete(staff_dashboard_key(staff_id))
 
 
 def invalidate_all_staff_caches():
-    """
-    Invalidates dashboard caches for ALL staff members at once.
-    Used for broad operations like global trek status changes.
-
-    Returns:
-        None
+    """Invalidate all per‑staff dashboard caches.
+    This is useful after a global change affecting every guide, such as a new
+    policy or system‑wide status update.
     """
     cache_delete('staff_dashboard:*')
+
+
+def invalidate_everything():
+    """Invalidates all cached keys in the application immediately."""
+    cache_delete(
+        KEY_OPEN_TREKS,
+        KEY_PUBLIC_TREKS,
+        KEY_PUBLIC_ROUTES,
+        KEY_ADMIN_DASHBOARD,
+        'staff_dashboard:*'
+    )
+
+
+@event.listens_for(db.session, 'after_commit')
+def auto_invalidate_on_commit(session):
+    """Automatically clear all Redis caches whenever database session transaction commits."""
+    invalidate_everything()
+

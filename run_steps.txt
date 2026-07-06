@@ -1,0 +1,57 @@
+========================================================================
+🏕️  TRAILSYNC (TMA-V2) - RUN & SETUP INSTRUCTIONS
+========================================================================
+
+Follow these step-by-step instructions to set up the environment, install
+dependencies, and run the complete application services from scratch.
+
+------------------------------------------------------------------------
+📋 PREREQUISITES
+------------------------------------------------------------------------
+Ensure you have the following installed on your local machine:
+1. Python 3.10+
+2. Node.js & npm (Node v18+)
+3. Redis server (running locally on port 6379)
+
+------------------------------------------------------------------------
+⚡ STEP-BY-STEP RUN PROCEDURES (IN VS CODE OR TERMINAL)
+------------------------------------------------------------------------
+
+1. Open the project folder in VS Code or navigate to it in your terminal:
+   cd Trekking-Management-Application-Submission
+
+2. Create a clean Python virtual environment:
+   python3 -m venv .venv
+
+3. Activate the virtual environment:
+   source .venv/bin/activate
+
+4. Install the required python libraries (Flask, Celery, SQLAlchemy, etc.):
+   pip install -r requirements.txt
+
+5. Install the frontend dependencies (Vue 3, Vite, Chart.js):
+   npm install
+
+6. Ensure your local Redis server is active:
+   * To check if Redis is running, run:
+     redis-cli ping
+     (Should return: PONG)
+   * To start Redis on macOS:
+     brew services start redis  --OR--  redis-server
+
+7. Execute the startup wrapper script:
+   bash run.sh
+
+------------------------------------------------------------------------
+⚙️  WHAT RUNS IN THE BACKGROUND AUTOMATICALLY?
+------------------------------------------------------------------------
+When you execute 'bash run.sh', the following services are spun up:
+- Celery Worker & Beat Scheduler (logging directly to ./celery.log)
+- Flask backend server running on http://localhost:8000
+- Vite frontend development server running on http://localhost:5173
+- Default browser automatically opens to http://localhost:5173
+
+* If it is a fresh launch, the database file (tma.db) is automatically 
+  initialized, tables are created, and all mock data is seeded.
+* To stop all background services safely, press Ctrl+C in the active terminal.
+========================================================================

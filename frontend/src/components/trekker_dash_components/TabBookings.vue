@@ -74,6 +74,38 @@
                 </div>
               </div>
 
+              <!-- Completed Bookings Sub-section -->
+              <div v-if="trekHistory.filter(h => h.status === 'Completed').length > 0" class="completed-bookings-section" style="margin-top: 2rem; border-top: 1px dashed rgba(26,46,26,0.15); padding-top: 1.5rem;">
+                <h4 style="color: var(--stone); margin-bottom: 1.25rem; font-family: 'Playfair Display', serif; font-size: 1.2rem; font-weight: 700;">Completed Bookings</h4>
+                <div class="bookings-stack">
+                  <div v-for="h in trekHistory.filter(h => h.status === 'Completed')" :key="h.id" class="booking-row completed-booking-row" style="opacity: 0.85; border: 1px dashed rgba(26,46,26,0.18); background: #fbfbfc; box-shadow: none;">
+                    <div class="booking-accent" style="background: var(--stone);"></div>
+                    <div class="booking-main">
+                      <div class="booking-trek-name" style="color: var(--stone);">{{ h.trekName }}</div>
+                      <div class="booking-loc"><span class="css-loc-pin"></span>{{ h.place ? h.place + ', ' : '' }}{{ h.location }}</div>
+                      <div class="booking-dates mono">{{ formatDate(h.startDate) }} → {{ formatDate(h.endDate) }}</div>
+                      <div class="booking-details-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin-top: 10px; padding-top: 8px; border-top: 1px dashed rgba(26,46,26,0.08); font-size: 0.78rem; color: var(--stone);">
+                        <div><strong>Booking ID:</strong> <span class="mono" style="color: var(--bark);">{{ h.bookingId || ('#' + h.id) }}</span></div>
+                        <div><strong>Trek ID:</strong> <span class="mono" style="color: var(--bark);">{{ h.trekCode || ('TID' + String(h.trekId).padStart(3, '0')) }}</span></div>
+                        <div><strong>Batch ID:</strong> <span class="mono" style="color: var(--bark);">{{ h.batchCode || h.batchId || '—' }}</span></div>
+                        <div><strong>Payment Method:</strong> <span style="color: var(--bark);">{{ h.paymentMethod || 'Pending' }}</span></div>
+                        <div><strong>Payment Details:</strong> <span style="color: var(--bark);">{{ h.paymentDetails || 'Pending' }}</span></div>
+                      </div>
+                    </div>
+                    <div class="booking-meta" style="min-width: 120px;">
+                      <div class="bm-row">
+                        <span class="bm-label">Status</span>
+                        <span class="status-pill status-completed" style="font-size:0.75rem; padding: 2px 8px; font-weight:700; background: var(--mist); color: var(--forest)">Completed</span>
+                      </div>
+                      <div class="bm-row" style="margin-top: 8px;">
+                        <span class="bm-label">Amount Paid</span>
+                        <span style="font-weight:700; color: var(--forest);">₹{{ (h.amountPaid || h.bookingPrice || h.price || 0).toLocaleString() }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <!-- Cancelled Bookings Sub-section -->
               <div v-if="myBookings.filter(b=>b.status==='Cancelled').length > 0" class="cancelled-bookings-section" style="margin-top: 2rem; border-top: 1px dashed rgba(26,46,26,0.15); padding-top: 1.5rem;">
                 <h4 style="color: var(--stone); margin-bottom: 1.25rem; font-family: 'Playfair Display', serif; font-size: 1.2rem; font-weight: 700;">Cancelled Bookings</h4>

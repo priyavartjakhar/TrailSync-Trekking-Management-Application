@@ -284,7 +284,6 @@
  * TabSocial.vue
  * =========================================================================
  * Coordinated chat view enabling hikers to text their assigned guide and view group announcements.
- * Refactored to handle chat messaging state and API requests locally.
  */
 
 export default {

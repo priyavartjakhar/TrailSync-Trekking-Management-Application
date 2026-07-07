@@ -305,7 +305,6 @@
  * TabProfile.vue
  * =========================================================================
  * Trekker profile settings for details updates, blood groups, fitness specs, and emergency contacts.
- * Refactored to handle API calls locally.
  *
  * Provides two display modes — view and edit — for a trekker's personal information,
  * safety/medical data, and trek preferences. Also houses the security (password change),

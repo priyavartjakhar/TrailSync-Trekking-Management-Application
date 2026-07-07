@@ -64,7 +64,6 @@
  * TabHistory.vue
  * =========================================================================
  * Completed treks archive list enabling hikers to view historical paths and request async CSV exports.
- * Refactored to handle API calls locally.
  *
  * Receives the full booking history array from the parent and filters it
  * client-side to display only "Completed" records. The CSV export is

@@ -197,7 +197,6 @@
  * TabSupport.vue
  * =========================================================================
  * Support portal where trekkers submit questions regarding payments or bookings and check responses.
- * Refactored to handle API calls locally.
  */
 
 export default {

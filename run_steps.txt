@@ -18,8 +18,8 @@ Ensure you have the following installed on your local machine:
 ------------------------------------------------------------------------
 
 1. Open the project folder in VS Code or navigate to it in your terminal:
-   cd Trekking-Management-Application-Submission
-
+   cd 23f2005399_TrailSync
+   
 2. Create a clean Python virtual environment:
    python3 -m venv .venv
 

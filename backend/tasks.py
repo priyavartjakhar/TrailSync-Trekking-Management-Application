@@ -9,8 +9,7 @@ system. The tasks include scheduled notifications (daily reminders, monthly
 reports, marketing campaigns) as well as on‑demand operations such as welcome
 emails, CSV exports, and booking confirmations.
 
-The implementation follows a *docstrings + inline comments* style to provide
-clear documentation while preserving the original runtime behaviour.
+It supports sending emails, logs SMS status entries, and manages webhook alerts.
 """
 
 import os
@@ -200,7 +199,7 @@ def send_email_helper(subject, recipient, body, is_html=False, attachment_path=N
     return False
 
 # ---------------------------------------------------------------------------
-# Celery tasks – each task is documented with a docstring and inline comments.
+# Celery background tasks implementation
 # ---------------------------------------------------------------------------
 
 @celery_app.task

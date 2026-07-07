@@ -8,9 +8,8 @@ TrailSync application. It provides thin wrappers for getting, setting and
 deleting JSON‑serialised values, as well as higher‑level helpers for the
 specific cache keys required by the front‑end dashboards.
 
-Both module‑level docstrings and per‑function docstrings are included, and
-inline comments explain the purpose of constants, error handling and cache
-key generation. Unused imports and dead code have been removed.
+It provides functions for setting/getting cached responses, invalidating
+outdated keys on updates, and managing dashboard-specific cache entries.
 """
 
 import redis

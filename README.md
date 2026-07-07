@@ -1,22 +1,8 @@
----
-title: TrailSync
-emoji: 🏆
-colorFrom: green
-colorTo: blue
-sdk: docker
-app_port: 7860
-pinned: false
----
-
 # 🏔️ TrailSync — Trekking & Expedition Management Application
 
 TrailSync (TMA-V2) is a comprehensive, multi-role web platform designed for trekking agencies, guides, and trekkers. It streamlines the orchestration of high-altitude treks, guide assignments, customer bookings, payment tracking, PDF report generation, and community support ticket management.
 
-> [!IMPORTANT]
-> **🚀 Live Demo**: **[https://huggingface.co/spaces/priyavartjakhar/TrailSync](https://huggingface.co/spaces/priyavartjakhar/TrailSync)**  
-> 💻 **Best View**: For the best user experience and accurate layout rendering, please open the live link in **Google Chrome**.
 
----
 
 ## 🌟 Key Features
 

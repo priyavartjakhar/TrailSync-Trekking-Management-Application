@@ -1,7 +1,0 @@
-node_modules
-.venv
-.git
-.DS_Store
-*.db
-*.log
-frontend/dist

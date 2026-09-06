@@ -1,5 +1,6 @@
 {
-  "name": "trekking-management-application",
+  "name": "TrailSync-Trekking-Management-Application",
+
   "version": "1.0.0",
   "description": "Trail Sync Trekking Management Application",
   "type": "module",

@@ -50,13 +50,18 @@ def staff_dashboard_key(staff_id: int) -> str:
 # ---------------------------------------------------------------------------
 # Redis client initialisation – fails gracefully if Redis is unavailable.
 # ---------------------------------------------------------------------------
+import os
+
 try:
-    redis_client = redis.StrictRedis(host='localhost', port=6379, db=0, decode_responses=True)
+    redis_host = os.environ.get('REDIS_HOST', 'localhost')
+    redis_port = int(os.environ.get('REDIS_PORT', 6379))
+    redis_client = redis.StrictRedis(host=redis_host, port=redis_port, db=0, decode_responses=True)
     # Verify connection at start‑up.
     redis_client.ping()
 except Exception as e:
     print("Redis failed to initialize:", e)
     redis_client = None
+
 
 # ---------------------------------------------------------------------------
 # Generic cache helpers

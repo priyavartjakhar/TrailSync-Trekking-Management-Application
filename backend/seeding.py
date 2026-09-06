@@ -34,6 +34,11 @@ def seed_db(force=False):
         db.session.remove()
         db.drop_all()
     db.create_all()
+
+    # Guard against concurrent worker seeding race conditions
+    if User.query.filter_by(email='admin@trailsync.com').first() is not None:
+        return
+
     
     # 1. Seed Admin user
     admin = User(
@@ -545,9 +550,13 @@ def run_migrations_and_seeding(app):
                 print("Migration (refund_amount) failed:", e)
                 db.session.rollback()
                 
-        # Seed if there are no users
-        if User.query.first() is None:
-            seed_db(force=False)
+        # Seed if there are no users (safe against concurrent WSGI worker boot)
+        try:
+            if User.query.first() is None:
+                seed_db(force=False)
+        except Exception as e:
+            db.session.rollback()
+            print("Database seeding safely skipped or already completed by another worker:", e)
             
         normalize_mock_booking_payments()
         

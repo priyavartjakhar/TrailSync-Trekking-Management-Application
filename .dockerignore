@@ -1,0 +1,15 @@
+node_modules
+.venv
+venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.git
+.gitignore
+.DS_Store
+celerybeat-schedule*
+celery*.pid
+celery.log
+backend/tma.db
+frontend/dist

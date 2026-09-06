@@ -23,7 +23,7 @@ for i in {1..10}; do
 done
 
 echo "-> [2/3] Starting Celery worker & Beat scheduler..."
-PYTHONPATH=. celery -A backend.tasks.celery_app worker -B --loglevel=info > celery.log 2>&1 &
+PYTHONPATH=. celery -A backend.tasks.celery_app worker -B --loglevel=info &
 CELERY_PID=$!
 echo "   ✔ Celery process started with PID $CELERY_PID"
 

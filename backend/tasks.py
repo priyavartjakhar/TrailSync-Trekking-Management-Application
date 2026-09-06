@@ -145,9 +145,10 @@ def send_email_helper(subject, recipient, body, is_html=False, attachment_path=N
     """
     import time
     from email.utils import formataddr
-    # TODO: Move credentials to environment variables before production deployment.
-    sender_email = "23f2005399@ds.study.iitm.ac.in"
-    sender_password = "fvmj mlwu aabm wmxq"  # Gmail App Password (placeholder)
+    sender_email = os.environ.get('SMTP_EMAIL', "23f2005399@ds.study.iitm.ac.in")
+    sender_password = os.environ.get('SMTP_PASSWORD', "fvmj mlwu aabm wmxq")
+    smtp_server = os.environ.get('SMTP_SERVER', "smtp.gmail.com")
+    smtp_port = int(os.environ.get('SMTP_PORT', 587))
     from_addr = formataddr(("TrailSync", sender_email))
 
     # Ensure fallback directory exists
@@ -178,12 +179,13 @@ def send_email_helper(subject, recipient, body, is_html=False, attachment_path=N
                 msg["Subject"] = subject
                 msg["From"] = from_addr
                 msg["To"] = recipient
-            with smtplib.SMTP("smtp.gmail.com", 587, timeout=15) as server:
+            with smtplib.SMTP(smtp_server, smtp_port, timeout=15) as server:
                 server.ehlo()
                 server.starttls()
                 server.ehlo()
                 server.login(sender_email, sender_password)
                 server.send_message(msg)
+
             print(f"SMTP email sent successfully to {recipient} (attempt {attempt})")
             return True
         except Exception as e:

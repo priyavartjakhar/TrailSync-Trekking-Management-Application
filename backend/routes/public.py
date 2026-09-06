@@ -46,12 +46,18 @@ def get_public_trek_routes():
 @public_bp.route('/manifest.webmanifest')
 def serve_manifest():
     """Serves the PWA manifest when the Flask server handles the SPA directly."""
+    dist_dir = os.path.join(FRONTEND_DIR, 'dist')
+    if os.path.exists(os.path.join(dist_dir, 'manifest.webmanifest')):
+        return send_from_directory(dist_dir, 'manifest.webmanifest')
     return send_from_directory(os.path.join(FRONTEND_DIR, 'public'), 'manifest.webmanifest')
 
 
 @public_bp.route('/service-worker.js')
 def serve_service_worker():
     """Serves the PWA service worker from the same origin as the app."""
+    dist_dir = os.path.join(FRONTEND_DIR, 'dist')
+    if os.path.exists(os.path.join(dist_dir, 'service-worker.js')):
+        return send_from_directory(dist_dir, 'service-worker.js')
     return send_from_directory(os.path.join(FRONTEND_DIR, 'public'), 'service-worker.js')
 
 
@@ -60,14 +66,22 @@ def serve_service_worker():
 def serve_spa(path):
     """
     Serves the SPA (Single Page Application) frontend index.html for all non-API 
-    and non-static paths.
-
-    Parameters:
-        path (str): The route path requested by the client.
-
-    Returns:
-        The index.html file or a 404 JSON response for missing static/api resources.
+    and non-static paths. Checks frontend/dist for production builds first.
     """
+    dist_dir = os.path.abspath(os.path.join(FRONTEND_DIR, 'dist'))
+
+    # If built production dist directory exists (e.g. Docker container)
+    if os.path.exists(dist_dir):
+        if path != "" and os.path.exists(os.path.join(dist_dir, path)):
+            return send_from_directory(dist_dir, path)
+        elif path.startswith('api/'):
+            return jsonify({'error': 'Not found'}), 404
+        else:
+            if os.path.exists(os.path.join(dist_dir, 'index.html')):
+                return send_from_directory(dist_dir, 'index.html')
+
+    # Fallback for dev mode
     if path.startswith('api/') or path.startswith('static/'):
         return jsonify({'error': 'Not found'}), 404
     return send_from_directory(FRONTEND_DIR, 'index.html')
+

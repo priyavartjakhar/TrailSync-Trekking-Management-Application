@@ -17,8 +17,8 @@ COPY frontend ./frontend
 # Build Vue static production bundle into /app/frontend/dist
 RUN npm run build
 
-# Copy static assets (css, images) into dist/static
-RUN cp -r frontend/static frontend/dist/static
+# Ensure dist/static directory exists and copy static CSS/images
+RUN mkdir -p frontend/dist/static && cp -r frontend/static/* frontend/dist/static/
 
 # ==========================================
 # Stage 2: Production Runtime Environment

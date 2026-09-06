@@ -17,6 +17,9 @@ COPY frontend ./frontend
 # Build Vue static production bundle into /app/frontend/dist
 RUN npm run build
 
+# Copy static assets (css, images) into dist/static
+RUN cp -r frontend/static frontend/dist/static
+
 # ==========================================
 # Stage 2: Production Runtime Environment
 # ==========================================
@@ -38,8 +41,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy built frontend dist from Stage 1
+# Copy built frontend dist & static assets from Stage 1
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
+COPY frontend/static ./frontend/static
 
 # Copy backend source code and entrypoint script
 COPY backend ./backend

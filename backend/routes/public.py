@@ -61,8 +61,21 @@ def serve_service_worker():
     return send_from_directory(os.path.join(FRONTEND_DIR, 'public'), 'service-worker.js')
 
 
+@public_bp.route('/static/<path:filename>')
+def serve_static_files(filename):
+    """Serves static CSS, JS, and image assets for the SPA components."""
+    dist_static = os.path.abspath(os.path.join(FRONTEND_DIR, 'dist', 'static'))
+    if os.path.exists(os.path.join(dist_static, filename)):
+        return send_from_directory(dist_static, filename)
+    raw_static = os.path.abspath(os.path.join(FRONTEND_DIR, 'static'))
+    if os.path.exists(os.path.join(raw_static, filename)):
+        return send_from_directory(raw_static, filename)
+    return jsonify({'error': 'Static asset not found'}), 404
+
+
 @public_bp.route('/', defaults={'path': ''})
 @public_bp.route('/<path:path>')
+
 def serve_spa(path):
     """
     Serves the SPA (Single Page Application) frontend index.html for all non-API 

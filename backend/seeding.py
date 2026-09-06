@@ -552,11 +552,11 @@ def run_migrations_and_seeding(app):
                 
         # Seed if there are no users (safe against concurrent WSGI worker boot)
         try:
-            if User.query.first() is None:
+            if User.query.filter_by(email='admin@trailsync.com').first() is None:
                 seed_db(force=False)
-        except Exception as e:
+        except Exception:
             db.session.rollback()
-            print("Database seeding safely skipped or already completed by another worker:", e)
+
             
         normalize_mock_booking_payments()
         

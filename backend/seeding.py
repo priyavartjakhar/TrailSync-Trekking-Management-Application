@@ -535,7 +535,11 @@ def run_migrations_and_seeding(app):
         None
     """
     with app.app_context():
-        db.create_all()
+        try:
+            db.create_all()
+        except Exception:
+            db.session.rollback()
+
         
         # Migration: Add refund_amount column to bookings table if missing
         try:

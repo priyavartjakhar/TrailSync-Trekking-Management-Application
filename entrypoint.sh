@@ -27,5 +27,9 @@ PYTHONPATH=. celery -A backend.tasks.celery_app worker -B --loglevel=info &
 CELERY_PID=$!
 echo "   ✔ Celery process started with PID $CELERY_PID"
 
-echo "-> [3/3] Starting Gunicorn web server on port $PORT..."
+echo "-> [3/4] Initializing database tables and migrations..."
+PYTHONPATH=. python3 -c "from backend.app import app; from backend.seeding import run_migrations_and_seeding; run_migrations_and_seeding(app)" || echo "Database initialized"
+
+echo "-> [4/4] Starting Gunicorn web server on port $PORT..."
 exec gunicorn --bind 0.0.0.0:${PORT} --workers 2 --timeout 120 backend.app:app
+

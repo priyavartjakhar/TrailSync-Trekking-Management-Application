@@ -10,15 +10,22 @@ pinned: false
 
 # 🏔️ TrailSync — Trekking & Expedition Management Application
 
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-Hugging%20Face%20Spaces-blue?style=for-the-badge&logo=huggingface)](https://priyavartjakhar-trailsync.hf.space)
-[![Docker Ready](https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://github.com/priyavartjakhar/TrailSync-Trekking-Management-Application/blob/main/Dockerfile)
-[![Vue.js 3](https://img.shields.io/badge/Frontend-Vue.js%203-4FC08D?style=for-the-badge&logo=vuedotjs&logoColor=white)](https://vuejs.org/)
-[![Flask API](https://img.shields.io/badge/Backend-Flask-000000?style=for-the-badge&logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
-[![Redis Cache](https://img.shields.io/badge/Cache-Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white)](https://redis.io/)
-[![Celery Tasks](https://img.shields.io/badge/Tasks-Celery-37814A?style=for-the-badge&logo=celery&logoColor=white)](https://docs.celeryq.dev/)
+<p align="center">
+  <img src="docs/screenshots/homepage.png" alt="TrailSync Platform Banner" width="100%" style="border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.12);" />
+</p>
 
-> **TrailSync (TMA-V2)** is a comprehensive, multi-role web platform designed for trekking agencies, expedition guides, and trekkers. It streamlines guide assignments, customer bookings, payment tracking, automated PDF report generation, Redis caching, and asynchronous email reminders.
+<p align="center">
+  <strong>A comprehensive, multi-role web platform designed for trekking agencies, expedition guides, and trekkers to streamline guide assignments, customer bookings, payment tracking, automated PDF report generation, Redis caching, and asynchronous background tasks.</strong>
+</p>
 
+<p align="center">
+  <a href="https://priyavartjakhar-trailsync.hf.space"><img src="https://img.shields.io/badge/Live%20Demo-Hugging%20Face%20Spaces-blue?style=for-the-badge&logo=huggingface" alt="Live Demo" /></a>
+  <a href="https://github.com/priyavartjakhar/TrailSync-Trekking-Management-Application/blob/main/Dockerfile"><img src="https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker Ready" /></a>
+  <a href="https://vuejs.org/"><img src="https://img.shields.io/badge/Frontend-Vue.js%203-4FC08D?style=for-the-badge&logo=vuedotjs&logoColor=white" alt="Vue.js 3" /></a>
+  <a href="https://flask.palletsprojects.com/"><img src="https://img.shields.io/badge/Backend-Flask-000000?style=for-the-badge&logo=flask&logoColor=white" alt="Flask API" /></a>
+  <a href="https://redis.io/"><img src="https://img.shields.io/badge/Cache-Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white" alt="Redis Cache" /></a>
+  <a href="https://docs.celeryq.dev/"><img src="https://img.shields.io/badge/Tasks-Celery-37814A?style=for-the-badge&logo=celery&logoColor=white" alt="Celery Tasks" /></a>
+</p>
 ---
 
 ## 🌐 Live Demo & Test Accounts

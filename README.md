@@ -35,6 +35,52 @@ Test the multi-role dashboards using these pre-seeded accounts:
 
 ---
 
+## 📸 Application Screenshots & Interface Showcase
+
+### 🌐 Public Landing Page & Authentication
+| Landing Page Hero | Interactive Trek Map |
+| :---: | :---: |
+| ![Homepage](docs/screenshots/homepage.png) | ![Homepage Map](docs/screenshots/homepage_map.png) |
+
+| Role Login Portal | Footer & Platform Navigation |
+| :---: | :---: |
+| ![Login Page](docs/screenshots/login_page.png) | ![Homepage Footer](docs/screenshots/homepage_footer.png) |
+
+---
+
+### 👑 Admin Control Center
+| Main Admin Dashboard | Revenue & Growth Analytics |
+| :---: | :---: |
+| ![Admin Main Dashboard](docs/screenshots/admin_main_dashboard.png) | ![Admin Revenue Analytics](docs/screenshots/admin_reveune_analytics.png) |
+
+| Staff & Guide Roster Management | Automated Business Report Center |
+| :---: | :---: |
+| ![Admin Staff Tab](docs/screenshots/admin_dash_staff_tab.png) | ![Admin Report Center](docs/screenshots/admin_report_center.png) |
+
+---
+
+### 🏔️ Trekker (User) Portal & Expeditions
+| Trekker Overview Dashboard | Trek Catalog & Filtering |
+| :---: | :---: |
+| ![Trekker Main Dashboard](docs/screenshots/trekker_main_dash.png) | ![Trekker Explore Tab](docs/screenshots/trekker_explore_tab.png) |
+
+| Detailed Trek Itineraries | Bookings, Receipts & Payment Status |
+| :---: | :---: |
+| ![Trekker Explore Treks](docs/screenshots/trekker_exploretreks.png) | ![Trekker Bookings](docs/screenshots/trekker_bookings.png) |
+
+---
+
+### 🎒 Staff & Guide Portal
+| Guide Main Dashboard | Assigned Treks & Roster |
+| :---: | :---: |
+| ![Staff Main Dashboard](docs/screenshots/staff_main_dash.png) | ![Staff Assigned Treks](docs/screenshots/staff_assigned_treks_tab.png) |
+
+| Staff Support Center | Trekker Community Social Feed |
+| :---: | :---: |
+| ![Staff Support Tab](docs/screenshots/staff_support_tab.png) | ![TrailSync Social](docs/screenshots/trailsync_social.png) |
+
+---
+
 ## 🌟 Key Features
 
 ### 🏕️ Multi-Role Dashboards
